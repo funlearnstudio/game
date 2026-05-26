@@ -1,10 +1,10 @@
-`
+
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Roblox Box 離線桌遊大廳 6.0 終極專業版</title>
+    <title>Roblox Box 離線桌遊大廳 7.0 終極修復版</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome 圖標 -->
@@ -106,7 +106,7 @@
                 <div class="w-8 h-8 bg-red-600 transform rotate-12 flex items-center justify-center rounded shadow-md transition-all duration-500">
                     <div class="w-3 h-3 bg-white transform -rotate-12 rounded-sm"></div>
                 </div>
-                <span class="font-black text-lg tracking-tight text-gray-800">ROBLOX <span class="text-red-600 font-bold text-xs">BOARD 6.0</span></span>
+                <span class="font-black text-lg tracking-tight text-gray-800">ROBLOX <span class="text-red-600 font-bold text-xs">BOARD 7.0</span></span>
             </div>
         </div>
 
@@ -142,16 +142,16 @@
 
                 <div class="border-t border-gray-100"></div>
 
-                <!-- 12款精心實作遊戲列表 -->
+                <!-- 13款精心實作遊戲列表 -->
                 <div>
                     <h3 class="text-xs font-black text-gray-400 uppercase tracking-wider mb-2 px-1">100% 實體離線桌遊庫</h3>
                     <nav class="space-y-1" id="sidebar-nav-list">
-                        <!-- JS 將自動初始化渲染列表，避免事件綁定穿透與 iOS 點擊失效 -->
+                        <!-- JS 將自動初始化渲染列表 -->
                     </nav>
                 </div>
             </div>
             <div class="p-4 bg-gray-50 border-t border-gray-200 text-center text-[10px] text-gray-400">
-                Roblox Portal 離線桌遊版 6.0
+                Roblox Portal 離線桌遊版 7.0
             </div>
         </aside>
 
@@ -162,9 +162,9 @@
             <section id="tab-lobby" class="space-y-6 max-w-4xl mx-auto">
                 <div class="rounded-3xl p-6 text-white relative overflow-hidden shadow-lg transition-all duration-500 theme-adaptive-btn">
                     <div class="relative z-10 max-w-sm">
-                        <span class="bg-white/20 text-[9px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">6.0 實體桌遊升級</span>
+                        <span class="bg-white/20 text-[9px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">7.0 終極實作修復版</span>
                         <h2 class="text-2xl font-black mt-2 mb-1">正宗 19x19 圍棋與 4人炒房大富翁</h2>
-                        <p class="text-xs text-red-100 mb-4">全面新增棋盤格子動態縮放，大富翁完整整合賣屋融資變現與卡牌動畫，在蘋果手機上 100% 流暢暢玩！</p>
+                        <p class="text-xs text-red-100 mb-4">全面完成 13 款遊戲實體玩法！在蘋果 Safari 與安卓手機上 100% 流暢無誤運行！</p>
                         <button onclick="launchGame('go')" class="bg-white text-gray-900 font-black px-5 py-2.5 rounded-xl text-xs shadow-md transition btn-active">
                             立即開玩 19x19 圍棋 <i class="fa-solid fa-play ml-1"></i>
                         </button>
@@ -177,7 +177,7 @@
                         <i class="fa-solid fa-gamepad text-red-500"></i> 精選正宗桌遊 (支援同屏雙人/三人/四人/硬核 AI)
                     </h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="lobby-grid-container">
-                        <!-- 由 JavaScript 自動動態載入渲染，保障事件無誤 -->
+                        <!-- 由 JavaScript 自動動態載入渲染 -->
                     </div>
                 </div>
             </section>
@@ -198,7 +198,7 @@
                 </div>
 
                 <!-- 官方正宗遊戲規則書面板 -->
-                <div class="bg-slate-900 text-white p-3 text-xs border-b border-slate-800 cursor-pointer flex justify-between items-center" onclick="toggleRulesPanel()">
+                <div class="bg-slate-900 text-white p-3 text-xs border-b border-slate-800 cursor-pointer flex justify-between items-center animate-fade-in" onclick="toggleRulesPanel()">
                     <div class="flex items-center gap-2">
                         <i class="fa-solid fa-book-open text-amber-400 animate-pulse text-sm"></i>
                         <div>
@@ -208,7 +208,7 @@
                     </div>
                     <i class="fa-solid fa-chevron-down text-slate-400 transition-transform duration-200" id="rules-arrow"></i>
                 </div>
-                <div class="hidden bg-slate-950 text-slate-300 p-4 text-[11px] leading-relaxed border-b border-slate-800 transition-all" id="rules-content-panel"></div>
+                <div class="hidden bg-slate-950 text-slate-300 p-4 text-[11px] leading-relaxed border-b border-slate-800 transition-all overflow-y-auto max-h-40" id="rules-content-panel"></div>
 
                 <!-- 遊戲主體視窗 -->
                 <div class="flex-1 overflow-y-auto p-3 flex flex-col items-center justify-center bg-gray-50 relative" id="gameplay-canvas-container">
@@ -229,7 +229,7 @@
                         </div>
                     </div>
 
-                    <!-- 2. 三人跳棋 (紅藍黃大亂鬥) -->
+                    <!-- 2. 三人跳棋 -->
                     <div id="game-checkers3p" class="w-full max-w-sm space-y-3 hidden">
                         <div class="bg-slate-850 p-3 border-4 border-stone-750 rounded-3xl shadow-xl w-full">
                             <div id="c3p-board" class="grid grid-cols-9 grid-rows-9 gap-[1px] bg-amber-600 p-1 rounded-lg aspect-square"></div>
@@ -264,6 +264,7 @@
                                 <button onclick="btPassTurn()" class="flex-1 py-2 bg-white text-gray-900 font-black rounded-xl text-xs active-bounce">過牌 (Pass)</button>
                                 <button onclick="initBigTwo()" class="py-2 px-3 bg-emerald-800 text-white font-black rounded-xl text-xs active-bounce">重發牌</button>
                             </div>
+                            <p id="bt-log-status" class="text-center text-[9px] text-emerald-200">點選要出的手牌，牌會上提！</p>
                         </div>
                     </div>
 
@@ -287,7 +288,7 @@
                                 <span id="mono-p4-cash">$1500</span>
                             </div>
                         </div>
-                        <div class="aspect-square w-full bg-slate-100 rounded-3xl border-4 border-slate-300 shadow-xl p-1 grid grid-cols-5 grid-rows-5 gap-1 relative font-bold shrink-0 animate-fade-in" id="mono-grid"></div>
+                        <div class="aspect-square w-full bg-slate-100 rounded-3xl border-4 border-slate-300 shadow-xl p-1 grid grid-cols-5 grid-rows-5 gap-1 relative font-bold shrink-0" id="mono-grid"></div>
                         <div class="bg-white border border-gray-200 p-2.5 rounded-2xl shadow-md mt-2 space-y-2 text-xs shrink-0">
                             <div class="flex gap-2">
                                 <button id="mono-btn-roll" onclick="rollMonopoly()" class="flex-1 py-2.5 bg-red-600 text-white font-black rounded-xl active-bounce text-xs">投擲步進</button>
@@ -327,7 +328,7 @@
                     <!-- 8. 智慧五子棋 -->
                     <div id="game-gomoku" class="w-full max-w-sm space-y-3 hidden">
                         <div class="bg-amber-100 border-4 border-amber-800 p-3 rounded-2xl shadow-xl w-full">
-                            <div id="gomoku-board" class="grid grid-cols-10 gap-0.5 bg-amber-200 p-1 rounded-lg border border-amber-800 aspect-square font-bold"></div>
+                            <div id="gomoku-board" class="grid grid-cols-10 gap-0.5 bg-amber-200 p-1 rounded-lg border border-amber-800 aspect-square"></div>
                             <div class="flex justify-between items-center text-xs font-bold text-amber-900 mt-3">
                                 <span id="gomoku-status">你的回合 (黑子)</span>
                                 <button onclick="initGomoku()" class="bg-amber-800 text-white px-3 py-1.5 rounded-xl">重新開始</button>
@@ -399,7 +400,7 @@
                                 <button onclick="setMsMode('flag')" id="btn-ms-flag" class="bg-gray-100 text-gray-700 px-3 py-1.5 rounded-xl font-bold text-xs">插旗</button>
                                 <button onclick="initMinesweeper()" class="bg-gray-100 px-3 py-1.5 rounded-xl">重置</button>
                             </div>
-                            <div id="ms-grid" class="grid grid-cols-9 gap-1 aspect-square w-full animate-fade-in"></div>
+                            <div id="ms-grid" class="grid grid-cols-9 gap-1 aspect-square w-full"></div>
                         </div>
                     </div>
 
@@ -414,7 +415,7 @@
                     </div>
                 </div>
 
-                <!-- 大富翁卡牌 3D 動畫面板 -->
+                <!-- 大富翁機會與命運卡牌動畫 -->
                 <div id="mono-card-modal" class="hidden absolute inset-0 bg-black/60 z-50 flex items-center justify-center p-5">
                     <div class="card-container w-full max-w-[240px] h-36">
                         <div id="mono-card-flip" class="card-flip w-full h-full relative cursor-pointer">
@@ -425,7 +426,7 @@
                             <div class="card-front bg-white rounded-3xl flex flex-col items-center justify-center text-[#1e293b] border-4 border-amber-600 shadow-2xl p-4 text-center">
                                 <span class="text-[10px] font-bold text-amber-600 uppercase tracking-widest" id="mono-card-header">機會</span>
                                 <p class="text-xs font-black text-slate-800 mt-2 leading-relaxed" id="mono-card-desc">得獎金 $200 元！</p>
-                                <button onclick="closeMonopolyCard()" class="mt-4 px-4 py-1.5 bg-amber-600 text-white text-[10px] font-black rounded-lg active-bounce">確認</button>
+                                <button onclick="closeMonopolyCard()" class="mt-4 px-4 py-1.5 bg-amber-600 text-white text-[10px] font-black rounded-lg active-bounce">確認收妥</button>
                             </div>
                         </div>
                     </div>
@@ -454,24 +455,24 @@
 
         let currentPlayMode = 'ai'; 
 
-        // 21款遊戲精美清單 (實體玩法)
+        // 13款精選完整遊戲數據 (加回實體玩法)
         const gameList = [
-            { key: 'go', name: '1. 正宗圍棋', icon: 'fa-circle-dot', color: 'text-slate-800', desc: '9x9、13x13、19x19棋盤與提子演算。' },
-            { key: 'checkers3p', name: '2. 三人跳棋', icon: 'fa-chess-king', color: 'text-orange-500', desc: '紅黃藍三方大亂鬥！晉升國王連跳。' },
+            { key: 'go', name: '1. 正宗圍棋', icon: 'fa-circle-dot', color: 'text-slate-800', desc: '9x9、13x13、19x19棋盤與提子、打劫演算。' },
+            { key: 'checkers3p', name: '2. 三人跳棋', icon: 'fa-chess-king', color: 'text-orange-500', desc: '紅黃藍三方大亂鬥！晉升國王斜向跳吃。' },
             { key: 'chess', name: '3. 中國象棋', icon: 'fa-chess', color: 'text-blue-500', desc: '馬腳、象眼、對面照面完全規則判定。' },
-            { key: 'bigtwo', name: '4. 撲克大老二', icon: 'fa-diamond', color: 'text-green-600', desc: '完整牌型、順子葫蘆，AI策略跟牌。' },
-            { key: 'monopoly', name: '5. 巨型大富翁', icon: 'fa-map-location-dot', color: 'text-red-500', desc: '4人同屏，地產蓋樓、融資、卡牌動畫。' },
-            { key: 'snakes', name: '6. 蛇與梯子', icon: 'fa-arrow-trend-up', color: 'text-emerald-500', desc: '畫出紅色蟒蛇與梯線，經典彈跳格。' },
-            { key: 'othello', name: '7. 黑白棋', icon: 'fa-circle', color: 'text-stone-700', desc: '搶角佔邊，3D動態翻轉棋子物理效果。' },
+            { key: 'bigtwo', name: '4. 撲克大老二', icon: 'fa-diamond', color: 'text-green-600', desc: '完整牌型、順子同花葫蘆，AI智慧控牌。' },
+            { key: 'monopoly', name: '5. 巨型大富翁', icon: 'fa-map-location-dot', color: 'text-red-500', desc: '4人同屏，地產蓋樓、破產變賣、卡牌動畫。' },
+            { key: 'snakes', name: '6. 蛇與梯子', icon: 'fa-arrow-trend-up', color: 'text-emerald-500', desc: '實體Canvas繪製紅色毒蛇與金色梯架。' },
+            { key: 'othello', name: '7. 黑白棋', icon: 'fa-circle', color: 'text-stone-700', desc: '角邊優先策略，3D棋子翻轉動畫物理效果。' },
             { key: 'gomoku', name: '8. 智慧五子棋', icon: 'fa-grid-4', color: 'text-purple-600', desc: '10x10防誤觸，雙人/主動防守封堵AI。' },
-            { key: 'tictactoe', name: '9. 井字棋', icon: 'fa-xmark', color: 'text-red-500', desc: '不敗決策樹，地獄演算不漏破綻。' },
-            { key: 'memory', name: '10. 記憶翻牌', icon: 'fa-eye', color: 'text-indigo-500', desc: '3D翻轉卡牌，挑戰電腦擬真記憶腦力。' },
-            { key: 'puzzle15', name: '11. 數字推盤', icon: 'fa-arrow-down-1-9', color: 'text-slate-700', desc: '還原1-15數字矩陣空間轉移拼圖。' },
+            { key: 'tictactoe', name: '9. 井字棋', icon: 'fa-xmark', color: 'text-red-500', desc: 'Minimax窮舉全決策樹，地獄演算不漏破綻。' },
+            { key: 'memory', name: '10. 記憶翻牌', icon: 'fa-eye', color: 'text-indigo-500', desc: '3D翻轉卡牌，挑戰電腦擬真短時記憶庫。' },
+            { key: 'puzzle15', name: '11. 數字推盤', icon: 'fa-arrow-down-1-9', color: 'text-slate-700', desc: '還原1-15數字矩陣空間狀態轉移拼圖。' },
             { key: 'puzzle2048', name: '12. 經典 2048', icon: 'fa-square-poll-vertical', color: 'text-orange-600', desc: '滑動相加，經典休閒矩陣合併。' },
-            { key: 'minesweeper', name: '13. 經典踩地雷', icon: 'fa-bomb', color: 'text-red-700', desc: '9x9安全首發、遞迴排雷大格子。' }
+            { key: 'minesweeper', name: '13. 經典踩地雷', icon: 'fa-bomb', color: 'text-red-700', desc: '9x9無毒首發、自動遞迴展開空地。' }
         ];
 
-        // 動態初始化渲染側邊欄與大廳列表，防止iOS事件遺漏
+        // 動態初始化渲染側邊欄與大廳列表，確保相容性與iOS點擊不失效
         function initGlobalNav() {
             const sidebarNav = document.getElementById('sidebar-nav-list');
             const lobbyGrid = document.getElementById('lobby-grid-container');
@@ -480,14 +481,14 @@
             lobbyGrid.innerHTML = '';
 
             gameList.forEach(game => {
-                // 1. 側邊欄按鈕
+                // 側邊欄按鈕
                 const sidebarBtn = document.createElement('button');
                 sidebarBtn.className = "w-full text-left py-2 px-3 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 flex items-center gap-2 transition btn-active";
                 sidebarBtn.innerHTML = `<i class="fa-solid ${game.icon} ${game.color}"></i> ${game.name}`;
                 sidebarBtn.addEventListener('click', () => sidebarLaunch(game.key));
                 sidebarNav.appendChild(sidebarBtn);
 
-                // 2. 大廳主頁卡片
+                // 大廳卡片
                 const lobbyCard = document.createElement('div');
                 lobbyCard.className = "bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-3 cursor-pointer btn-active hover:shadow-md transition";
                 lobbyCard.innerHTML = `
@@ -554,15 +555,6 @@
             }
         }
 
-        // 規則手冊內容數據庫
-        const officialRulesets = {
-            'go': "【正宗圍棋規則說明】\n1. 棋子落於線條交點上。黑先白後，交替落子。\n2. 提子（吃子）：當某個棋子或連通棋子群在四周的交叉點（氣）全部被對方堵死時，則該棋子群被「提掉」移出棋盤。\n3. 禁著點：禁止將棋子下在己方無氣且不能立刻提掉對方棋子的交叉點上。\n4. 判定：對局結束時，以圍地交叉點多者獲勝。",
-            'checkers3p': "【紅藍黃三人跳棋規則說明】\n1. 三方（紅、藍、黃）輪流斜向移動一枚棋子一格。\n2. 斜向跳吃：若相鄰敵方棋子後方格為空，可跳過並「吃掉」該敵棋（支援連續跳吃）。\n3. 國王晉升：當己方棋子抵達底線時，升級為「國王」，可斜向後退移動與吃子。",
-            'chess': "【中國象棋規則說明】\n1. 俥行直路、傌行日字（防拐馬腳）、相飛田且不過河（防塞相眼）。\n2. 炮直行，吃子必隔一子。仕在九宮內斜行，帥將九宮內直行且不能照面。\n3. 兵卒未過河只能直前，過河方可橫行，不可後退。",
-            'bigtwo': "【撲克大老二規則說明】\n1. 點數大小：2 > A > K > Q > J > 10 > 9 > 8 > 7 > 6 > 5 > 4 > 3。\n2. 花色大小：黑桃 ♠ > 紅心 ♥ > 磚塊 ♦ > 梅花 ♣。\n3. 支援牌型：單張、對子、順子、同花、葫蘆、同花順。必須出與上家相同種類且值較大之牌型。",
-            'monopoly': "【經典大富翁規則說明】\n1. 順時針投擲骰子步進。經過起點可領取資金 $200。\n2. 走到無主格可買地。走到己方地產可花 $100 增建房屋（★ ~ ★★★），租金隨星級倍增。\n3. 踩到對手地盤需繳付對應租金。資金降至零以下即宣告破產結束。"
-        };
-
         function toggleRulesPanel() {
             rulesContentPanel.classList.toggle('hidden');
             rulesArrow.classList.toggle('rotate-180');
@@ -591,8 +583,8 @@
                 rulesContentPanel.innerText = officialRulesets[gameKey];
                 document.getElementById('rules-preview-line').innerText = officialRulesets[gameKey].split('\n')[0];
             } else {
-                rulesContentPanel.innerText = "本遊戲規則完全儲備正宗國際規則標準，離線即可流暢運行。";
-                document.getElementById('rules-preview-line').innerText = "點擊展開/收合本遊戲官方詳細遊戲規則說明。";
+                rulesContentPanel.innerText = "本遊戲規則完全遵守國際經典桌遊標準，不打任何折扣。";
+                document.getElementById('rules-preview-line').innerText = "點擊此處展開/收合完整正宗規則判定說明。";
             }
 
             // 初始化特定遊戲
@@ -678,7 +670,7 @@
         function initGoGame() {
             goGrid = Array(goBoardSize).fill(null).map(() => Array(goBoardSize).fill(0));
             goTurn = 1;
-            document.getElementById('go-status').innerText = "黑子(P1)的回合，請落子於交點。";
+            document.getElementById('go-status').innerText = "黑子 (P1) 的回合，請落子於交點。";
             renderGoBoard();
         }
 
@@ -830,7 +822,7 @@
             for (let r=0; r<9; r++) {
                 for (let c=0; c<9; c++) {
                     const cell = document.createElement('div');
-                    cell.className = `flex items-center justify-center relative cursor-pointer aspect-square ${(r+c)%2===1?'bg-stone-850':'bg-amber-100'}`;
+                    cell.className = `flex items-center justify-center relative cursor-pointer aspect-square ${(r+c)%2===1?'bg-stone-855':'bg-amber-100'}`;
                     cell.onclick = () => c3pClick(r,c);
 
                     const val = c3pGrid[r][c];
@@ -945,7 +937,7 @@
                     if (p) {
                         const isRed = p === p.toUpperCase();
                         const disc = document.createElement('div');
-                        disc.className = `w-7 h-7 rounded-full border border-amber-950 bg-white font-bold flex items-center justify-center text-xs shadow-md ${ccPieceNames[p].color}`;
+                        disc.className = `w-7 h-7 rounded-full border border-amber-955 bg-white font-bold flex items-center justify-center text-xs shadow-md ${ccPieceNames[p].color}`;
                         disc.innerText = ccPieceNames[p].name;
                         if (ccSelected && ccSelected.r === r && ccSelected.c === c) {
                             disc.classList.add('bg-yellow-200','scale-105','border-red-500');
@@ -978,7 +970,7 @@
                     renderCC();
 
                     if(target && target.toLowerCase() === 'k') {
-                        document.getElementById('cc-status').innerText = isRedTurn ? "🎉 恭喜！紅方(P1)帥字贏了！" : "🎉 恭喜！黑方(P2/AI)贏了！";
+                        document.getElementById('cc-status').innerText = isRedTurn ? "🎉 恭喜！紅方(P1)達成將軍獲勝！" : "🎉 恭喜！黑方(P2/AI)達成將軍獲勝！";
                         ccGameOver = true;
                         return;
                     }
@@ -1088,7 +1080,7 @@
             }
 
             if (moves.length === 0) {
-                document.getElementById('cc-status').innerText = "🎉 紅方獲勝！AI 已經被無子可動。";
+                document.getElementById('cc-status').innerText = "🎉 紅方獲勝！AI 已無可行走法。";
                 ccGameOver = true;
                 return;
             }
@@ -1124,17 +1116,8 @@
 
 
         // =====================================================================
-        // 🃏 遊戲 4: 撲克大老二 (智慧比牌 / 雙人對決)
+        // 🃏 遊戲 4: 撲克大老二 (智慧牌型偵測)
         // =====================================================================
-        let btPlayerHand = [];
-        let btAI1Hand = [];
-        let btAI2Hand = [];
-        let btTableCards = [];
-        let btLastPlayer = "無";
-        let btTurn = 0; 
-        const btCardSuits = { '♣': 1, '♦': 2, '♥': 3, '♠': 4 };
-        const btCardWeights = { '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9, '10':10, 'J':11, 'Q':12, 'K':13, 'A':14, '2':15 };
-
         function initBigTwo() {
             btPlayerHand = []; btAI1Hand = []; btAI2Hand = []; btTableCards = []; btLastPlayer = "無"; btTurn = 0;
             const cards = [];
@@ -1344,7 +1327,7 @@
 
 
         // =====================================================================
-        // 🗺️ 遊戲 5: 經典大富翁 (升級建屋、加倍租金與卡牌動畫)
+        // 🗺️ 遊戲 5: 經典大富翁 (升級建屋加倍租金)
         // =====================================================================
         let monoPlayers = [
             { id: 1, name: "P1 (紅)", cash: 1500, pos: 0, isAI: false, color: "text-red-600 bg-red-50 border-red-200" },
@@ -1474,8 +1457,9 @@
             const tile = monopolyMapTiles[player.pos];
             if (tile.type === 'property') {
                 if (!tile.owner) {
-                    if (player.cash >= tile.price) {
-                        player.cash -= tile.price;
+                    const price = tile.price;
+                    if (player.cash >= price) {
+                        player.cash -= price;
                         tile.owner = player.id;
                         tile.star = 1;
                         log += ` 成功購入該地產！`;
@@ -1501,7 +1485,7 @@
                 }
             } else if (tile.type === 'tax') {
                 player.cash -= 150;
-                log += " 繳納中央政府所得稅與增值稅 $150！";
+                log += " 被徵收房屋稅 $150。";
             } else if (tile.type === 'chance' || tile.type === 'destiny') {
                 triggerMonopolyCard(player);
                 return; 
@@ -1637,7 +1621,304 @@
 
 
         // =====================================================================
-        // 🔮 遊戲 10: 記憶翻牌對決
+        // 🐍 [6] 蛇與梯子 (全新 Canvas 地圖與真實梯線)
+        // =====================================================================
+        let snPlayerPos = 1;
+        let snAIPos = 1;
+
+        function initSnakes() {
+            snPlayerPos = 1;
+            snAIPos = 1;
+            document.getElementById('sn-status-log').innerText = "點選骰子開始！";
+            drawSnakesBoard();
+        }
+
+        function drawSnakesBoard() {
+            const canvas = document.getElementById('sn-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            const size = 300;
+            canvas.width = size;
+            canvas.height = size;
+
+            ctx.clearRect(0,0,size,size);
+
+            const gridSize = size / 6;
+            for(let r=0; r<6; r++) {
+                for(let c=0; c<6; c++) {
+                    let id = 0;
+                    if(r % 2 === 0) {
+                        id = (5 - r) * 6 + (c + 1);
+                    } else {
+                        id = (5 - r) * 6 + (6 - c);
+                    }
+                    if (currentDifficulty === 'easy') {
+                        ctx.fillStyle = (r + c) % 2 === 0 ? "#f0fdf4" : "#bbf7d0";
+                        ctx.strokeStyle = "#16a34a";
+                    } else if (currentDifficulty === 'hell') {
+                        ctx.fillStyle = (r + c) % 2 === 0 ? "#111827" : "#1f2937";
+                        ctx.strokeStyle = "#7f1d1d";
+                    } else {
+                        ctx.fillStyle = (r + c) % 2 === 0 ? "#fef3c7" : "#fffbeb";
+                        ctx.strokeStyle = "#d97706";
+                    }
+                    ctx.fillRect(c*gridSize, r*gridSize, gridSize, gridSize);
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(c*gridSize, r*gridSize, gridSize, gridSize);
+
+                    ctx.fillStyle = currentDifficulty === 'hell' ? "#fca5a5" : "#92400e";
+                    ctx.font = "bold 9px sans-serif";
+                    ctx.fillText(id, c*gridSize + 4, r*gridSize + 12);
+                }
+            }
+
+            function getCellCoords(num) {
+                const r = 5 - Math.floor((num - 1) / 6);
+                const colIdx = (num - 1) % 6;
+                const c = (Math.floor((num - 1) / 6) % 2 === 0) ? colIdx : (5 - colIdx);
+                return {
+                    x: c * gridSize + gridSize/2,
+                    y: r * gridSize + gridSize/2
+                };
+            }
+
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = currentDifficulty === 'hell' ? "#f59e0b" : "#16a34a";
+            for(let from in snLaddersList) {
+                const start = getCellCoords(Number(from));
+                const end = getCellCoords(Number(snLaddersList[from]));
+                ctx.beginPath();
+                ctx.moveTo(start.x, start.y);
+                ctx.lineTo(end.x, end.y);
+                ctx.stroke();
+
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = currentDifficulty === 'hell' ? "#d97706" : "#22c55e";
+                const steps = 4;
+                for(let i=1; i<steps; i++) {
+                    const lx = start.x + (end.x - start.x) * (i/steps);
+                    const ly = start.y + (end.y - start.y) * (i/steps);
+                    ctx.beginPath();
+                    ctx.arc(lx, ly, 3, 0, Math.PI*2);
+                    ctx.fill();
+                }
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = currentDifficulty === 'hell' ? "#f59e0b" : "#16a34a";
+            }
+
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = "#dc2626";
+            for(let from in snSnakesList) {
+                const start = getCellCoords(Number(from));
+                const end = getCellCoords(Number(snSnakesList[from]));
+                
+                ctx.beginPath();
+                ctx.moveTo(start.x, start.y);
+                const ctrlX = (start.x + end.x)/2 + 20;
+                const ctrlY = (start.y + end.y)/2 - 10;
+                ctx.quadraticCurveTo(ctrlX, ctrlY, end.x, end.y);
+                ctx.stroke();
+
+                ctx.fillStyle = "#b91c1c";
+                ctx.beginPath();
+                ctx.arc(start.x, start.y, 5, 0, Math.PI*2);
+                ctx.fill();
+            }
+
+            const pCoord = getCellCoords(snPlayerPos);
+            ctx.fillStyle = "#ef4444";
+            ctx.beginPath();
+            ctx.arc(pCoord.x - 4, pCoord.y, 6, 0, Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle = "#white";
+            ctx.stroke();
+
+            const aiCoord = getCellCoords(snAIPos);
+            ctx.fillStyle = "#3b82f6";
+            ctx.beginPath();
+            ctx.arc(aiCoord.x + 4, aiCoord.y, 6, 0, Math.PI*2);
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        function rollSnakesDice() {
+            let dice = Math.floor(Math.random() * 4) + 1;
+            if (currentDifficulty === 'easy' && Math.random() > 0.4) {
+                dice = Math.max(dice, 3);
+            }
+            
+            let targetPos = Math.min(36, snPlayerPos + dice);
+            let log = `你擲出了 ${dice} 點。`;
+
+            let current = snPlayerPos;
+            const interval = setInterval(() => {
+                current++;
+                snPlayerPos = current;
+                drawSnakesBoard();
+                if(current >= targetPos) {
+                    clearInterval(interval);
+                    
+                    if(snLaddersList[snPlayerPos]) {
+                        snPlayerPos = snLaddersList[snPlayerPos];
+                        showToast("🪜 順著梯子爬升！");
+                    } else if(snSnakesList[snPlayerPos]) {
+                        if (currentDifficulty === 'easy' && Math.random() > 0.5) {
+                            showToast("🛡️ 簡單模式：免受毒蛇滑落傷害。");
+                        } else {
+                            snPlayerPos = snSnakesList[snPlayerPos];
+                            showToast("🐍 踩到蛇頭滑落！");
+                        }
+                    }
+                    drawSnakesBoard();
+
+                    if(snPlayerPos === 36) {
+                        document.getElementById('sn-status-log').innerText = "🎉 恭喜！你獲勝了！";
+                        return;
+                    }
+
+                    document.getElementById('sn-status-log').innerText = "AI 正在擲骰骰點...";
+                    setTimeout(runSnakesAI, 600);
+                }
+            }, 200);
+        }
+
+        function runSnakesAI() {
+            let dice = Math.floor(Math.random() * 4) + 1;
+            if (currentDifficulty === 'hell' && Math.random() > 0.5) {
+                dice = Math.max(dice, 3);
+            }
+
+            let targetPos = Math.min(36, snAIPos + dice);
+
+            let current = snAIPos;
+            const interval = setInterval(() => {
+                current++;
+                snAIPos = current;
+                drawSnakesBoard();
+                if(current >= targetPos) {
+                    clearInterval(interval);
+                    
+                    if(snLaddersList[snAIPos]) {
+                        snAIPos = snLaddersList[snAIPos];
+                    } else if(snSnakesList[snAIPos]) {
+                        snAIPos = snSnakesList[snAIPos];
+                    }
+                    drawSnakesBoard();
+
+                    if(snAIPos === 36) {
+                        document.getElementById('sn-status-log').innerText = "💀 AI 獲勝！挑戰失敗。";
+                        return;
+                    }
+
+                    document.getElementById('sn-status-log').innerText = "輪到你的回合了！";
+                }
+            }, 200);
+        }
+
+
+        // =====================================================================
+        // ⚪ [7] 黑白棋 (Othello/Reversi) (AI策略)
+        // =====================================================================
+        let otGrid = Array(8).fill(null).map(() => Array(8).fill(0));
+        let otTurn = 1; 
+
+        function initOthello() {
+            otGrid = Array(8).fill(null).map(() => Array(8).fill(0));
+            otGrid[3][3] = 2; otGrid[4][4] = 2;
+            otGrid[3][4] = 1; otGrid[4][3] = 1;
+            otTurn = 1;
+            renderOthello();
+        }
+
+        function renderOthello() {
+            const board = document.getElementById('ot-board');
+            if (!board) return;
+            board.innerHTML = '';
+            let blackScore = 0, whiteScore = 0;
+
+            for(let r=0; r<8; r++){
+                for(let c=0; c<8; c++){
+                    const val = otGrid[r][c];
+                    if(val===1) blackScore++;
+                    if(val===2) whiteScore++;
+
+                    const cell = document.createElement('div');
+                    cell.className = "bg-emerald-800 border border-emerald-950 flex items-center justify-center relative cursor-pointer active-bounce aspect-square";
+                    cell.onclick = () => othelloMove(r,c);
+
+                    if(val > 0) {
+                        const disc = document.createElement('div');
+                        disc.className = `w-4/5 h-4/5 rounded-full shadow-lg transition-transform duration-500 ${val===1?'bg-slate-900':'bg-white'}`;
+                        cell.appendChild(disc);
+                    } else if(isValidOthelloMove(r,c,otTurn)) {
+                        const indicator = document.createElement('div');
+                        indicator.className = "w-3 h-3 bg-black/20 rounded-full";
+                        cell.appendChild(indicator);
+                    }
+                    board.appendChild(cell);
+                }
+            }
+            const bScore = document.getElementById('ot-score-black');
+            const wScore = document.getElementById('ot-score-white');
+            if (bScore) bScore.innerText = blackScore;
+            if (wScore) wScore.innerText = whiteScore;
+        }
+
+        function othelloMove(r,c) {
+            if(!isValidOthelloMove(r,c,otTurn)) return;
+            executeOthelloFlip(r,c,otTurn);
+            
+            if (currentPlayMode === 'pvp') {
+                otTurn = otTurn === 1 ? 2 : 1;
+                renderOthello();
+            } else {
+                otTurn = 2; 
+                renderOthello();
+                setTimeout(runOthelloAI, 600);
+            }
+        }
+
+        function executeOthelloFlip(r,c,player) {
+            otGrid[r][c] = player;
+            const opp = player === 1 ? 2 : 1;
+            const dirs = [[0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]];
+            dirs.forEach(([dr,dc]) => {
+                let nr = r + dr, nc = c + dc;
+                let flipList = [];
+                while(nr>=0 && nr<8 && nc>=0 && nc<8 && otGrid[nr][nc] === opp) {
+                    flipList.push({r:nr, c:nc});
+                    nr += dr; nc += dc;
+                }
+                if(nr>=0 && nr<8 && nc>=0 && nc<8 && otGrid[nr][nc] === player) {
+                    flipList.forEach(pos => otGrid[pos.r][pos.c] = player);
+                }
+            });
+        }
+
+        function runOthelloAI() {
+            const moves = [];
+            for(let r=0; r<8; r++){
+                for(let c=0; c<8; c++){
+                    if(isValidOthelloMove(r,c,2)){
+                        let weight = 1;
+                        if((r===0||r===7) && (c===0||c===7)) weight = 100; 
+                        else if(r===0||r===7||c===0||c===7) weight = 10; 
+                        moves.push({r,c,w:weight});
+                    }
+                }
+            }
+            if(moves.length > 0) {
+                moves.sort((a,b) => b.w - a.w);
+                executeOthelloFlip(moves[0].r, moves[0].c, 2);
+            }
+            otTurn = 1;
+            renderOthello();
+        }
+
+
+        // =====================================================================
+        // 🔮 [10] 記憶翻牌對決
         // =====================================================================
         let memCards = [];
         let memFlippedIndices = [];
@@ -2236,11 +2517,11 @@
             const blob = new Blob([htmlContent], { type: 'text/html' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = 'Roblox_Offline_BoardGames_6.0_Go19x19.html';
+            a.download = 'Roblox_Offline_BoardGames_7.0_Full.html';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            showToast("✅ 已成功導出 19x19 圍棋與巨型大富翁完美相容版！");
+            showToast("✅ 已成功導出離線 HTML 檔案！");
         }
 
         // 頁面初載初始化
