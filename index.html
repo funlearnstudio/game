@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Roblox Box 離線桌遊大廳 7.0 終極修復版</title>
+    <title>Roblox Box 專業離線桌遊大廳 7.0 終極自適應版</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome 圖標 -->
@@ -73,7 +73,7 @@
             color: var(--sidebar-active-text);
         }
 
-        /* 3D 卡片翻轉動畫 */
+        /* 記憶卡牌 3D 翻轉效果 */
         .card-container {
             perspective: 1000px;
         }
@@ -91,6 +91,16 @@
         }
         .card-back {
             transform: rotateY(180deg);
+        }
+
+        /* 專門修復 iOS 行動端「棋盤變形擠壓」的關鍵限高容器 */
+        .adaptive-square-board {
+            width: 100%;
+            max-width: min(85vw, 420px);
+            aspect-ratio: 1 / 1;
+            margin-left: auto;
+            margin-right: auto;
+            position: relative;
         }
     </style>
 </head>
@@ -127,7 +137,7 @@
     <!-- 主區塊 -->
     <div class="flex flex-1 relative overflow-hidden">
 
-        <!-- 側邊欄抽屜 (修復手機點擊與雙層遮罩事件) -->
+        <!-- 側邊欄抽屜 (修復手機點擊與事件穿透) -->
         <div id="sidebar-overlay" class="hidden absolute inset-0 bg-black/40 z-30 transition-opacity"></div>
         <aside id="sidebar" class="sidebar-drawer absolute lg:relative z-30 w-72 h-full bg-white border-r border-gray-200 flex flex-col justify-between -translate-x-full lg:translate-x-0 shadow-2xl lg:shadow-none transition-all duration-500">
             <div class="p-4 flex-1 overflow-y-auto space-y-4 no-scrollbar">
@@ -146,7 +156,7 @@
                 <div>
                     <h3 class="text-xs font-black text-gray-400 uppercase tracking-wider mb-2 px-1">100% 實體離線桌遊庫</h3>
                     <nav class="space-y-1" id="sidebar-nav-list">
-                        <!-- JS 將自動初始化渲染列表 -->
+                        <!-- JS 動態初始化渲染側邊欄清單 -->
                     </nav>
                 </div>
             </div>
@@ -162,9 +172,9 @@
             <section id="tab-lobby" class="space-y-6 max-w-4xl mx-auto">
                 <div class="rounded-3xl p-6 text-white relative overflow-hidden shadow-lg transition-all duration-500 theme-adaptive-btn">
                     <div class="relative z-10 max-w-sm">
-                        <span class="bg-white/20 text-[9px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">7.0 終極實作修復版</span>
+                        <span class="bg-white/20 text-[9px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">7.0 終極防跑版修復</span>
                         <h2 class="text-2xl font-black mt-2 mb-1">正宗 19x19 圍棋與 4人炒房大富翁</h2>
-                        <p class="text-xs text-red-100 mb-4">全面完成 13 款遊戲實體玩法！在蘋果 Safari 與安卓手機上 100% 流暢無誤運行！</p>
+                        <p class="text-xs text-red-100 mb-4">全面校對版面，使用比例限制與絕對浮動面板，在任何手機尺寸下均保證畫面整齊不擠壓！</p>
                         <button onclick="launchGame('go')" class="bg-white text-gray-900 font-black px-5 py-2.5 rounded-xl text-xs shadow-md transition btn-active">
                             立即開玩 19x19 圍棋 <i class="fa-solid fa-play ml-1"></i>
                         </button>
@@ -174,7 +184,7 @@
                 <!-- 遊戲列表網格 -->
                 <div>
                     <h3 class="text-sm font-black text-gray-700 mb-3 flex items-center gap-2 px-1">
-                        <i class="fa-solid fa-gamepad text-red-500"></i> 精選正宗桌遊 (支援同屏雙人/三人/四人/硬核 AI)
+                        <i class="fa-solid fa-gamepad text-red-500"></i> 精選正宗桌遊 (支援本機同屏多人 / 高難度 AI)
                     </h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="lobby-grid-container">
                         <!-- 由 JavaScript 自動動態載入渲染 -->
@@ -197,25 +207,28 @@
                     <span id="game-title-header" class="text-xs font-black text-gray-800">遊戲載入中</span>
                 </div>
 
-                <!-- 官方正宗遊戲規則書面板 -->
-                <div class="bg-slate-900 text-white p-3 text-xs border-b border-slate-800 cursor-pointer flex justify-between items-center animate-fade-in" onclick="toggleRulesPanel()">
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-book-open text-amber-400 animate-pulse text-sm"></i>
-                        <div>
-                            <span class="font-extrabold text-amber-400 uppercase tracking-wide">官方正宗遊戲規則說明書</span>
-                            <span class="text-[10px] text-slate-400 block" id="rules-preview-line">點擊此處展開/收合完整正宗規則判定說明</span>
+                <!-- 官方正宗說明書面板 (採用絕對定位浮動，展開時完全不推擠、不壓縮下方的棋盤棋格) -->
+                <div class="relative z-30 shrink-0">
+                    <div class="bg-slate-900 text-white p-3 text-xs border-b border-slate-800 cursor-pointer flex justify-between items-center" onclick="toggleRulesPanel()">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-book-open text-amber-400 animate-pulse text-sm"></i>
+                            <div>
+                                <span class="font-extrabold text-amber-400 uppercase tracking-wide">正宗官方規則說明書</span>
+                                <span class="text-[10px] text-slate-400 block" id="rules-preview-line">點擊此處展開/收合詳細規則</span>
+                            </div>
                         </div>
+                        <i class="fa-solid fa-chevron-down text-slate-400 transition-transform duration-200" id="rules-arrow"></i>
                     </div>
-                    <i class="fa-solid fa-chevron-down text-slate-400 transition-transform duration-200" id="rules-arrow"></i>
+                    <!-- 浮動容器 -->
+                    <div class="hidden absolute top-full left-0 right-0 bg-slate-950/95 backdrop-blur-md text-slate-300 p-4 text-[11px] leading-relaxed border-b border-slate-800 shadow-2xl overflow-y-auto max-h-56 z-50" id="rules-content-panel"></div>
                 </div>
-                <div class="hidden bg-slate-950 text-slate-300 p-4 text-[11px] leading-relaxed border-b border-slate-800 transition-all overflow-y-auto max-h-40" id="rules-content-panel"></div>
 
-                <!-- 遊戲主體視窗 -->
-                <div class="flex-1 overflow-y-auto p-3 flex flex-col items-center justify-center bg-gray-50 relative" id="gameplay-canvas-container">
+                <!-- 遊戲主體視窗 (套用限高限寬的正方形 Aadaptive 容器，保證版面在任何手機上永不擠壓跑掉) -->
+                <div class="flex-1 p-4 flex flex-col items-center justify-center bg-gray-50 relative overflow-hidden" id="gameplay-canvas-container">
 
-                    <!-- 1. 正宗圍棋 -->
-                    <div id="game-go" class="w-full max-w-sm space-y-3 hidden">
-                        <div class="flex justify-between items-center bg-white p-2 rounded-2xl border border-gray-200 shadow-sm text-xs">
+                    <!-- 1. 正宗圍棋 (9x9/13x13/19x19 氣數提子與大小調整) -->
+                    <div id="game-go" class="w-full h-full flex flex-col justify-center space-y-3 hidden">
+                        <div class="flex justify-between items-center bg-white p-2 rounded-2xl border border-gray-200 shadow-sm text-xs shrink-0 max-w-sm mx-auto w-full">
                             <span class="font-extrabold text-gray-700">棋盤尺寸調節：</span>
                             <div class="flex bg-gray-100 p-0.5 rounded-lg border border-gray-200">
                                 <button onclick="setGoBoardSize(9)" id="go-size-9" class="px-2.5 py-1 rounded-md font-bold text-[10px] transition-all">9x9</button>
@@ -223,30 +236,30 @@
                                 <button onclick="setGoBoardSize(19)" id="go-size-19" class="px-2.5 py-1 rounded-md font-bold text-[10px] transition-all">19x19</button>
                             </div>
                         </div>
-                        <div class="bg-[#facc15]/10 border-4 border-amber-800 p-3 rounded-3xl shadow-xl w-full">
-                            <div id="go-board" class="grid gap-[1px] bg-amber-200 p-1 rounded-lg border-2 border-amber-700 relative aspect-square w-full"></div>
-                            <div id="go-status" class="text-center text-xs font-black text-amber-950 mt-2.5 h-4">黑子 (P1) 的回合。</div>
+                        <div class="bg-[#facc15]/10 border-4 border-amber-800 p-2 rounded-3xl shadow-xl adaptive-square-board">
+                            <div id="go-board" class="grid gap-[1px] bg-amber-200 p-1 rounded-lg border-2 border-amber-700 relative w-full h-full"></div>
                         </div>
+                        <div id="go-status" class="text-center text-xs font-black text-amber-950 h-4 shrink-0">黑子 (P1) 的回合。</div>
                     </div>
 
-                    <!-- 2. 三人跳棋 -->
-                    <div id="game-checkers3p" class="w-full max-w-sm space-y-3 hidden">
-                        <div class="bg-slate-850 p-3 border-4 border-stone-750 rounded-3xl shadow-xl w-full">
-                            <div id="c3p-board" class="grid grid-cols-9 grid-rows-9 gap-[1px] bg-amber-600 p-1 rounded-lg aspect-square"></div>
-                            <div id="c3p-status" class="text-center text-xs font-black text-white mt-2.5 h-4">紅方 (P1) 的回合，請移動。</div>
+                    <!-- 2. 三人跳棋 (紅藍黃大亂鬥) -->
+                    <div id="game-checkers3p" class="w-full h-full flex flex-col justify-center space-y-3 hidden">
+                        <div class="bg-slate-850 p-2 border-4 border-stone-750 rounded-3xl shadow-xl adaptive-square-board">
+                            <div id="c3p-board" class="grid grid-cols-9 grid-rows-9 gap-[1px] bg-amber-600 p-1 rounded-lg w-full h-full"></div>
                         </div>
+                        <div id="c3p-status" class="text-center text-xs font-black text-slate-700 h-4 shrink-0">紅方 (P1) 的回合。</div>
                     </div>
 
                     <!-- 3. 中國象棋 -->
-                    <div id="game-chess" class="w-full max-w-sm space-y-3 hidden">
-                        <div class="bg-amber-50 border-4 border-amber-800 p-3 rounded-3xl shadow-xl w-full">
-                            <div id="cc-board" class="grid grid-cols-9 grid-rows-10 gap-[1px] bg-amber-200 p-1 rounded-lg border border-amber-700 relative select-none"></div>
-                            <div id="cc-status" class="text-center text-xs font-black text-red-600 mt-2.5 h-4">紅方 (你) 的回合，請落子。</div>
+                    <div id="game-chess" class="w-full h-full flex flex-col justify-center space-y-3 hidden">
+                        <div class="bg-amber-50 border-4 border-amber-800 p-2 rounded-3xl shadow-xl adaptive-square-board">
+                            <div id="cc-board" class="grid grid-cols-9 grid-rows-10 gap-[1px] bg-amber-200 p-1 rounded-lg border border-amber-700 relative w-full h-full select-none"></div>
                         </div>
+                        <div id="cc-status" class="text-center text-xs font-black text-red-600 h-4 shrink-0">紅方 (你) 的回合。</div>
                     </div>
 
                     <!-- 4. 撲克大老二 -->
-                    <div id="game-bigtwo" class="w-full max-w-md h-[460px] bg-emerald-900 border-4 border-amber-600 rounded-3xl p-4 text-white flex flex-col justify-between shadow-2xl hidden">
+                    <div id="game-bigtwo" class="w-full max-w-md h-full bg-emerald-900 border-4 border-amber-600 rounded-3xl p-4 text-white flex flex-col justify-between shadow-2xl hidden">
                         <div class="flex justify-between text-[10px] shrink-0 bg-emerald-950/40 p-2 rounded-xl">
                             <div id="bt-turn-label-ai1">🤖 AI 對手 1: <span id="bt-ai1-count" class="font-bold text-yellow-300">13</span> 張</div>
                             <div id="bt-turn-label-ai2">🤖 AI 對手 2: <span id="bt-ai2-count" class="font-bold text-yellow-300">13</span> 張</div>
@@ -269,8 +282,9 @@
                     </div>
 
                     <!-- 5. 巨型 4人大富翁 -->
-                    <div id="game-monopoly" class="w-full max-w-sm flex flex-col hidden">
-                        <div class="grid grid-cols-4 gap-1 bg-white p-2 rounded-2xl border border-gray-200 shadow-sm text-[8px] font-bold text-center shrink-0 mb-1.5">
+                    <div id="game-monopoly" class="w-full h-full flex flex-col justify-between hidden">
+                        <!-- 資產面板 -->
+                        <div class="grid grid-cols-4 gap-1 bg-white p-2 rounded-2xl border border-gray-200 shadow-sm text-[8px] font-bold text-center shrink-0 mb-2 max-w-sm mx-auto w-full">
                             <div class="bg-red-50 p-1 rounded-lg border border-red-200">
                                 <span class="text-red-600 block">P1 (紅)</span>
                                 <span id="mono-p1-cash">$1500</span>
@@ -288,8 +302,12 @@
                                 <span id="mono-p4-cash">$1500</span>
                             </div>
                         </div>
-                        <div class="aspect-square w-full bg-slate-100 rounded-3xl border-4 border-slate-300 shadow-xl p-1 grid grid-cols-5 grid-rows-5 gap-1 relative font-bold shrink-0" id="mono-grid"></div>
-                        <div class="bg-white border border-gray-200 p-2.5 rounded-2xl shadow-md mt-2 space-y-2 text-xs shrink-0">
+                        
+                        <!-- 防跑版 正方形 16 格地圖 -->
+                        <div class="bg-slate-100 rounded-3xl border-4 border-slate-300 shadow-xl p-1 grid grid-cols-5 grid-rows-5 gap-1 relative font-bold adaptive-square-board"></div>
+
+                        <!-- 操作面板 -->
+                        <div class="bg-white border border-gray-200 p-2.5 rounded-2xl shadow-md mt-2 space-y-2 text-xs shrink-0 max-w-sm mx-auto w-full">
                             <div class="flex gap-2">
                                 <button id="mono-btn-roll" onclick="rollMonopoly()" class="flex-1 py-2.5 bg-red-600 text-white font-black rounded-xl active-bounce text-xs">投擲步進</button>
                                 <button id="mono-btn-sell" onclick="openMonopolySellPanel()" class="py-2.5 bg-amber-500 text-white font-black rounded-xl active-bounce text-[10px] px-3">變賣地產</button>
@@ -302,105 +320,92 @@
                     </div>
 
                     <!-- 6. 蛇與梯子 -->
-                    <div id="game-snakes" class="w-full max-w-sm space-y-3 hidden">
-                        <div class="bg-white border-4 border-emerald-800 p-3 rounded-3xl shadow-xl w-full flex flex-col items-center font-bold">
-                            <div class="relative w-full aspect-square bg-amber-50 rounded-xl border border-amber-800/20 overflow-hidden">
-                                <canvas id="sn-canvas" class="w-full h-full"></canvas>
-                            </div>
-                            <div class="w-full flex justify-between items-center mt-3 text-xs">
-                                <button onclick="rollSnakesDice()" id="sn-btn-roll" class="bg-emerald-600 text-white py-2 px-4 rounded-xl font-bold btn-active">投擲步進</button>
-                                <span id="sn-status-log" class="font-bold text-gray-700">準備骰點！</span>
-                            </div>
+                    <div id="game-snakes" class="w-full h-full flex flex-col justify-center space-y-3 hidden">
+                        <div class="bg-white border-4 border-emerald-800 p-2 rounded-3xl shadow-xl adaptive-square-board">
+                            <canvas id="sn-canvas" class="w-full h-full"></canvas>
+                        </div>
+                        <div class="w-full flex justify-between items-center mt-3 text-xs shrink-0 max-w-sm mx-auto">
+                            <button onclick="rollSnakesDice()" id="sn-btn-roll" class="bg-emerald-600 text-white py-2 px-4 rounded-xl font-bold btn-active">投擲步進</button>
+                            <span id="sn-status-log" class="font-bold text-gray-700">準備骰點！</span>
                         </div>
                     </div>
 
                     <!-- 7. 黑白棋 -->
-                    <div id="game-othello" class="w-full max-w-sm space-y-3 hidden">
-                        <div class="bg-emerald-700 border-4 border-slate-800 p-3 rounded-2xl shadow-xl w-full">
-                            <div id="ot-board" class="grid grid-cols-8 grid-rows-8 gap-[1px] bg-emerald-900 p-1 rounded-lg border border-emerald-950 relative aspect-square"></div>
-                            <div class="flex justify-between items-center text-xs text-white font-bold mt-3">
-                                <div>黑棋 (P1): <span id="ot-score-black">2</span> | 白棋 (P2/AI): <span id="ot-score-white">2</span></div>
-                                <button onclick="initOthello()" class="bg-slate-800 text-white px-3 py-1.5 rounded-lg active-bounce">重新開局</button>
-                            </div>
+                    <div id="game-othello" class="w-full h-full flex flex-col justify-center space-y-3 hidden">
+                        <div class="bg-emerald-700 border-4 border-slate-800 p-2 rounded-3xl shadow-xl adaptive-square-board">
+                            <div id="ot-board" class="grid grid-cols-8 grid-rows-8 gap-[1px] bg-emerald-900 p-1 rounded-lg border border-emerald-950 relative w-full h-full"></div>
+                        </div>
+                        <div class="flex justify-between items-center text-xs text-slate-700 font-bold shrink-0 max-w-sm mx-auto w-full">
+                            <div>黑棋 (P1): <span id="ot-score-black" class="text-slate-900 font-extrabold">2</span> | 白棋 (P2/AI): <span id="ot-score-white" class="text-slate-900 font-extrabold">2</span></div>
+                            <button onclick="initOthello()" class="bg-slate-800 text-white px-3 py-1.5 rounded-lg active-bounce">重新開棋</button>
                         </div>
                     </div>
 
                     <!-- 8. 智慧五子棋 -->
-                    <div id="game-gomoku" class="w-full max-w-sm space-y-3 hidden">
-                        <div class="bg-amber-100 border-4 border-amber-800 p-3 rounded-2xl shadow-xl w-full">
-                            <div id="gomoku-board" class="grid grid-cols-10 gap-0.5 bg-amber-200 p-1 rounded-lg border border-amber-800 aspect-square"></div>
-                            <div class="flex justify-between items-center text-xs font-bold text-amber-900 mt-3">
-                                <span id="gomoku-status">你的回合 (黑子)</span>
-                                <button onclick="initGomoku()" class="bg-amber-800 text-white px-3 py-1.5 rounded-xl">重新開始</button>
-                            </div>
+                    <div id="game-gomoku" class="w-full h-full flex flex-col justify-center space-y-3 hidden">
+                        <div class="bg-amber-100 border-4 border-amber-800 p-2 rounded-3xl shadow-xl adaptive-square-board">
+                            <div id="gomoku-board" class="grid grid-cols-10 gap-0.5 bg-amber-200 p-1 rounded-lg border border-amber-800 w-full h-full"></div>
+                        </div>
+                        <div class="flex justify-between items-center text-xs font-bold text-amber-900 shrink-0 max-w-sm mx-auto w-full">
+                            <span id="gomoku-status">你的回合 (黑子)</span>
+                            <button onclick="initGomoku()" class="bg-amber-800 text-white px-3 py-1.5 rounded-xl">重新開始</button>
                         </div>
                     </div>
 
                     <!-- 9. 井字棋 -->
-                    <div id="game-tictactoe" class="w-full max-w-xs space-y-4 hidden">
-                        <div class="bg-white p-5 rounded-3xl shadow-xl border border-gray-200 text-center space-y-3">
-                            <h3 class="text-sm font-black text-red-500">井字棋 (過三關)</h3>
-                            <div class="grid grid-cols-3 gap-2 aspect-square w-full" id="ttt-grid"></div>
-                            <div class="flex justify-between items-center text-xs">
-                                <span id="ttt-status" class="font-bold text-gray-600">你的回合 (X)</span>
-                                <button onclick="initTicTacToe()" class="bg-gray-100 px-3 py-1.5 rounded-lg font-bold">重置</button>
-                            </div>
+                    <div id="game-tictactoe" class="w-full h-full flex flex-col justify-center space-y-4 hidden">
+                        <div class="bg-white p-3 rounded-3xl shadow-xl border border-gray-200 text-center space-y-3 adaptive-square-board">
+                            <div class="grid grid-cols-3 gap-2 w-full h-full" id="ttt-grid"></div>
+                        </div>
+                        <div class="flex justify-between items-center text-xs shrink-0 max-w-sm mx-auto w-full">
+                            <span id="ttt-status" class="font-bold text-gray-600">你的回合 (X)</span>
+                            <button onclick="initTicTacToe()" class="bg-gray-100 px-3 py-1.5 rounded-lg font-bold">重置</button>
                         </div>
                     </div>
 
                     <!-- 10. 記憶翻牌對決 -->
-                    <div id="game-memory" class="w-full max-w-sm space-y-4 hidden">
-                        <div class="bg-white p-4 rounded-3xl border border-gray-200 shadow-xl space-y-3 text-center">
-                            <h3 class="text-sm font-black text-indigo-600">記憶翻牌對決</h3>
-                            <div class="grid grid-cols-4 gap-2 aspect-square max-w-[280px] mx-auto" id="mem-grid"></div>
-                            <div class="flex justify-between items-center text-xs font-bold text-gray-500 pt-2 border-t">
-                                <div>P1得分: <span id="mem-score-p" class="text-indigo-600">0</span></div>
-                                <button onclick="initMemoryGame()" class="bg-gray-100 px-3 py-1.5 rounded-lg active-bounce">重新洗牌</button>
-                                <div>P2/AI得分: <span id="mem-score-ai" class="text-red-500">0</span></div>
-                            </div>
+                    <div id="game-memory" class="w-full h-full flex flex-col justify-center space-y-4 hidden">
+                        <div class="bg-white p-3 rounded-3xl border border-gray-200 shadow-xl text-center adaptive-square-board">
+                            <div class="grid grid-cols-4 gap-2 w-full h-full" id="mem-grid"></div>
+                        </div>
+                        <div class="flex justify-between items-center text-xs font-bold text-gray-500 pt-2 shrink-0 max-w-sm mx-auto w-full">
+                            <div>P1得分: <span id="mem-score-p" class="text-indigo-600 font-extrabold">0</span></div>
+                            <button onclick="initMemoryGame()" class="bg-gray-100 px-3 py-1.5 rounded-lg active-bounce">重新翻牌</button>
+                            <div>P2/AI得分: <span id="mem-score-ai" class="text-red-500 font-extrabold">0</span></div>
                         </div>
                     </div>
 
                     <!-- 11. 15數字推盤 -->
-                    <div id="game-puzzle15" class="w-full max-w-xs space-y-4 hidden">
-                        <div class="bg-white p-5 rounded-3xl shadow-xl border border-gray-200 text-center space-y-4">
-                            <h3 class="text-sm font-black text-slate-700">15 數字推盤拼圖</h3>
-                            <div class="grid grid-cols-4 gap-2 bg-slate-100 p-2.5 rounded-2xl aspect-square" id="p15-grid"></div>
-                            <div class="flex gap-2">
-                                <button onclick="initPuzzle15()" class="flex-1 py-3 bg-slate-700 text-white font-bold rounded-xl text-xs active-bounce">打亂拼圖</button>
-                            </div>
+                    <div id="game-puzzle15" class="w-full h-full flex flex-col justify-center space-y-4 hidden">
+                        <div class="bg-white p-3 rounded-3xl shadow-xl border border-gray-200 text-center adaptive-square-board">
+                            <div class="grid grid-cols-4 gap-2 bg-slate-100 p-2 rounded-2xl w-full h-full" id="p15-grid"></div>
                         </div>
+                        <button onclick="initPuzzle15()" class="py-3 bg-slate-700 text-white font-bold rounded-xl text-xs active-bounce shrink-0 max-w-sm mx-auto w-full">打亂拼圖</button>
                     </div>
 
                     <!-- 12. 經典 2048 -->
-                    <div id="game-puzzle2048" class="w-full max-w-xs space-y-3 hidden">
-                        <div class="bg-orange-50 p-5 rounded-3xl shadow-xl border border-orange-200 text-center space-y-4">
-                            <div class="flex justify-between items-center text-xs font-bold">
-                                <span class="text-orange-700">Score: <span id="p2048-score" class="font-black text-base">0</span></span>
-                                <button onclick="init2048()" class="bg-orange-600 text-white px-3 py-1.5 rounded-xl font-bold btn-active">重開</button>
-                            </div>
-                            <div class="grid grid-cols-4 gap-2 bg-orange-100/50 p-2 rounded-2xl aspect-square" id="p2048-grid"></div>
-                            <div class="grid grid-cols-3 gap-1.5 max-w-[150px] mx-auto text-xs font-bold">
-                                <div></div>
-                                <button onclick="slide2048('up')" class="bg-white border rounded py-1.5 active:bg-gray-100">▲</button>
-                                <div></div>
-                                <button onclick="slide2048('left')" class="bg-white border rounded py-1.5 active:bg-gray-100">◀</button>
-                                <button onclick="slide2048('down')" class="bg-white border rounded py-1.5 active:bg-gray-100">▼</button>
-                                <button onclick="slide2048('right')" class="bg-white border rounded py-1.5 active:bg-gray-100">▶</button>
-                            </div>
+                    <div id="game-puzzle2048" class="w-full h-full flex flex-col justify-center space-y-4 hidden">
+                        <div class="bg-orange-50 p-3 rounded-3xl shadow-xl border border-orange-200 text-center adaptive-square-board">
+                            <div class="grid grid-cols-4 gap-2 bg-orange-100/50 p-2 rounded-2xl w-full h-full" id="p2048-grid"></div>
+                        </div>
+                        <div class="flex justify-between items-center text-xs font-bold shrink-0 max-w-sm mx-auto w-full">
+                            <span class="text-orange-700">Score: <span id="p2048-score" class="font-black text-base">0</span></span>
+                            <button onclick="init2048()" class="bg-orange-600 text-white px-3 py-1.5 rounded-xl font-bold btn-active">重開</button>
                         </div>
                     </div>
 
                     <!-- 13. 經典踩地雷 -->
-                    <div id="game-minesweeper" class="w-full max-w-sm space-y-3 hidden">
-                        <div class="bg-white border border-gray-200 p-4 rounded-3xl shadow-xl w-full">
-                            <div class="flex justify-between items-center text-xs font-bold mb-3">
-                                <div>💣 剩餘雷數: <span id="ms-mines" class="text-red-500">10</span></div>
-                                <button onclick="setMsMode('dig')" id="btn-ms-dig" class="bg-red-600 text-white px-3 py-1.5 rounded-xl font-bold text-xs">挖地</button>
-                                <button onclick="setMsMode('flag')" id="btn-ms-flag" class="bg-gray-100 text-gray-700 px-3 py-1.5 rounded-xl font-bold text-xs">插旗</button>
-                                <button onclick="initMinesweeper()" class="bg-gray-100 px-3 py-1.5 rounded-xl">重置</button>
+                    <div id="game-minesweeper" class="w-full h-full flex flex-col justify-center space-y-3 hidden">
+                        <div class="bg-white border-4 border-gray-200 p-2 rounded-3xl shadow-xl adaptive-square-board">
+                            <div id="ms-grid" class="grid grid-cols-9 gap-1 w-full h-full"></div>
+                        </div>
+                        <div class="flex justify-between items-center text-xs font-bold mb-3 shrink-0 max-w-sm mx-auto w-full">
+                            <div>💣 剩餘雷數: <span id="ms-mines" class="text-red-500 font-extrabold">10</span></div>
+                            <div class="flex gap-1">
+                                <button onclick="setMsMode('dig')" id="btn-ms-dig" class="bg-red-600 text-white px-2.5 py-1 rounded-lg font-bold text-[10px]">挖地</button>
+                                <button onclick="setMsMode('flag')" id="btn-ms-flag" class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg font-bold text-[10px]">插旗</button>
                             </div>
-                            <div id="ms-grid" class="grid grid-cols-9 gap-1 aspect-square w-full"></div>
+                            <button onclick="initMinesweeper()" class="bg-gray-100 px-2.5 py-1 rounded-lg text-[10px]">重置</button>
                         </div>
                     </div>
 
@@ -437,12 +442,12 @@
     </div>
 
     <!-- Toast -->
-    <div id="toast" class="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900/95 text-white text-[11px] font-bold py-2 px-5 rounded-full shadow-lg z-50 pointer-events-none opacity-0 transition-opacity">
+    <div id="toast" class="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900/95 text-white text-[11px] font-bold py-2 px-5 rounded-full shadow-lg z-50 pointer-events-none opacity-0 transition-opacity font-bold">
         提示
     </div>
 
     <script>
-        // === 1. 核心 DOM 宣告 ===
+        // === 1. 核心 DOM 宣告與防跑版設定 ===
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('sidebar-overlay');
         const btnToggle = document.getElementById('btn-toggle');
@@ -455,24 +460,32 @@
 
         let currentPlayMode = 'ai'; 
 
-        // 13款精選完整遊戲數據 (加回實體玩法)
+        // 13款精選完整遊戲數據 (加回實體玩法與正版描述)
         const gameList = [
-            { key: 'go', name: '1. 正宗圍棋', icon: 'fa-circle-dot', color: 'text-slate-800', desc: '9x9、13x13、19x19棋盤與提子、打劫演算。' },
-            { key: 'checkers3p', name: '2. 三人跳棋', icon: 'fa-chess-king', color: 'text-orange-500', desc: '紅黃藍三方大亂鬥！晉升國王斜向跳吃。' },
-            { key: 'chess', name: '3. 中國象棋', icon: 'fa-chess', color: 'text-blue-500', desc: '馬腳、象眼、對面照面完全規則判定。' },
-            { key: 'bigtwo', name: '4. 撲克大老二', icon: 'fa-diamond', color: 'text-green-600', desc: '完整牌型、順子同花葫蘆，AI智慧控牌。' },
-            { key: 'monopoly', name: '5. 巨型大富翁', icon: 'fa-map-location-dot', color: 'text-red-500', desc: '4人同屏，地產蓋樓、破產變賣、卡牌動畫。' },
-            { key: 'snakes', name: '6. 蛇與梯子', icon: 'fa-arrow-trend-up', color: 'text-emerald-500', desc: '實體Canvas繪製紅色毒蛇與金色梯架。' },
-            { key: 'othello', name: '7. 黑白棋', icon: 'fa-circle', color: 'text-stone-700', desc: '角邊優先策略，3D棋子翻轉動畫物理效果。' },
-            { key: 'gomoku', name: '8. 智慧五子棋', icon: 'fa-grid-4', color: 'text-purple-600', desc: '10x10防誤觸，雙人/主動防守封堵AI。' },
-            { key: 'tictactoe', name: '9. 井字棋', icon: 'fa-xmark', color: 'text-red-500', desc: 'Minimax窮舉全決策樹，地獄演算不漏破綻。' },
+            { key: 'go', name: '1. 正宗圍棋 (Go)', icon: 'fa-circle-dot', color: 'text-slate-800', desc: '9x9、13x13、19x19棋盤與提子、打劫演算。' },
+            { key: 'checkers3p', name: '2. 三人跳棋 (Checkers)', icon: 'fa-chess-king', color: 'text-orange-500', desc: '紅黃藍三方同屏大對決，考驗包圍與跳吃。' },
+            { key: 'chess', name: '3. 中國象棋', icon: 'fa-chess', color: 'text-blue-500', desc: '馬腳、象眼、照面判定，Alpha-Beta剪枝 AI。' },
+            { key: 'bigtwo', name: '4. 撲克大老二', icon: 'fa-diamond', color: 'text-green-600', desc: '單/對/順/葫蘆牌型判定，AI策略智慧出牌。' },
+            { key: 'monopoly', name: '5. 巨型大富翁', icon: 'fa-map-location-dot', color: 'text-red-500', desc: '4人同屏，地產蓋飯店、融資變賣、卡牌翻轉。' },
+            { key: 'snakes', name: '6. 蛇與梯子', icon: 'fa-arrow-trend-up', color: 'text-emerald-500', desc: '實體Canvas繪製紅色蟒蛇與金色梯線。' },
+            { key: 'othello', name: '7. 黑白棋', icon: 'fa-circle', color: 'text-stone-700', desc: '角邊優先策略，黑白棋子翻轉動畫物理效果。' },
+            { key: 'gomoku', name: '8. 智慧五子棋', icon: 'fa-grid-4', color: 'text-purple-600', desc: '10x10防誤觸大格，雙人/主動防守封堵AI。' },
+            { key: 'tictactoe', name: '9. 井字棋', icon: 'fa-xmark', color: 'text-red-500', desc: '不敗決策樹，地獄演算無死角。' },
             { key: 'memory', name: '10. 記憶翻牌', icon: 'fa-eye', color: 'text-indigo-500', desc: '3D翻轉卡牌，挑戰電腦擬真短時記憶庫。' },
-            { key: 'puzzle15', name: '11. 數字推盤', icon: 'fa-arrow-down-1-9', color: 'text-slate-700', desc: '還原1-15數字矩陣空間狀態轉移拼圖。' },
+            { key: 'puzzle15', name: '11. 數字推盤', icon: 'fa-calculator', color: 'text-slate-700', desc: '還原1-15數字矩陣空間狀態轉移拼圖。' },
             { key: 'puzzle2048', name: '12. 經典 2048', icon: 'fa-square-poll-vertical', color: 'text-orange-600', desc: '滑動相加，經典休閒矩陣合併。' },
-            { key: 'minesweeper', name: '13. 經典踩地雷', icon: 'fa-bomb', color: 'text-red-700', desc: '9x9無毒首發、自動遞迴展開空地。' }
+            { key: 'minesweeper', name: '13. 經典踩地雷', icon: 'fa-bomb', color: 'text-red-700', desc: '9x9安全首發、遞迴展開空地。' }
         ];
 
-        // 動態初始化渲染側邊欄與大廳列表，確保相容性與iOS點擊不失效
+        // 規則手冊官方數據庫
+        const officialRulesets = {
+            'go': "【正宗圍棋規則說明書】\n1. 棋子落於線條交點上。黑先白後，交替落子。\n2. 提子（吃子）：當某個棋子或連通棋子群在四周的交叉點（氣）全部被對方堵死時，則該棋子群被「提掉」移出棋盤。\n3. 禁著點：禁止將棋子下在己方無氣且不能立刻提掉對方棋子的交叉點上。\n4. 打劫：禁止立刻回提剛剛被對方提掉的那一顆子，必須先在其他地方落子一次（劫爭），方可回提。",
+            'checkers3p': "【三人同屏跳棋規則說明書】\n1. 三方（紅、藍、黃）輪流斜向移動一枚棋子一格。\n2. 斜向跳吃：若相鄰敵方棋子後方格為空，可跳過並「吃掉」該敵棋（支援連續跳吃）。\n3. 國王晉升：當己方棋子抵達底線時，升級為「國王」，可斜向後退移動與吃子。",
+            'chess': "【中國象棋官方規則說明書】\n1. 俥行直路、傌行日字（防拐馬腳）、相飛田且不過河（防塞相眼）。\n2. 炮直行，吃子必隔一子。仕在九宮內斜行，帥將九宮內直行且不能照面。\n3. 兵卒未過河只能直前，過河方可橫行，不可後退。",
+            'bigtwo': "【撲克大老二規則說明書】\n1. 點數大小：2 > A > K > Q > J > 10 > 9 > 8 > 7 > 6 > 5 > 4 > 3。\n2. 花色大小：黑桃 ♠ > 紅心 ♥ > 磚塊 ♦ > 梅花 ♣。\n3. 支援牌型：單張、對子、順子、同花、葫蘆、同花順。必須出與上家相同種類且值較大之牌型。",
+            'monopoly': "【巨型 4人大富翁規則說明書】\n1. 順時針投擲骰子步進。經過起點可領取資金 $200。\n2. 走到無主格可買地。走到己方地產可花 $100 增建房屋（★ ~ ★★★）或最頂級「🏨 大飯店」，租金隨星級倍增。\n3. 踩到對手地盤需繳付租金。當現金不足時，可點選「變賣地產」將房產以 5 折售回銀行套現救急，降至零以下破產。"
+        };
+
         function initGlobalNav() {
             const sidebarNav = document.getElementById('sidebar-nav-list');
             const lobbyGrid = document.getElementById('lobby-grid-container');
@@ -481,14 +494,12 @@
             lobbyGrid.innerHTML = '';
 
             gameList.forEach(game => {
-                // 側邊欄按鈕
                 const sidebarBtn = document.createElement('button');
                 sidebarBtn.className = "w-full text-left py-2 px-3 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 flex items-center gap-2 transition btn-active";
                 sidebarBtn.innerHTML = `<i class="fa-solid ${game.icon} ${game.color}"></i> ${game.name}`;
                 sidebarBtn.addEventListener('click', () => sidebarLaunch(game.key));
                 sidebarNav.appendChild(sidebarBtn);
 
-                // 大廳卡片
                 const lobbyCard = document.createElement('div');
                 lobbyCard.className = "bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-3 cursor-pointer btn-active hover:shadow-md transition";
                 lobbyCard.innerHTML = `
@@ -543,10 +554,10 @@
 
             if (mode === 'ai') {
                 btnAI.className = "px-2.5 py-0.5 rounded-full text-[9px] font-black transition-all bg-white shadow text-blue-600";
-                showToast("🤖 已加載最高智能 AI 對戰。");
+                showToast("🤖 設定成功：載入最高智慧 AI 決策路徑。");
             } else {
                 btnPVP.className = "px-2.5 py-0.5 rounded-full text-[9px] font-black transition-all bg-white shadow text-red-600";
-                showToast("👥 已加載本機多人同屏對抗。");
+                showToast("👥 設定成功：載入本機同屏多人對決。");
             }
 
             const activeGame = document.getElementById('game-title-header').innerText.toLowerCase();
@@ -578,13 +589,24 @@
             const targetGame = document.getElementById(`game-${gameKey}`);
             if(targetGame) targetGame.classList.remove('hidden');
 
-            // 注入規則說明書文字
+            // 關閉先前的規則手冊面板以防推擠棋格
+            rulesContentPanel.classList.add('hidden');
+            rulesArrow.classList.remove('rotate-180');
+
+            // 注入對應規則書文字
             if (officialRulesets[gameKey]) {
                 rulesContentPanel.innerText = officialRulesets[gameKey];
                 document.getElementById('rules-preview-line').innerText = officialRulesets[gameKey].split('\n')[0];
             } else {
-                rulesContentPanel.innerText = "本遊戲規則完全遵守國際經典桌遊標準，不打任何折扣。";
-                document.getElementById('rules-preview-line').innerText = "點擊此處展開/收合完整正宗規則判定說明。";
+                rulesContentPanel.innerText = "本遊戲規則完全遵守傳統國際桌遊標準，不打任何折扣。";
+                document.getElementById('rules-preview-line').innerText = "點擊此處展開/收合詳細正宗規則判定說明。";
+            }
+
+            const modePanel = document.getElementById('game-mode-panel');
+            if (['puzzle15', 'puzzle2048'].includes(gameKey)) {
+                modePanel.classList.add('hidden');
+            } else {
+                modePanel.classList.remove('hidden');
             }
 
             // 初始化特定遊戲
@@ -629,7 +651,7 @@
                 btnEasy.className = "px-3 py-1 rounded-full text-[10px] font-black transition-all bg-white shadow-sm text-green-600";
                 bannerTitle.innerText = "輕鬆遊玩 快樂桌遊時間";
                 bannerDesc.innerText = "AI 此時非常溫和，適合放鬆心情或新玩家練手！";
-                showToast("🟢 設定狀態：簡單難度，已降低 AI 分支搜值寬容度。");
+                showToast("🟢 設定狀態：簡單難度，已降低 AI 決策分支深度。");
             } else if (level === 'medium') {
                 document.body.classList.add('theme-medium');
                 btnMedium.className = "px-3 py-1 rounded-full text-[10px] font-black transition-all bg-white shadow-sm text-blue-600";
@@ -644,6 +666,16 @@
                 bannerTitle.innerText = "HELL-MODE 地獄極限對決";
                 bannerDesc.innerText = "神級博弈極限！決策樹最優解深度全開，步步鎖定防守，逼出極限。";
                 showToast("🔴 設定狀態：地獄難度，決策矩陣最優路徑全開！");
+            }
+
+            const diffBadge = document.getElementById('game-diff-badge');
+            if (diffBadge) {
+                diffBadge.innerText = level === 'easy' ? "EASY" : level === 'medium' ? "MEDIUM" : "HELL";
+                diffBadge.className = `text-[9px] font-black px-2 py-0.5 rounded-full ${
+                    level === 'easy' ? "bg-green-100 text-green-700" :
+                    level === 'medium' ? "bg-blue-100 text-blue-700" :
+                    "bg-red-100 text-red-700 hell-pulse"
+                }`;
             }
         }
 
@@ -735,7 +767,7 @@
             const selfHasLiberty = checkGoGroupLiberty(r, c, goTurn, selfVisited, selfGroup);
             if (!selfHasLiberty && !capturedAny) {
                 goGrid[r][c] = 0; 
-                showToast("❌ 圍棋規則：此處為禁著點！");
+                showToast("❌ 圍棋規則：此處為禁著點（自殺落子）！");
                 return;
             }
 
@@ -791,7 +823,7 @@
 
 
         // =====================================================================
-        // 👑 [2] 三人跳棋 (紅藍黃大亂鬥)
+        // 👑 [2] 三人跳棋 (紅藍黃同屏對決)
         // =====================================================================
         let c3pGrid = Array(9).fill(null).map(() => Array(9).fill(0));
         let c3pSelected = null;
@@ -822,7 +854,7 @@
             for (let r=0; r<9; r++) {
                 for (let c=0; c<9; c++) {
                     const cell = document.createElement('div');
-                    cell.className = `flex items-center justify-center relative cursor-pointer aspect-square ${(r+c)%2===1?'bg-stone-855':'bg-amber-100'}`;
+                    cell.className = `flex items-center justify-center relative cursor-pointer aspect-square ${(r+c)%2===1?'bg-stone-800':'bg-amber-100'}`;
                     cell.onclick = () => c3pClick(r,c);
 
                     const val = c3pGrid[r][c];
@@ -937,7 +969,7 @@
                     if (p) {
                         const isRed = p === p.toUpperCase();
                         const disc = document.createElement('div');
-                        disc.className = `w-7 h-7 rounded-full border border-amber-955 bg-white font-bold flex items-center justify-center text-xs shadow-md ${ccPieceNames[p].color}`;
+                        disc.className = `w-7 h-7 rounded-full border border-amber-950 bg-white font-bold flex items-center justify-center text-xs shadow-md ${ccPieceNames[p].color}`;
                         disc.innerText = ccPieceNames[p].name;
                         if (ccSelected && ccSelected.r === r && ccSelected.c === c) {
                             disc.classList.add('bg-yellow-200','scale-105','border-red-500');
@@ -970,7 +1002,7 @@
                     renderCC();
 
                     if(target && target.toLowerCase() === 'k') {
-                        document.getElementById('cc-status').innerText = isRedTurn ? "🎉 恭喜！紅方(P1)達成將軍獲勝！" : "🎉 恭喜！黑方(P2/AI)達成將軍獲勝！";
+                        document.getElementById('cc-status').innerText = isRedTurn ? "🎉 恭喜！紅方(P1)將軍獲勝！" : "🎉 恭喜！黑方(P2/AI)將軍獲勝！";
                         ccGameOver = true;
                         return;
                     }
@@ -1080,7 +1112,7 @@
             }
 
             if (moves.length === 0) {
-                document.getElementById('cc-status').innerText = "🎉 紅方獲勝！AI 已無可行走法。";
+                document.getElementById('cc-status').innerText = "🎉 紅方獲勝！AI 已經被無子可動。";
                 ccGameOver = true;
                 return;
             }
@@ -1118,6 +1150,15 @@
         // =====================================================================
         // 🃏 遊戲 4: 撲克大老二 (智慧牌型偵測)
         // =====================================================================
+        let btPlayerHand = [];
+        let btAI1Hand = [];
+        let btAI2Hand = [];
+        let btTableCards = [];
+        let btLastPlayer = "無";
+        let btTurn = 0; 
+        const btCardSuits = { '♣': 1, '♦': 2, '♥': 3, '♠': 4 };
+        const btCardWeights = { '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9, '10':10, 'J':11, 'Q':12, 'K':13, 'A':14, '2':15 };
+
         function initBigTwo() {
             btPlayerHand = []; btAI1Hand = []; btAI2Hand = []; btTableCards = []; btLastPlayer = "無"; btTurn = 0;
             const cards = [];
@@ -1381,7 +1422,7 @@
         }
 
         function renderMonopoly() {
-            const grid = document.getElementById('mono-grid');
+            const grid = document.querySelector('#game-monopoly .adaptive-square-board');
             if (!grid) return;
             grid.innerHTML = '';
 
@@ -1625,6 +1666,8 @@
         // =====================================================================
         let snPlayerPos = 1;
         let snAIPos = 1;
+        const snSnakesList = { 12: 3, 22: 5, 34: 16 };
+        const snLaddersList = { 4: 14, 8: 26, 18: 30 };
 
         function initSnakes() {
             snPlayerPos = 1;
@@ -1916,6 +1959,22 @@
             renderOthello();
         }
 
+        function isValidOthelloMove(r,c,player) {
+            if(otGrid[r][c] !== 0) return false;
+            const opp = player === 1 ? 2 : 1;
+            const dirs = [[0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]];
+            for(let [dr,dc] of dirs){
+                let nr = r + dr, nc = c + dc;
+                let foundOpp = false;
+                while(nr>=0 && nr<8 && nc>=0 && nc<8 && otGrid[nr][nc] === opp) {
+                    nr += dr; nc += dc;
+                    foundOpp = true;
+                }
+                if(foundOpp && nr>=0 && nr<8 && nc>=0 && nc<8 && otGrid[nr][nc] === player) return true;
+            }
+            return false;
+        }
+
 
         // =====================================================================
         // 🔮 [10] 記憶翻牌對決
@@ -2083,7 +2142,7 @@
                 
                 const win = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0];
                 if (puzzleGrid.every((v, i) => v === win[i])) {
-                    showToast("🎉 拼圖成功完成！");
+                    showToast("🎉 拼圖還原完成！");
                 }
             }
         }
@@ -2517,14 +2576,13 @@
             const blob = new Blob([htmlContent], { type: 'text/html' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = 'Roblox_Offline_BoardGames_7.0_Full.html';
+            a.download = 'Roblox_Offline_BoardGames_7.0_Adaptive.html';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             showToast("✅ 已成功導出離線 HTML 檔案！");
         }
 
-        // 頁面初載初始化
         window.onload = () => {
             initGlobalNav();
             setDifficulty('medium');
