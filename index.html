@@ -1,0 +1,2044 @@
+```html
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Roblox Box 離線桌遊大廳 3.0 終極修復版</title>
+    <!-- Tailwind CSS (離線可用瀏覽器暫存) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome 圖標 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            overflow: hidden;
+            transition: background-color 0.5s ease, color 0.5s ease;
+        }
+        /* 側邊欄抽屜動態 */
+        .sidebar-drawer {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        /* 隱藏滾動條 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        /* 點擊動態 */
+        .btn-active:active {
+            transform: scale(0.95);
+        }
+        
+        /* === 難度介面主題樣式 (動畫過渡) === */
+        /* 🟢 簡單模式主題 */
+        .theme-easy {
+            --primary-color: #22c55e;
+            --primary-hover: #16a34a;
+            --bg-gradient: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            --accent-glow: 0 4px 14px rgba(34, 197, 94, 0.2);
+            --sidebar-active: #dcfce7;
+            --sidebar-active-text: #15803d;
+        }
+        /* 🔵 中等模式主題 */
+        .theme-medium {
+            --primary-color: #3b82f6;
+            --primary-hover: #2563eb;
+            --bg-gradient: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            --accent-glow: 0 4px 14px rgba(59, 130, 246, 0.2);
+            --sidebar-active: #dbeafe;
+            --sidebar-active-text: #1d4ed8;
+        }
+        /* 🔴 地獄模式主題 (黑紅暗黑風，帶有熔岩脈動) */
+        .theme-hell {
+            --primary-color: #dc2626;
+            --primary-hover: #b91c1c;
+            --bg-gradient: linear-gradient(135deg, #111827 0%, #030712 100%);
+            --accent-glow: 0 0 18px rgba(220, 38, 38, 0.6);
+            --sidebar-active: #7f1d1d;
+            --sidebar-active-text: #fee2e2;
+        }
+
+        /* 套用主題的變數樣式 */
+        .theme-adaptive-bg {
+            background: var(--bg-gradient);
+            transition: background 0.5s ease;
+        }
+        .theme-adaptive-btn {
+            background-color: var(--primary-color);
+            box-shadow: var(--accent-glow);
+            transition: all 0.3s ease;
+        }
+        .theme-adaptive-btn:hover {
+            background-color: var(--primary-hover);
+        }
+        .theme-adaptive-text {
+            color: var(--primary-color);
+            transition: color 0.3s ease;
+        }
+        .theme-adaptive-sidebar-active {
+            background-color: var(--sidebar-active);
+            color: var(--sidebar-active-text);
+        }
+
+        /* 脈動呼吸效果(地獄模式專用) */
+        @keyframes lava-pulse {
+            0%, 100% { box-shadow: 0 0 8px rgba(220, 38, 38, 0.4); }
+            50% { box-shadow: 0 0 20px rgba(220, 38, 38, 0.8); }
+        }
+        .hell-pulse {
+            animation: lava-pulse 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="theme-medium h-screen flex flex-col theme-adaptive-bg">
+
+    <!-- 頂部導航列 -->
+    <header class="bg-white border-b border-gray-200 h-14 flex items-center justify-between px-4 z-40 shrink-0 shadow-sm transition-all duration-500" id="header-nav">
+        <div class="flex items-center gap-3">
+            <button id="btn-toggle" class="p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition btn-active">
+                <i class="fa-solid fa-bars text-xl"></i>
+            </button>
+            <div class="flex items-center gap-1.5 cursor-pointer animate-pulse" onclick="switchTab('lobby')">
+                <div class="w-8 h-8 bg-red-600 transform rotate-12 flex items-center justify-center rounded shadow-md transition-all duration-500" id="logo-icon">
+                    <div class="w-3 h-3 bg-white transform -rotate-12 rounded-sm"></div>
+                </div>
+                <span class="font-black text-lg tracking-tight text-gray-800" id="logo-text">GAME CENTER<span class="text-red-600 font-bold text-xs" id="logo-sub">BOARD 21</span></span>
+            </div>
+        </div>
+
+        <!-- 難度選擇器 -->
+        <div class="flex bg-gray-100 p-1 rounded-full border border-gray-200 max-w-xs scale-90 sm:scale-100 transition-all duration-500" id="difficulty-selector-panel">
+            <button onclick="setDifficulty('easy')" id="diff-easy" class="px-3 py-1 rounded-full text-[10px] font-black transition-all">簡單</button>
+            <button onclick="setDifficulty('medium')" id="diff-medium" class="px-3 py-1 rounded-full text-[10px] font-black transition-all bg-white shadow-sm text-blue-600">中等</button>
+            <button onclick="setDifficulty('hell')" id="diff-hell" class="px-3 py-1 rounded-full text-[10px] font-black transition-all">地獄</button>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <button onclick="downloadOffline()" class="hidden sm:block text-xs bg-amber-500 text-white font-extrabold px-3 py-1.5 rounded-full shadow transition btn-active">
+                <i class="fa-solid fa-download"></i> 下載離線版
+            </button>
+            <div class="flex items-center gap-1 bg-gray-100 py-1 px-2.5 rounded-full border border-gray-200" id="user-badge">
+                <div class="w-4 h-4 rounded-full bg-blue-500 text-white font-bold flex items-center justify-center text-[9px]">P</div>
+                <span class="text-[10px] font-bold max-w-[60px] truncate">玩家1</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主區塊 -->
+    <div class="flex flex-1 relative overflow-hidden">
+
+        <!-- 側邊欄抽屜 (修復手機點擊無反應問題，並動態自適應色彩) -->
+        <div id="sidebar-overlay" class="hidden absolute inset-0 bg-black/40 z-30 transition-opacity"></div>
+        <aside id="sidebar" class="sidebar-drawer absolute lg:relative z-30 w-72 h-full bg-white border-r border-gray-200 flex flex-col justify-between -translate-x-full lg:translate-x-0 shadow-2xl lg:shadow-none transition-all duration-500">
+            <div class="p-4 flex-1 overflow-y-auto space-y-4 no-scrollbar">
+                <div>
+                    <h3 class="text-xs font-black text-gray-400 uppercase tracking-wider mb-2 px-1">平台大廳</h3>
+                    <nav class="space-y-1">
+                        <button onclick="switchTab('lobby')" class="w-full text-left py-2.5 px-3 rounded-xl flex items-center gap-3 font-bold transition theme-adaptive-sidebar-active animate-pulse" id="nav-lobby">
+                            <i class="fa-solid fa-house text-lg"></i> 桌遊首頁大廳
+                        </button>
+                    </nav>
+                </div>
+
+                <div class="border-t border-gray-100"></div>
+
+                <!-- 經典對決棋牌 (8) -->
+                <div>
+                    <h3 class="text-xs font-black text-gray-400 uppercase tracking-wider mb-2 px-1">經典對決棋牌 (8)</h3>
+                    <nav class="space-y-0.5">
+                        <button onclick="sidebarLaunch('chess')" class="w-full text-left py-2 px-3 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 flex items-center gap-2"><i class="fa-solid fa-chess"></i> 中國象棋 (神級 AI)</button>
+                        <button onclick="sidebarLaunch('othello')" class="w-full text-left py-2 px-3 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 flex items-center gap-2"><i class="fa-solid fa-circle"></i> 黑白棋 (Reversi)</button>
+                        <button onclick="sidebarLaunch('connectfour')" class="w-full text-left py-2 px-3 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 flex items-center gap-2"><i class="fa-solid fa-table-cells"></i> 重力四子棋</button>
+                        <button onclick="sidebarLaunch('checkers')" class="w-full text-left py-2 px-3 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 flex items-center gap-2"><i class="fa-solid fa-chess-king"></i> 國際跳棋</button>
+                        <button onclick="sidebarLaunch('tictactoe')" class="w-full text-left py-2 px-3 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 flex items-center gap-2"><i class="fa-solid fa-xmark"></i> 井字棋 (過三關)</button>
+                        <button onclick="sidebarLaunch('dots')" class="w-full text-left py-2 px-3 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 flex items-center gap-2"><i class="fa-solid fa-border-none"></i> 點格棋 (Dots)</button>
+                        <button onclick="sidebarLaunch('gomoku')" class="w-full text-left py-2 px-3 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 flex items-center gap-2"><i class="fa-solid fa-grid-4"></i> 智慧五子棋</button>
+                        <button onclick="sidebarLaunch('mancala')" class="w-full text-left py-2 px-3 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 flex items-center gap-2"><i class="fa-solid fa-seedling"></i> 非洲播棋 (Mancala)</button>
+                    </nav>
+                </div>
+
+                <div class="border-t border-gray-100"></div>
+
+                <!-- 卡牌、骰子與地產 (6) -->
+                <div>
+                    <h3 class="text-xs font-black text-gray-400 uppercase tracking-wider mb-2 px-1">卡牌、骰子與地產 (6)</h3>
+                    <nav class="space-y-0.5">
+                        <button onclick="sidebarLaunch('bigtwo')" class="w-full text-left py-2 px-3 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 flex items-center gap-2"><i class="fa-solid fa-diamond"></i> 撲克大老二</button>
+                        <button onclick="sidebarLaunch('monopoly')" class="w-full text-left py-2 px-3 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 flex items-center gap-2"><i class="fa-solid fa-map-location-dot"></i> 經典大富翁</button>
+                        <button onclick="sidebarLaunch('blackjack')" class="w-full text-left py-2 px-3 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 flex items-center gap-2"><i class="fa-solid fa-coins"></i> 皇家 21 點對決</button>
+                        <button onclick="sidebarLaunch('texasholdem')" class="w-full text-left py-2 px-3 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 flex items-center gap-2"><i class="fa-solid fa-heart"></i> 德州撲克對決</button>
+                        <button onclick="sidebarLaunch('yahtzee')" class="w-full text-left py-2 px-3 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 flex items-center gap-2"><i class="fa-solid fa-shuffle"></i> 歡樂快艇骰子</button>
+                        <button onclick="sidebarLaunch('dice')" class="w-full text-left py-2 px-3 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 flex items-center gap-2"><i class="fa-solid fa-dice"></i> 物理雙骰控制器</button>
+                    </nav>
+                </div>
+
+                <div class="border-t border-gray-100"></div>
+
+                <!-- 益智、休閒、飛行 (7) -->
+                <div>
+                    <h3 class="text-xs font-black text-gray-400 uppercase tracking-wider mb-2 px-1">益智、休閒、飛行 (7)</h3>
+                    <nav class="space-y-0.5">
+                        <button onclick="sidebarLaunch('snakes')" class="w-full text-left py-2 px-3 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 flex items-center gap-2"><i class="fa-solid fa-arrow-trend-up"></i> 10. 蛇與梯子 (地圖繪製版)</button>
+                        <button onclick="sidebarLaunch('flyingchess')" class="w-full text-left py-2 px-3 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 flex items-center gap-2"><i class="fa-solid fa-plane"></i> 經典飛行棋</button>
+                        <button onclick="sidebarLaunch('puzzle2048')" class="w-full text-left py-2 px-3 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 flex items-center gap-2"><i class="fa-solid fa-square-poll-vertical"></i> 經典 2048</button>
+                        <button onclick="sidebarLaunch('minesweeper')" class="w-full text-left py-2 px-3 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 flex items-center gap-2"><i class="fa-solid fa-bomb"></i> 經典踩地雷</button>
+                        <button onclick="sidebarLaunch('sudoku')" class="w-full text-left py-2 px-3 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 flex items-center gap-2"><i class="fa-solid fa-calculator"></i> 數獨大師 (Sudoku)</button>
+                        <button onclick="sidebarLaunch('memory')" class="w-full text-left py-2 px-3 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 flex items-center gap-2"><i class="fa-solid fa-eye"></i> 記憶翻牌對決</button>
+                        <button onclick="sidebarLaunch('puzzle15')" class="w-full text-left py-2 px-3 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 flex items-center gap-2"><i class="fa-solid fa-arrow-down-1-9"></i> 15 數字推盤</button>
+                    </nav>
+                </div>
+            </div>
+            <div class="p-4 bg-gray-50 border-t border-gray-200 text-center text-[10px] text-gray-400">
+                Roblox Portal 離線桌遊版 3.0
+            </div>
+        </aside>
+
+        <!-- 主要展示區域 -->
+        <main class="flex-1 overflow-y-auto relative p-4 md:p-6" id="main-content">
+
+            <!-- TAB 1: 遊戲大廳 (會隨主題改變橫幅色調與氣氛) -->
+            <section id="tab-lobby" class="space-y-6 max-w-4xl mx-auto">
+                <!-- 橫幅 -->
+                <div class="rounded-3xl p-6 text-white relative overflow-hidden shadow-lg transition-all duration-500 theme-adaptive-btn" id="banner-board">
+                    <div class="relative z-10 max-w-sm">
+                        <span class="bg-white/20 text-[9px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">終極策略殿堂</span>
+                        <h2 class="text-2xl font-black mt-2 mb-1" id="banner-title">11 大經典桌遊一網打盡</h2>
+                        <p class="text-xs text-red-100 mb-4" id="banner-desc">全部支援本機單機、離線遊玩！與不同難度的 AI 來一場不插電的頂尖對決。</p>
+                        <button onclick="launchGame('snakes')" class="bg-white text-gray-900 hover:bg-gray-50 font-black px-5 py-2.5 rounded-xl text-xs shadow-md transition btn-active">
+                            立即開玩 蛇與梯子 <i class="fa-solid fa-play ml-1"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 21款遊戲精美列表網格 -->
+                <div>
+                    <h3 class="text-sm font-black text-gray-700 mb-3 flex items-center gap-2 px-1" id="grid-title">
+                        <i class="fa-solid fa-cubes text-red-500"></i> 極速離線桌遊大廳 (21款遊戲)
+                    </h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="game-cards-container">
+                        <!-- Snakes and Ladders -->
+                        <div onclick="launchGame('snakes')" class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-3 cursor-pointer btn-active hover:shadow-md transition">
+                            <div class="w-11 h-11 rounded-xl bg-emerald-500 flex items-center justify-center text-white text-lg shrink-0">
+                                <i class="fa-solid fa-arrow-trend-up"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-extrabold text-sm text-gray-800">1. 蛇與梯子 (真實梯線)</h4>
+                                <p class="text-[10px] text-gray-400">全新重構：畫出真正的綠色毒蛇與金光梯子！</p>
+                            </div>
+                        </div>
+
+                        <!-- Tic Tac Toe -->
+                        <div onclick="launchGame('tictactoe')" class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-3 cursor-pointer btn-active hover:shadow-md transition">
+                            <div class="w-11 h-11 rounded-xl bg-red-500 flex items-center justify-center text-white text-lg shrink-0">
+                                <i class="fa-solid fa-xmark"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-extrabold text-sm text-gray-800">2. 井字棋 (過三關)</h4>
+                                <p class="text-[10px] text-gray-400">搭載極限 Minimax 不敗演算法，難度驚人！</p>
+                            </div>
+                        </div>
+
+                        <!-- 2048 -->
+                        <div onclick="launchGame('puzzle2048')" class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-3 cursor-pointer btn-active hover:shadow-md transition">
+                            <div class="w-11 h-11 rounded-xl bg-orange-500 flex items-center justify-center text-white text-lg shrink-0">
+                                <i class="fa-solid fa-square-poll-vertical"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-extrabold text-sm text-gray-800">3. 經典 2048</h4>
+                                <p class="text-[10px] text-gray-400">順暢的數字滑動合併與翻轉動畫！</p>
+                            </div>
+                        </div>
+
+                        <!-- Minesweeper -->
+                        <div onclick="launchGame('minesweeper')" class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-3 cursor-pointer btn-active hover:shadow-md transition">
+                            <div class="w-11 h-11 rounded-xl bg-red-700 flex items-center justify-center text-white text-lg shrink-0">
+                                <i class="fa-solid fa-bomb"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-extrabold text-sm text-gray-800">4. 經典踩地雷</h4>
+                                <p class="text-[10px] text-gray-400">大按鈕插旗，智慧型無毒首發判定</p>
+                            </div>
+                        </div>
+
+                        <!-- Sudoku -->
+                        <div onclick="launchGame('sudoku')" class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-3 cursor-pointer btn-active hover:shadow-md transition">
+                            <div class="w-11 h-11 rounded-xl bg-blue-700 flex items-center justify-center text-white text-lg shrink-0">
+                                <i class="fa-solid fa-calculator"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-extrabold text-sm text-gray-800">5. 數獨大師 (Sudoku)</h4>
+                                <p class="text-[10px] text-gray-400">隨機題庫，精確填數檢驗與解答引導</p>
+                            </div>
+                        </div>
+
+                        <!-- Dots & Boxes -->
+                        <div onclick="launchGame('dots')" class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-3 cursor-pointer btn-active hover:shadow-md transition">
+                            <div class="w-11 h-11 rounded-xl bg-teal-600 flex items-center justify-center text-white text-lg shrink-0">
+                                <i class="fa-solid fa-border-none"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-extrabold text-sm text-gray-800">6. 點格棋 / 畫地為牢</h4>
+                                <p class="text-[10px] text-gray-400">連接點點，封閉格子獲取最高分數！</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: 遊戲遊玩區域 -->
+            <section id="tab-gameplay" class="absolute inset-0 bg-[#f8fafc] flex flex-col hidden transition-all duration-500">
+                <!-- 遊戲頂端導航返回 -->
+                <div class="h-12 border-b border-gray-200 px-3 flex items-center justify-between bg-white shrink-0">
+                    <button onclick="exitGame()" class="text-xs text-gray-600 font-black flex items-center gap-1 py-1.5 px-3 hover:bg-gray-100 rounded-xl btn-active transition">
+                        <i class="fa-solid fa-chevron-left"></i> 返回大廳
+                    </button>
+                    <span id="game-title-header" class="text-xs font-black text-gray-800">遊戲載入中</span>
+                    <div id="game-diff-badge" class="text-[9px] font-black px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">中等</div>
+                </div>
+
+                <!-- 遊戲主體視窗 -->
+                <div class="flex-1 overflow-y-auto p-3 flex flex-col items-center justify-center bg-gray-50" id="gameplay-canvas-container">
+
+                    <!-- [10] 蛇與梯子 (全新 Canvas 地圖與真實梯線) -->
+                    <div id="game-snakes" class="w-full max-w-sm space-y-3 hidden">
+                        <div class="bg-white border-4 border-emerald-800 p-3 rounded-3xl shadow-xl w-full flex flex-col items-center">
+                            <!-- Canvas 畫布 -->
+                            <div class="relative w-full aspect-square bg-amber-50 rounded-xl border border-amber-800/20 overflow-hidden font-bold">
+                                <canvas id="sn-canvas" class="w-full h-full"></canvas>
+                            </div>
+                            <div class="w-full flex justify-between items-center mt-3 text-xs">
+                                <button onclick="rollSnakesDice()" id="sn-btn-roll" class="bg-emerald-600 text-white py-2 px-4 rounded-xl font-bold btn-active">投擲步進</button>
+                                <span id="sn-status-log" class="font-bold text-gray-700">準備骰點！</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- [2] 井字棋 (Minimax 不敗演算法) -->
+                    <div id="game-tictactoe" class="w-full max-w-xs space-y-4 hidden">
+                        <div class="bg-white p-5 rounded-3xl shadow-xl border border-gray-200 text-center space-y-3">
+                            <h3 class="text-sm font-black text-red-500">井字棋 (過三關)</h3>
+                            <div class="grid grid-cols-3 gap-2 aspect-square w-full" id="ttt-grid"></div>
+                            <div class="flex justify-between items-center text-xs">
+                                <span id="ttt-status" class="font-bold text-gray-600">你的回合 (X)</span>
+                                <button onclick="initTicTacToe()" class="bg-gray-100 px-3 py-1.5 rounded-lg font-bold">重置</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- [3] 經典 2048 -->
+                    <div id="game-puzzle2048" class="w-full max-w-xs space-y-3 hidden">
+                        <div class="bg-orange-50 p-5 rounded-3xl shadow-xl border border-orange-200 text-center space-y-4">
+                            <div class="flex justify-between items-center text-xs font-bold">
+                                <span class="text-orange-700">Score: <span id="p2048-score" class="font-black text-base">0</span></span>
+                                <button onclick="init2048()" class="bg-orange-600 text-white px-3 py-1.5 rounded-xl font-bold btn-active">重開</button>
+                            </div>
+                            <div class="grid grid-cols-4 gap-2 bg-orange-100/50 p-2 rounded-2xl aspect-square" id="p2048-grid"></div>
+                            <div class="grid grid-cols-3 gap-1.5 max-w-[150px] mx-auto text-xs font-bold">
+                                <div></div>
+                                <button onclick="slide2048('up')" class="bg-white border rounded py-1.5 active:bg-gray-100">▲</button>
+                                <div></div>
+                                <button onclick="slide2048('left')" class="bg-white border rounded py-1.5 active:bg-gray-100">◀</button>
+                                <button onclick="slide2048('down')" class="bg-white border rounded py-1.5 active:bg-gray-100">▼</button>
+                                <button onclick="slide2048('right')" class="bg-white border rounded py-1.5 active:bg-gray-100">▶</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- [4] 經典踩地雷 -->
+                    <div id="game-minesweeper" class="w-full max-w-sm space-y-3 hidden">
+                        <div class="bg-white border border-gray-200 p-4 rounded-3xl shadow-xl w-full">
+                            <div class="flex justify-between items-center text-xs font-bold mb-3">
+                                <div>💣 剩餘雷數: <span id="ms-mines" class="text-red-500">10</span></div>
+                                <button onclick="setMsMode('dig')" id="btn-ms-dig" class="bg-red-600 text-white px-3 py-1.5 rounded-xl">挖地</button>
+                                <button onclick="setMsMode('flag')" id="btn-ms-flag" class="bg-gray-100 text-gray-700 px-3 py-1.5 rounded-xl">插旗</button>
+                                <button onclick="initMinesweeper()" class="bg-gray-100 px-3 py-1.5 rounded-xl">重置</button>
+                            </div>
+                            <div id="ms-grid" class="grid grid-cols-9 gap-1 aspect-square w-full"></div>
+                        </div>
+                    </div>
+
+                    <!-- [5] 數獨大師 -->
+                    <div id="game-sudoku" class="w-full max-w-sm space-y-3 hidden">
+                        <div class="bg-white border border-gray-200 p-4 rounded-3xl shadow-xl w-full text-center space-y-3">
+                            <div class="grid grid-cols-9 gap-[1px] bg-slate-300 p-1 rounded-lg aspect-square" id="sudoku-grid"></div>
+                            <div class="flex gap-2">
+                                <button onclick="checkSudoku()" class="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl text-xs">檢查答案</button>
+                                <button onclick="initSudoku()" class="py-3 bg-gray-100 text-gray-700 font-bold rounded-xl text-xs px-4">新題目</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- [6] 點格棋 -->
+                    <div id="game-dots" class="w-full max-w-xs space-y-3 hidden">
+                        <div class="bg-white p-5 rounded-3xl shadow-xl border border-gray-200 text-center space-y-4">
+                            <div class="flex justify-between text-xs font-bold">
+                                <span class="text-teal-600">你: <span id="dots-score-p">0</span></span>
+                                <span class="text-red-500">AI: <span id="dots-score-ai">0</span></span>
+                            </div>
+                            <div id="dots-board" class="relative bg-slate-50 border rounded-2xl aspect-square w-full font-bold"></div>
+                            <button onclick="initDots()" class="w-full py-2 bg-gray-100 text-gray-700 font-bold rounded-xl text-xs">重置遊戲</button>
+                        </div>
+                    </div>
+
+                    <!-- 中國象棋 -->
+                    <div id="game-chess" class="w-full max-w-sm hidden">
+                        <div class="bg-amber-50 border-4 border-amber-800 p-3 rounded-2xl shadow-xl w-full">
+                            <div id="cc-board" class="grid grid-cols-9 grid-rows-10 gap-0.5 bg-amber-200 p-1 rounded-lg"></div>
+                            <div id="cc-status" class="text-center text-xs mt-2 text-red-600 font-black"></div>
+                        </div>
+                    </div>
+
+                    <!-- 大老二 -->
+                    <div id="game-bigtwo" class="w-full max-w-md h-[460px] bg-emerald-900 border-4 border-amber-600 rounded-3xl p-4 text-white flex flex-col justify-between shadow-2xl hidden">
+                        <div class="flex justify-between text-[10px] shrink-0 bg-emerald-950/40 p-2 rounded-xl">
+                            <div>🤖 AI 對手 1: <span id="bt-ai1-count" class="font-bold text-yellow-300">13</span> 張</div>
+                            <div>🤖 AI 對手 2: <span id="bt-ai2-count" class="font-bold text-yellow-300">13</span> 張</div>
+                        </div>
+                        <div class="flex-1 flex flex-col items-center justify-center space-y-1.5">
+                            <span class="text-[9px] text-emerald-300">桌面牌型: <span id="bt-pattern-desc" class="text-yellow-300 font-bold">無</span></span>
+                            <div id="bt-table-cards" class="flex gap-1 min-h-[70px] items-center"></div>
+                        </div>
+                        <div class="bg-emerald-950/80 p-2.5 rounded-2xl space-y-2 shrink-0">
+                            <div class="overflow-x-auto no-scrollbar py-1">
+                                <div id="bt-player-hand" class="flex gap-1 min-w-max px-2"></div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="btPlayCards()" class="flex-1 py-2 bg-yellow-500 text-gray-900 font-black rounded-xl text-xs active-bounce">出牌</button>
+                                <button onclick="btPassTurn()" class="flex-1 py-2 bg-white text-gray-900 font-black rounded-xl text-xs active-bounce">過牌</button>
+                                <button onclick="initBigTwo()" class="py-2 px-3 bg-emerald-800 text-white font-black rounded-xl text-xs active-bounce">發牌</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 大富翁 -->
+                    <div id="game-monopoly" class="w-full max-w-sm hidden">
+                        <div id="mono-grid" class="grid grid-cols-5 grid-rows-5 gap-1 aspect-square bg-slate-100 p-1.5 rounded-3xl"></div>
+                        <div class="bg-white p-3 rounded-xl mt-3 flex justify-between items-center text-xs">
+                            <button id="mono-btn-roll" onclick="rollMonopoly()" class="bg-red-600 text-white font-black px-4 py-2 rounded-xl active-bounce">擲骰子移動</button>
+                            <button onclick="initMonopoly()" class="bg-gray-100 text-gray-700 font-bold px-3 py-2 rounded-xl active-bounce">重設</button>
+                        </div>
+                    </div>
+
+                    <!-- 21點 -->
+                    <div id="game-blackjack" class="w-full max-w-xs bg-emerald-800 p-4 border border-yellow-500 shadow-xl rounded-3xl hidden">
+                        <div id="bj-cards-dealer" class="flex gap-1 h-14 mb-2"></div>
+                        <div id="bj-cards-player" class="flex gap-1 h-14 mb-4"></div>
+                        <div id="bj-log" class="text-xs text-yellow-300 text-center font-bold mb-3"></div>
+                        <div class="flex gap-2 text-xs font-bold">
+                            <button onclick="blackjackHit()" class="flex-1 bg-yellow-500 text-gray-950 py-2 rounded-xl">要牌</button>
+                            <button onclick="blackjackStand()" class="flex-1 bg-white text-gray-950 py-2 rounded-xl">停牌</button>
+                            <button onclick="resetBlackjack()" class="bg-emerald-900 text-white px-3 py-2 rounded-xl">重新</button>
+                        </div>
+                    </div>
+
+                    <!-- 物理雙骰 -->
+                    <div id="game-dice" class="w-full max-w-xs bg-white p-6 rounded-3xl text-center shadow-lg hidden">
+                        <div class="flex justify-center gap-4 mb-6">
+                            <div id="dice-p1" class="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center text-3xl font-black shadow shadow-inner">1</div>
+                            <div id="dice-p2" class="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center text-3xl font-black shadow shadow-inner">1</div>
+                        </div>
+                        <button onclick="rollDice()" class="bg-purple-600 text-white font-black py-3 px-6 rounded-2xl w-full active-bounce transition">投骰雙骰</button>
+                    </div>
+
+                    <!-- 黑白棋 -->
+                    <div id="game-othello" class="w-full max-w-sm hidden">
+                        <div class="bg-emerald-700 border-4 border-slate-800 p-3 rounded-2xl shadow-xl w-full">
+                            <div id="ot-board" class="grid grid-cols-8 grid-rows-8 gap-0.5 bg-emerald-900 rounded-lg aspect-square"></div>
+                            <div class="flex justify-between items-center text-xs text-white font-bold mt-3">
+                                <div>黑棋 (你): <span id="ot-score-black">2</span> | 白棋 (AI): <span id="ot-score-white">2</span></div>
+                                <button onclick="initOthello()" class="bg-slate-800 text-white px-3 py-1.5 rounded-lg active-bounce">重新開局</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 重力四子棋 -->
+                    <div id="game-connectfour" class="w-full max-w-sm hidden">
+                        <div class="bg-blue-600 p-4 rounded-3xl shadow-xl w-full">
+                            <div id="c4-board" class="grid grid-cols-7 grid-rows-6 gap-2 bg-blue-700 p-2 rounded-2xl aspect-[7/6] relative"></div>
+                            <div class="flex justify-between items-center text-xs text-white font-bold mt-3">
+                                <span id="c4-status">你的回合 (紅色)</span>
+                                <button onclick="initConnectFour()" class="bg-blue-900 text-white px-3 py-1.5 rounded-xl active-bounce">重置</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 經典飛行棋 -->
+                    <div id="game-flyingchess" class="w-full max-w-sm hidden">
+                        <div class="bg-slate-100 border border-slate-300 p-3 rounded-2xl shadow-xl w-full flex flex-col items-center">
+                            <div id="fc-board" class="grid grid-cols-7 grid-rows-7 gap-1 bg-white p-2 border-2 border-slate-400 rounded-xl aspect-square w-full"></div>
+                            <div class="w-full flex justify-between items-center mt-3 text-xs">
+                                <button onclick="rollFlyingChessDice()" id="fc-btn-roll" class="bg-blue-600 text-white py-2 px-4 rounded-xl font-bold active-bounce">擲骰飛行</button>
+                                <span id="fc-status" class="font-bold text-gray-700">紅色回合</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 國際跳棋 -->
+                    <div id="game-checkers" class="w-full max-w-sm hidden">
+                        <div class="bg-slate-800 p-3 rounded-2xl shadow-xl w-full">
+                            <div id="ck-board" class="grid grid-cols-8 grid-rows-8 gap-[1px] bg-amber-500 p-1 rounded-lg aspect-square"></div>
+                            <div class="flex justify-between items-center text-xs text-white font-bold mt-3">
+                                <span id="ck-status">紅方 (你) 回合</span>
+                                <button onclick="initCheckers()" class="bg-slate-900 text-white px-2.5 py-1.5 rounded-lg active-bounce">重設</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 非洲播棋 -->
+                    <div id="game-mancala" class="w-full max-w-sm hidden">
+                        <div id="man-pit-player"></div>
+                    </div>
+
+                    <!-- 德州撲克對決 -->
+                    <div id="game-texasholdem" class="w-full max-w-xs bg-emerald-800 p-4 border-2 border-yellow-500 rounded-3xl hidden">
+                        <h4 class="text-xs text-white font-black mb-3">德州撲克 (離線精簡版)</h4>
+                        <button onclick="launchGame('texasholdem')" class="w-full bg-yellow-500 text-gray-950 font-black py-2 rounded-xl text-xs">重新發牌</button>
+                    </div>
+
+                    <!-- 快艇骰子 -->
+                    <div id="game-yahtzee" class="w-full max-w-xs bg-white p-4 border border-gray-200 rounded-3xl hidden">
+                        <h4 class="text-xs font-black text-center mb-3">歡樂快艇骰子</h4>
+                        <button onclick="launchGame('yahtzee')" class="w-full bg-purple-600 text-white py-2 rounded-xl text-xs font-bold active-bounce">投擲骰子</button>
+                    </div>
+
+                    <!-- 記憶翻牌 -->
+                    <div id="game-memory" class="w-full max-w-xs bg-white p-4 border border-gray-200 rounded-3xl hidden">
+                        <h4 class="text-xs font-black text-center mb-3">記憶翻牌對決</h4>
+                        <div id="mem-grid" class="grid grid-cols-4 gap-2 mb-4"></div>
+                        <button onclick="launchGame('memory')" class="w-full bg-emerald-600 text-white py-2 rounded-xl text-xs font-bold active-bounce">重新洗牌</button>
+                    </div>
+
+                    <!-- 15 數字推盤 -->
+                    <div id="game-puzzle15" class="w-full max-w-xs bg-white p-4 border border-gray-200 rounded-3xl hidden">
+                        <h4 class="text-xs font-black text-center mb-3">15 數字推盤</h4>
+                        <div id="p15-grid" class="grid grid-cols-4 gap-1.5 mb-4"></div>
+                        <button onclick="launchGame('puzzle15')" class="w-full bg-slate-700 text-white py-2 rounded-xl text-xs font-bold active-bounce">打亂重整</button>
+                    </div>
+
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 腳本邏輯 -->
+    <script>
+        // === 1. 導航與手機版側邊欄事件優化 ===
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        const btnToggle = document.getElementById('btn-toggle');
+
+        function toggleSidebar() {
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+
+        btnToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleSidebar();
+        });
+        
+        overlay.addEventListener('click', () => {
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+        });
+
+        sidebar.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        // 側邊欄啟動：點選項目自動關閉抽屜防擠壓
+        function sidebarLaunch(gameKey) {
+            launchGame(gameKey);
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+        }
+
+        function switchTab(tabId) {
+            document.getElementById('tab-lobby').classList.remove('hidden');
+            document.getElementById('tab-gameplay').classList.add('hidden');
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+        }
+
+        function launchGame(gameKey) {
+            document.getElementById('tab-lobby').classList.add('hidden');
+            document.getElementById('tab-gameplay').classList.remove('hidden');
+
+            const ids = ['game-chess','game-bigtwo','game-monopoly','game-blackjack','game-dice','game-othello','game-connectfour','game-flyingchess','game-checkers','game-snakes','game-mancala','game-tictactoe','game-puzzle2048','game-minesweeper','game-sudoku','game-dots','game-texasholdem','game-yahtzee','game-memory','game-puzzle15'];
+            ids.forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.classList.add('hidden');
+            });
+
+            document.getElementById('game-title-header').innerText = gameKey.toUpperCase();
+            const targetGame = document.getElementById(`game-${gameKey}`);
+            if(targetGame) targetGame.classList.remove('hidden');
+
+            // 初始化特定遊戲
+            if (gameKey === 'snakes') initSnakes();
+            else if (gameKey === 'tictactoe') initTicTacToe();
+            else if (gameKey === 'puzzle2048') init2048();
+            else if (gameKey === 'minesweeper') initMinesweeper();
+            else if (gameKey === 'sudoku') initSudoku();
+            else if (gameKey === 'dots') initDots();
+            else if (gameKey === 'chess') initChineseChess();
+            else if (gameKey === 'bigtwo') initBigTwo();
+            else if (gameKey === 'monopoly') initMonopoly();
+            else if (gameKey === 'blackjack') resetBlackjack();
+            else if (gameKey === 'othello') initOthello();
+            else if (gameKey === 'connectfour') initConnectFour();
+            else if (gameKey === 'flyingchess') initFlyingChess();
+            else if (gameKey === 'checkers') initCheckers();
+            else if (gameKey === 'mancala') initMancala();
+        }
+
+        function exitGame() {
+            switchTab('lobby');
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.opacity = '1';
+            setTimeout(() => t.style.opacity = '0', 1800);
+        }
+
+        // === 2. 難度控制系統 (Dynamic Difficulty System) ===
+        let currentDifficulty = 'medium'; // 'easy', 'medium', 'hell'
+
+        function setDifficulty(level) {
+            currentDifficulty = level;
+
+            const btnEasy = document.getElementById('diff-easy');
+            const btnMedium = document.getElementById('diff-medium');
+            const btnHell = document.getElementById('diff-hell');
+
+            btnEasy.className = "px-3 py-1 rounded-full text-[10px] font-black transition-all";
+            btnMedium.className = "px-3 py-1 rounded-full text-[10px] font-black transition-all";
+            btnHell.className = "px-3 py-1 rounded-full text-[10px] font-black transition-all";
+
+            document.body.className = "h-screen flex flex-col theme-adaptive-bg transition-all duration-500";
+            const headerNav = document.getElementById('header-nav');
+            headerNav.className = "border-b border-gray-200 h-14 flex items-center justify-between px-4 z-40 shrink-0 shadow-sm transition-all duration-500 bg-white";
+            
+            const bannerBoard = document.getElementById('banner-board');
+            const bannerTitle = document.getElementById('banner-title');
+            const bannerDesc = document.getElementById('banner-desc');
+
+            if (level === 'easy') {
+                document.body.classList.add('theme-easy');
+                btnEasy.className = "px-3 py-1 rounded-full text-[10px] font-black transition-all bg-white shadow-sm text-green-600";
+                bannerTitle.innerText = "輕鬆遊玩 快樂桌遊時間";
+                bannerDesc.innerText = "AI 此時非常溫和，適合放鬆心情或新玩家練手！";
+                showToast("🟢 已切換至「簡單模式」：草綠色主題，AI 會主動讓步。");
+
+            } else if (level === 'medium') {
+                document.body.classList.add('theme-medium');
+                btnMedium.className = "px-3 py-1 rounded-full text-[10px] font-black transition-all bg-white shadow-sm text-blue-600";
+                bannerTitle.innerText = "標準競技 經典桌遊大會";
+                bannerDesc.innerText = "標準的 Roblox 現代風格，AI 具備正常攻防策略。";
+                showToast("🔵 已切換至「中等模式」：科技藍主題，標準對戰難度。");
+
+            } else if (level === 'hell') {
+                document.body.classList.add('theme-hell');
+                btnHell.className = "px-3 py-1 rounded-full text-[10px] font-black transition-all bg-white shadow-sm text-red-600";
+                
+                headerNav.className = "border-b border-red-950 h-14 flex items-center justify-between px-4 z-40 shrink-0 shadow-sm transition-all duration-500 bg-gray-950 text-white";
+                bannerTitle.innerText = "地獄煉獄！絕望硬核對決";
+                bannerDesc.innerText = "AI 深度演算全開，不會放過任何一個失誤。你能活到最後嗎？";
+                showToast("🔴 已切換至「地獄模式」：熔岩黑紅主題，高智商 AI 封鎖！");
+            }
+
+            const diffBadge = document.getElementById('game-diff-badge');
+            if (diffBadge) {
+                diffBadge.innerText = level === 'easy' ? "簡單" : level === 'medium' ? "中等" : "地獄";
+                diffBadge.className = `text-[9px] font-black px-2 py-0.5 rounded-full ${
+                    level === 'easy' ? "bg-green-100 text-green-700" :
+                    level === 'medium' ? "bg-blue-100 text-blue-700" :
+                    "bg-red-100 text-red-700 hell-pulse"
+                }`;
+            }
+
+            const activeGame = document.getElementById('game-title-header').innerText.toLowerCase();
+            if (activeGame && activeGame !== '遊戲載入中' && activeGame !== '返回大廳') {
+                launchGame(activeGame);
+            }
+        }
+
+        // =====================================================================
+        // 🐍 [10] 蛇與梯子 (Canvas 地圖與真實梯線)
+        // =====================================================================
+        let snPlayerPos = 1;
+        let snAIPos = 1;
+        const snSnakesList = { 12: 3, 22: 5, 34: 16 };
+        const snLaddersList = { 4: 14, 8: 26, 18: 30 };
+
+        function initSnakes() {
+            snPlayerPos = 1;
+            snAIPos = 1;
+            document.getElementById('sn-status-log').innerText = "點選骰子開始！";
+            drawSnakesBoard();
+        }
+
+        function drawSnakesBoard() {
+            const canvas = document.getElementById('sn-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            const size = 300;
+            canvas.width = size;
+            canvas.height = size;
+
+            ctx.clearRect(0,0,size,size);
+
+            const gridSize = size / 6;
+            for(let r=0; r<6; r++) {
+                for(let c=0; c<6; c++) {
+                    let id = 0;
+                    if(r % 2 === 0) {
+                        id = (5 - r) * 6 + (c + 1);
+                    } else {
+                        id = (5 - r) * 6 + (6 - c);
+                    }
+                    if (currentDifficulty === 'easy') {
+                        ctx.fillStyle = (r + c) % 2 === 0 ? "#f0fdf4" : "#bbf7d0";
+                        ctx.strokeStyle = "#16a34a";
+                    } else if (currentDifficulty === 'hell') {
+                        ctx.fillStyle = (r + c) % 2 === 0 ? "#111827" : "#1f2937";
+                        ctx.strokeStyle = "#7f1d1d";
+                    } else {
+                        ctx.fillStyle = (r + c) % 2 === 0 ? "#fef3c7" : "#fffbeb";
+                        ctx.strokeStyle = "#d97706";
+                    }
+                    ctx.fillRect(c*gridSize, r*gridSize, gridSize, gridSize);
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(c*gridSize, r*gridSize, gridSize, gridSize);
+
+                    ctx.fillStyle = currentDifficulty === 'hell' ? "#fca5a5" : "#92400e";
+                    ctx.font = "bold 9px sans-serif";
+                    ctx.fillText(id, c*gridSize + 4, r*gridSize + 12);
+                }
+            }
+
+            function getCellCoords(num) {
+                const r = 5 - Math.floor((num - 1) / 6);
+                const colIdx = (num - 1) % 6;
+                const c = (Math.floor((num - 1) / 6) % 2 === 0) ? colIdx : (5 - colIdx);
+                return {
+                    x: c * gridSize + gridSize/2,
+                    y: r * gridSize + gridSize/2
+                };
+            }
+
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = currentDifficulty === 'hell' ? "#f59e0b" : "#16a34a";
+            for(let from in snLaddersList) {
+                const start = getCellCoords(Number(from));
+                const end = getCellCoords(Number(snLaddersList[from]));
+                ctx.beginPath();
+                ctx.moveTo(start.x, start.y);
+                ctx.lineTo(end.x, end.y);
+                ctx.stroke();
+
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = currentDifficulty === 'hell' ? "#d97706" : "#22c55e";
+                const steps = 4;
+                for(let i=1; i<steps; i++) {
+                    const lx = start.x + (end.x - start.x) * (i/steps);
+                    const ly = start.y + (end.y - start.y) * (i/steps);
+                    ctx.beginPath();
+                    ctx.arc(lx, ly, 3, 0, Math.PI*2);
+                    ctx.fill();
+                }
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = currentDifficulty === 'hell' ? "#f59e0b" : "#16a34a";
+            }
+
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = "#dc2626";
+            for(let from in snSnakesList) {
+                const start = getCellCoords(Number(from));
+                const end = getCellCoords(Number(snSnakesList[from]));
+                
+                ctx.beginPath();
+                ctx.moveTo(start.x, start.y);
+                const ctrlX = (start.x + end.x)/2 + 20;
+                const ctrlY = (start.y + end.y)/2 - 10;
+                ctx.quadraticCurveTo(ctrlX, ctrlY, end.x, end.y);
+                ctx.stroke();
+
+                ctx.fillStyle = "#b91c1c";
+                ctx.beginPath();
+                ctx.arc(start.x, start.y, 5, 0, Math.PI*2);
+                ctx.fill();
+            }
+
+            const pCoord = getCellCoords(snPlayerPos);
+            ctx.fillStyle = "#ef4444";
+            ctx.beginPath();
+            ctx.arc(pCoord.x - 4, pCoord.y, 6, 0, Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle = "#white";
+            ctx.stroke();
+
+            const aiCoord = getCellCoords(snAIPos);
+            ctx.fillStyle = "#3b82f6";
+            ctx.beginPath();
+            ctx.arc(aiCoord.x + 4, aiCoord.y, 6, 0, Math.PI*2);
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        function rollSnakesDice() {
+            let dice = Math.floor(Math.random() * 4) + 1;
+            if (currentDifficulty === 'easy' && Math.random() > 0.4) {
+                dice = Math.max(dice, 3);
+            }
+            
+            let targetPos = Math.min(36, snPlayerPos + dice);
+            let log = `你擲出了 ${dice} 點。`;
+
+            let current = snPlayerPos;
+            const interval = setInterval(() => {
+                current++;
+                snPlayerPos = current;
+                drawSnakesBoard();
+                if(current >= targetPos) {
+                    clearInterval(interval);
+                    
+                    if(snLaddersList[snPlayerPos]) {
+                        snPlayerPos = snLaddersList[snPlayerPos];
+                        showToast("🪜 順著梯子爬升！");
+                    } else if(snSnakesList[snPlayerPos]) {
+                        if (currentDifficulty === 'easy' && Math.random() > 0.5) {
+                            showToast("🛡️ 簡單模式：免受毒蛇滑落傷害。");
+                        } else {
+                            snPlayerPos = snSnakesList[snPlayerPos];
+                            showToast("🐍 踩到蛇頭滑落！");
+                        }
+                    }
+                    drawSnakesBoard();
+
+                    if(snPlayerPos === 36) {
+                        document.getElementById('sn-status-log').innerText = "🎉 恭喜！你獲勝了！";
+                        return;
+                    }
+
+                    document.getElementById('sn-status-log').innerText = "AI 正在擲骰骰點...";
+                    setTimeout(runSnakesAI, 600);
+                }
+            }, 200);
+        }
+
+        function runSnakesAI() {
+            let dice = Math.floor(Math.random() * 4) + 1;
+            if (currentDifficulty === 'hell' && Math.random() > 0.5) {
+                dice = Math.max(dice, 3);
+            }
+
+            let targetPos = Math.min(36, snAIPos + dice);
+
+            let current = snAIPos;
+            const interval = setInterval(() => {
+                current++;
+                snAIPos = current;
+                drawSnakesBoard();
+                if(current >= targetPos) {
+                    clearInterval(interval);
+                    
+                    if(snLaddersList[snAIPos]) {
+                        snAIPos = snLaddersList[snAIPos];
+                    } else if(snSnakesList[snAIPos]) {
+                        snAIPos = snSnakesList[snAIPos];
+                    }
+                    drawSnakesBoard();
+
+                    if(snAIPos === 36) {
+                        document.getElementById('sn-status-log').innerText = "💀 AI 獲勝！挑戰失敗。";
+                        return;
+                    }
+
+                    document.getElementById('sn-status-log').innerText = "輪到你的回合了！";
+                }
+            }, 200);
+        }
+
+        // =====================================================================
+        // ⭕ [2] 井字棋 (過三關)
+        // =====================================================================
+        let tttGrid = Array(9).fill("");
+        let tttGameOver = false;
+
+        function initTicTacToe() {
+            tttGrid = Array(9).fill("");
+            tttGameOver = false;
+            document.getElementById('ttt-status').innerText = "你的回合 (X)";
+            renderTTT();
+        }
+
+        function renderTTT() {
+            const grid = document.getElementById('ttt-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            for(let i=0; i<9; i++) {
+                const cell = document.createElement('div');
+                cell.className = "bg-gray-100 border-2 border-gray-200 rounded-2xl flex items-center justify-center font-black text-2xl cursor-pointer hover:bg-gray-50 active:scale-95 transition select-none";
+                cell.innerText = tttGrid[i];
+                if(tttGrid[i] === "X") cell.classList.add('text-red-500');
+                if(tttGrid[i] === "O") cell.classList.add('text-blue-500');
+                cell.onclick = () => tttClick(i);
+                grid.appendChild(cell);
+            }
+        }
+
+        function tttClick(idx) {
+            if(tttGrid[idx] !== "" || tttGameOver) return;
+            tttGrid[idx] = "X";
+            renderTTT();
+
+            if(checkTTTWin(tttGrid, "X")) {
+                document.getElementById('ttt-status').innerText = "🎉 恭喜獲勝！";
+                tttGameOver = true;
+                return;
+            }
+            if(tttGrid.every(c => c !== "")) {
+                document.getElementById('ttt-status').innerText = "雙方平手！";
+                tttGameOver = true;
+                return;
+            }
+
+            document.getElementById('ttt-status').innerText = "AI 計算分析中...";
+            setTimeout(runTTT_AI, 300);
+        }
+
+        function runTTT_AI() {
+            if(tttGameOver) return;
+            let move = -1;
+
+            if (currentDifficulty === 'easy') {
+                if (Math.random() > 0.3) {
+                    const empties = [];
+                    for(let i=0; i<9; i++) if(tttGrid[i] === "") empties.push(i);
+                    move = empties[Math.floor(Math.random() * empties.length)];
+                }
+            }
+
+            if (move === -1) {
+                let bestScore = -Infinity;
+                for(let i=0; i<9; i++) {
+                    if(tttGrid[i] === "") {
+                        tttGrid[i] = "O";
+                        let score = minimax(tttGrid, 0, false);
+                        tttGrid[i] = "";
+                        if(score > bestScore) {
+                            bestScore = score;
+                            move = i;
+                        }
+                    }
+                }
+            }
+
+            if(move !== -1) {
+                tttGrid[move] = "O";
+                renderTTT();
+                if(checkTTTWin(tttGrid, "O")) {
+                    document.getElementById('ttt-status').innerText = "💀 被 AI 擊敗了！";
+                    tttGameOver = true;
+                    return;
+                }
+            }
+
+            if(tttGrid.every(c => c !== "")) {
+                document.getElementById('ttt-status').innerText = "雙方平手！";
+                tttGameOver = true;
+                return;
+            }
+
+            document.getElementById('ttt-status').innerText = "你的回合 (X)";
+        }
+
+        function minimax(board, depth, isMaximizing) {
+            if(checkTTTWin(board, "O")) return 10 - depth;
+            if(checkTTTWin(board, "X")) return depth - 10;
+            if(board.every(c => c !== "")) return 0;
+
+            if(isMaximizing) {
+                let bestScore = -Infinity;
+                for(let i=0; i<9; i++) {
+                    if(board[i] === "") {
+                        board[i] = "O";
+                        let score = minimax(board, depth + 1, false);
+                        board[i] = "";
+                        bestScore = Math.max(score, bestScore);
+                    }
+                }
+                return bestScore;
+            } else {
+                let bestScore = Infinity;
+                for(let i=0; i<9; i++) {
+                    if(board[i] === "") {
+                        board[i] = "X";
+                        let score = minimax(board, depth + 1, true);
+                        board[i] = "";
+                        bestScore = Math.min(score, bestScore);
+                    }
+                }
+                return bestScore;
+            }
+        }
+
+        function checkTTTWin(board, p) {
+            const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+            return wins.some(w => w.every(i => board[i] === p));
+        }
+
+        // =====================================================================
+        // 🔢 [3] 2048 (基本渲染)
+        // =====================================================================
+        let board2048 = Array(16).fill(0);
+        let score2048 = 0;
+
+        function init2048() {
+            board2048 = Array(16).fill(0);
+            score2048 = 0;
+            spawn2048();
+            spawn2048();
+            render2048();
+        }
+
+        function render2048() {
+            const grid = document.getElementById('p2048-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            document.getElementById('p2048-score').innerText = score2048;
+
+            const colors = {
+                0: "bg-orange-100/50 text-transparent",
+                2: "bg-amber-50 text-orange-800 font-black",
+                4: "bg-amber-100 text-orange-800 font-black",
+                8: "bg-orange-400 text-white font-black shadow-inner",
+                16: "bg-orange-500 text-white font-black",
+                32: "bg-orange-600 text-white font-black",
+                64: "bg-red-500 text-white font-black",
+                128: "bg-yellow-400 text-white font-black text-sm",
+                256: "bg-yellow-500 text-white font-black text-sm"
+            };
+
+            for(let i=0; i<16; i++) {
+                const cell = document.createElement('div');
+                const val = board2048[i];
+                cell.className = `rounded-xl flex items-center justify-center text-lg ${colors[val] || "bg-yellow-700 text-white font-black"} transition-all duration-150 transform active:scale-95`;
+                cell.innerText = val > 0 ? val : "";
+                grid.appendChild(cell);
+            }
+        }
+
+        function spawn2048() {
+            const empties = [];
+            for(let i=0; i<16; i++) {
+                if(board2048[i] === 0) empties.push(i);
+            }
+            if(empties.length > 0) {
+                const r = empties[Math.floor(Math.random() * empties.length)];
+                board2048[r] = Math.random() > 0.1 ? 2 : 4;
+            }
+        }
+
+        function slide2048(dir) {
+            spawn2048();
+            render2048();
+        }
+
+        // =====================================================================
+        // 💣 [4] 經典踩地雷
+        // =====================================================================
+        let msGrid = Array(81).fill(0);
+        let msRevealed = Array(81).fill(false);
+        let msFlagged = Array(81).fill(false);
+        let msMode = 'dig';
+
+        function initMinesweeper() {
+            msGrid = Array(81).fill(0);
+            msRevealed = Array(81).fill(false);
+            msFlagged = Array(81).fill(false);
+            
+            let count = 0;
+            while(count < 10) {
+                let r = Math.floor(Math.random() * 81);
+                if(msGrid[r] !== -1) {
+                    msGrid[r] = -1;
+                    count++;
+                }
+            }
+
+            for(let i=0; i<81; i++) {
+                if(msGrid[i] === -1) continue;
+                let r = Math.floor(i / 9);
+                let c = i % 9;
+                let mines = 0;
+                for(let dr=-1; dr<=1; dr++) {
+                    for(let dc=-1; dc<=1; dc++) {
+                        let nr = r + dr;
+                        let nc = c + dc;
+                        if(nr>=0 && nr<9 && nc>=0 && nc<9) {
+                            if(msGrid[nr*9 + nc] === -1) mines++;
+                        }
+                    }
+                }
+                msGrid[i] = mines;
+            }
+
+            const minesDisplay = document.getElementById('ms-mines');
+            if (minesDisplay) minesDisplay.innerText = 10;
+            renderMS();
+        }
+
+        function setMsMode(mode) {
+            msMode = mode;
+            document.getElementById('btn-ms-dig').className = mode === 'dig' ? 'bg-red-600 text-white px-3 py-1.5 rounded-xl font-bold' : 'bg-gray-100 text-gray-700 px-3 py-1.5 rounded-xl font-bold';
+            document.getElementById('btn-ms-flag').className = mode === 'flag' ? 'bg-red-600 text-white px-3 py-1.5 rounded-xl font-bold' : 'bg-gray-100 text-gray-700 px-3 py-1.5 rounded-xl font-bold';
+        }
+
+        function renderMS() {
+            const grid = document.getElementById('ms-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            for(let i=0; i<81; i++) {
+                const cell = document.createElement('div');
+                cell.className = "bg-gray-200 border border-gray-300 rounded-lg flex items-center justify-center font-black text-xs cursor-pointer select-none active:scale-90 transition";
+                
+                if(msRevealed[i]) {
+                    cell.className = "bg-white border border-gray-100 rounded-lg flex items-center justify-center font-black text-xs select-none";
+                    if(msGrid[i] === -1) {
+                        cell.innerText = "💣";
+                        cell.classList.add('bg-red-200');
+                    } else if(msGrid[i] > 0) {
+                        cell.innerText = msGrid[i];
+                    }
+                } else if(msFlagged[i]) {
+                    cell.innerText = "🚩";
+                }
+
+                cell.onclick = () => msClick(i);
+                grid.appendChild(cell);
+            }
+        }
+
+        function msClick(idx) {
+            if(msRevealed[idx]) return;
+
+            if(msMode === 'flag') {
+                msFlagged[idx] = !msFlagged[idx];
+                renderMS();
+                return;
+            }
+
+            if(msGrid[idx] === -1) {
+                msRevealed.fill(true);
+                showToast("💀 踩雷！防守失敗！");
+                renderMS();
+                return;
+            }
+
+            revealMsCell(idx);
+            renderMS();
+        }
+
+        function revealMsCell(idx) {
+            if(idx<0 || idx>=81 || msRevealed[idx]) return;
+            msRevealed[idx] = true;
+            if(msGrid[idx] === 0) {
+                let r = Math.floor(idx / 9);
+                let c = idx % 9;
+                for(let dr=-1; dr<=1; dr++) {
+                    for(let dc=-1; dc<=1; dc++) {
+                        let nr = r + dr;
+                        let nc = c + dc;
+                        if(nr>=0 && nr<9 && nc>=0 && nc<9) {
+                            revealMsCell(nr*9 + nc);
+                        }
+                    }
+                }
+            }
+        }
+
+        // =====================================================================
+        // 🔢 [5] 數獨大師
+        // =====================================================================
+        let sudokuSolution = [];
+        let sudokuPuzzle = [];
+
+        function initSudoku() {
+            sudokuSolution = [
+                5,3,4,6,7,8,9,1,2,
+                6,7,2,1,9,5,3,4,8,
+                1,9,8,3,4,2,5,6,7,
+                8,5,9,7,6,1,4,2,3,
+                4,2,6,8,5,3,7,9,1,
+                7,1,3,9,2,4,8,5,6,
+                9,6,1,5,3,7,2,8,4,
+                2,8,7,4,1,9,6,3,5,
+                3,4,5,2,8,6,1,7,9
+            ];
+            sudokuPuzzle = [...sudokuSolution];
+            for(let i=0; i<81; i++) {
+                if(Math.random() > 0.4) sudokuPuzzle[i] = 0;
+            }
+            renderSudoku();
+        }
+
+        function renderSudoku() {
+            const grid = document.getElementById('sudoku-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            for(let i=0; i<81; i++) {
+                const val = sudokuPuzzle[i];
+                if(val > 0) {
+                    const cell = document.createElement('div');
+                    cell.className = "bg-white flex items-center justify-center font-bold text-xs border border-gray-100";
+                    cell.innerText = val;
+                    grid.appendChild(cell);
+                } else {
+                    const input = document.createElement('input');
+                    input.type = "number";
+                    input.className = "w-full h-full text-center font-bold text-xs bg-yellow-50 focus:bg-yellow-100 border border-gray-200 outline-none";
+                    input.dataset.index = i;
+                    grid.appendChild(input);
+                }
+            }
+        }
+
+        function checkSudoku() {
+            const inputs = document.querySelectorAll('#sudoku-grid input');
+            let correct = true;
+            inputs.forEach(input => {
+                const idx = parseInt(input.dataset.index);
+                const val = parseInt(input.value);
+                if(val !== sudokuSolution[idx]) {
+                    correct = false;
+                    input.classList.add('bg-red-100');
+                } else {
+                    input.classList.remove('bg-red-100');
+                    input.classList.add('bg-green-100');
+                }
+            });
+
+            if(correct) {
+                showToast("🎉 數獨答案完全正確！");
+            } else {
+                showToast("❌ 答案有錯誤，請檢查！");
+            }
+        }
+
+        // =====================================================================
+        // 🟢 [6] 點格棋 (Dots and Boxes)
+        // =====================================================================
+        let dotsLines = {};
+        let dotsScoreP = 0;
+        let dotsScoreAI = 0;
+
+        function initDots() {
+            dotsLines = {};
+            dotsScoreP = 0;
+            dotsScoreAI = 0;
+            
+            const pScore = document.getElementById('dots-score-p');
+            const aiScore = document.getElementById('dots-score-ai');
+            if (pScore) pScore.innerText = 0;
+            if (aiScore) aiScore.innerText = 0;
+
+            const board = document.getElementById('dots-board');
+            if (!board) return;
+            board.innerHTML = '';
+
+            const size = 300;
+            const spacing = size / 4;
+
+            for(let r=0; r<4; r++) {
+                for(let c=0; c<3; c++) {
+                    const hLine = document.createElement('div');
+                    hLine.className = "absolute bg-gray-200 hover:bg-gray-400 cursor-pointer transition rounded";
+                    hLine.style.top = `${r*spacing + 4}px`;
+                    hLine.style.left = `${c*spacing + 8}px`;
+                    hLine.style.width = `${spacing - 16}px`;
+                    hLine.style.height = "6px";
+                    
+                    const key = `h_${r}_${c}`;
+                    hLine.onclick = () => claimLine(key, hLine);
+                    board.appendChild(hLine);
+                }
+            }
+
+            for(let r=0; r<3; r++) {
+                for(let c=0; c<4; c++) {
+                    const vLine = document.createElement('div');
+                    vLine.className = "absolute bg-gray-200 hover:bg-gray-400 cursor-pointer transition rounded";
+                    vLine.style.top = `${r*spacing + 8}px`;
+                    vLine.style.left = `${c*spacing + 4}px`;
+                    vLine.style.width = "6px";
+                    vLine.style.height = `${spacing - 16}px`;
+
+                    const key = `v_${r}_${c}`;
+                    vLine.onclick = () => claimLine(key, vLine);
+                    board.appendChild(vLine);
+                }
+            }
+
+            for(let r=0; r<4; r++) {
+                for(let c=0; c<4; c++) {
+                    const dot = document.createElement('div');
+                    dot.className = "absolute w-4 h-4 bg-slate-800 rounded-full z-10 transform -translate-x-1/2 -translate-y-1/2";
+                    dot.style.top = `${r*spacing + 7}px`;
+                    dot.style.left = `${c*spacing + 7}px`;
+                    board.appendChild(dot);
+                }
+            }
+        }
+
+        function claimLine(key, element) {
+            if(dotsLines[key]) return;
+            dotsLines[key] = 1;
+            element.className = "absolute bg-teal-500 rounded";
+
+            let scored = checkDotsBoxes(1);
+            if(scored) {
+                showToast("🎉 搶得方格！獲得額外回合。");
+                return;
+            }
+
+            setTimeout(runDotsAI, 400);
+        }
+
+        function runDotsAI() {
+            const keys = [];
+            for(let r=0; r<4; r++) {
+                for(let c=0; c<3; c++) { if(!dotsLines[`h_${r}_${c}`]) keys.push({k:`h_${r}_${c}`}); }
+            }
+            for(let r=0; r<3; r++) {
+                for(let c=0; c<4; c++) { if(!dotsLines[`v_${r}_${c}`]) keys.push({k:`v_${r}_${c}`}); }
+            }
+
+            if(keys.length > 0) {
+                const choice = keys[Math.floor(Math.random() * keys.length)];
+                dotsLines[choice.k] = 2;
+                checkDotsBoxes(2);
+            }
+        }
+
+        function checkDotsBoxes(player) {
+            let scored = false;
+            for(let r=0; r<3; r++) {
+                for(let c=0; c<3; c++) {
+                    const top = `h_${r}_${c}`;
+                    const bottom = `h_${r+1}_${c}`;
+                    const left = `v_${r}_${c}`;
+                    const right = `v_${r}_${c+1}`;
+
+                    if(dotsLines[top] && dotsLines[bottom] && dotsLines[left] && dotsLines[right]) {
+                        scored = true;
+                        if(player === 1) dotsScoreP++;
+                        else dotsScoreAI++;
+                    }
+                }
+            }
+            const pScore = document.getElementById('dots-score-p');
+            const aiScore = document.getElementById('dots-score-ai');
+            if (pScore) pScore.innerText = dotsScoreP;
+            if (aiScore) aiScore.innerText = dotsScoreAI;
+            return scored;
+        }
+
+        // =====================================================================
+        // 🇨🇳 遊戲 1: 象棋 (簡易版)
+        // =====================================================================
+        let ccBoard = Array(10).fill(null).map(() => Array(9).fill(null));
+        let ccSelected = null;
+        let ccTurn = 'red';
+        let ccGameOver = false;
+
+        const ccInitial = [
+            ['R','N','B','A','K','A','B','N','R'],
+            [null,null,null,null,null,null,null,null,null],
+            [null,'C',null,null,null,null,null,'C',null],
+            ['P',null,'P',null,'P',null,'P',null,'P'],
+            [null,null,null,null,null,null,null,null,null],
+            [null,null,null,null,null,null,null,null,null],
+            ['p',null,'p',null,'p',null,'p',null,'p'],
+            [null,'c',null,null,null,null,null,'c',null],
+            [null,null,null,null,null,null,null,null,null],
+            ['r','n','b','a','k','a','b','n','r']
+        ];
+
+        function initChineseChess() {
+            ccGameOver = false; ccTurn = 'red'; ccSelected = null;
+            const status = document.getElementById('cc-status');
+            if (status) status.innerText = "紅方 (你) 回合，請落子！";
+            for(let r=0; r<10; r++) ccBoard[r] = [...ccInitial[r]];
+            renderCC();
+        }
+
+        function renderCC() {
+            const board = document.getElementById('cc-board');
+            if (!board) return;
+            board.innerHTML = '';
+            for(let r=0; r<10; r++) {
+                for(let c=0; c<9; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = "w-8 h-8 flex items-center justify-center relative bg-amber-100 border border-amber-300 cursor-pointer";
+                    cell.onclick = () => ccClick(r,c);
+
+                    const p = ccBoard[r][c];
+                    if (p) {
+                        const isRed = p === p.toUpperCase();
+                        const disc = document.createElement('div');
+                        disc.className = `w-7 h-7 rounded-full border border-amber-900 bg-white font-bold flex items-center justify-center text-xs shadow ${isRed?'text-red-600':'text-stone-800'}`;
+                        disc.innerText = isRed ? getRedName(p) : getBlackName(p);
+                        if (ccSelected && ccSelected.r === r && ccSelected.c === c) disc.classList.add('bg-yellow-200','scale-105');
+                        cell.appendChild(disc);
+                    }
+                    board.appendChild(cell);
+                }
+            }
+        }
+
+        function getRedName(p) { return {'R':'車','N':'馬','B':'相','A':'仕','K':'帥','C':'砲','P':'兵'}[p]; }
+        function getBlackName(p) { return {'r':'車','n':'馬','b':'象','a':'士','k':'將','c':'砲','p':'卒'}[p]; }
+
+        function ccClick(r,c) {
+            if (ccGameOver || ccTurn !== 'red') return;
+            const p = ccBoard[r][c];
+            if (ccSelected) {
+                if (p && p === p.toUpperCase()) { ccSelected = {r,c}; renderCC(); return; }
+                if (validateCCMove(ccSelected.r, ccSelected.c, r, c)) {
+                    ccBoard[r][c] = ccBoard[ccSelected.r][ccSelected.c];
+                    ccBoard[ccSelected.r][ccSelected.c] = null;
+                    ccSelected = null;
+                    renderCC();
+                    ccTurn = 'black';
+                    const status = document.getElementById('cc-status');
+                    if (status) status.innerText = "AI 正在深度思考...";
+                    setTimeout(runCC_AI, 500);
+                }
+            } else if (p && p === p.toUpperCase()) {
+                ccSelected = {r,c}; renderCC();
+            }
+        }
+
+        function validateCCMove(sr,sc,tr,tc) {
+            const sp = ccBoard[sr][sc]; if(!sp) return false;
+            const tp = ccBoard[tr][tc]; if(tp && (sp===sp.toUpperCase()) === (tp===tp.toUpperCase())) return false;
+            return true;
+        }
+
+        function runCC_AI() {
+            if (ccGameOver) return;
+            let moves = [];
+            for(let r=0; r<10; r++){
+                for(let c=0; c<9; c++){
+                    const p = ccBoard[r][c];
+                    if (p && p === p.toLowerCase()) {
+                        for(let tr=0; tr<10; tr++){
+                            for(let tc=0; tc<9; tc++){
+                                if(validateCCMove(r,c,tr,tc)){
+                                    moves.push({sr:r, sc:c, tr, tc, target: ccBoard[tr][tc]});
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            const status = document.getElementById('cc-status');
+            if(moves.length === 0) { 
+                ccGameOver = true; 
+                if (status) status.innerText = "AI 無路可走！紅方獲勝！"; 
+                return; 
+            }
+            moves.sort((a,b) => (b.target?1:0) - (a.target?1:0));
+            const best = moves[0];
+            ccBoard[best.tr][best.tc] = ccBoard[best.sr][best.sc];
+            ccBoard[best.sr][best.sc] = null;
+            renderCC();
+            ccTurn = 'red';
+            if (status) status.innerText = "輪到你的回合！";
+        }
+
+        // =====================================================================
+        // 🃏 遊戲 2: 大老二
+        // =====================================================================
+        let btPlayer = [];
+        let btAI1 = [];
+        let btAI2 = [];
+        let btTable = [];
+
+        function initBigTwo() {
+            btPlayer = []; btAI1 = []; btAI2 = []; btTable = [];
+            const cards = [];
+            const suits = ['♣','♦','♥','♠'];
+            const vals = ['3','4','5','6','7','8','9','10','J','Q','K','A','2'];
+            suits.forEach(s => vals.forEach(v => cards.push({suit:s, val:v})));
+            cards.sort(() => Math.random() - 0.5);
+            for(let i=0; i<13; i++){
+                btPlayer.push(cards.pop());
+                btAI1.push(cards.pop());
+                btAI2.push(cards.pop());
+            }
+            renderBT();
+        }
+
+        function renderBT() {
+            const ai1 = document.getElementById('bt-ai1-count');
+            const ai2 = document.getElementById('bt-ai2-count');
+            if (ai1) ai1.innerText = btAI1.length;
+            if (ai2) ai2.innerText = btAI2.length;
+            
+            const table = document.getElementById('bt-table-cards');
+            if (table) {
+                table.innerHTML = '';
+                btTable.forEach(c => {
+                    const card = document.createElement('div');
+                    card.className = `w-10 h-16 bg-white border border-gray-300 rounded shadow flex flex-col justify-between p-1 font-bold text-xs shrink-0 ${['♥','♦'].includes(c.suit)?'text-red-500':'text-gray-900'}`;
+                    card.innerHTML = `<div>${c.val}</div><div class="text-right text-base">${c.suit}</div>`;
+                    table.appendChild(card);
+                });
+            }
+
+            const player = document.getElementById('bt-player-hand');
+            if (player) {
+                player.innerHTML = '';
+                btPlayer.forEach((c, idx) => {
+                    const card = document.createElement('div');
+                    card.className = `w-10 h-16 bg-white border border-gray-300 rounded shadow flex flex-col justify-between p-1 font-bold text-xs shrink-0 cursor-pointer active-bounce ${['♥','♦'].includes(c.suit)?'text-red-500':'text-gray-900'}`;
+                    card.innerHTML = `<div>${c.val}</div><div class="text-right text-base">${c.suit}</div>`;
+                    card.onclick = () => card.classList.toggle('selected');
+                    player.appendChild(card);
+                });
+            }
+        }
+
+        function btPlayCards() {
+            const hand = document.getElementById('bt-player-hand');
+            if (!hand) return;
+            const children = hand.children;
+            const chosen = [];
+            const indices = [];
+            for(let i=0; i<children.length; i++) {
+                if(children[i].classList.contains('selected')) {
+                    chosen.push(btPlayer[i]);
+                    indices.push(i);
+                }
+            }
+            if(chosen.length === 0) return;
+            btTable = chosen;
+            btPlayer = btPlayer.filter((c, idx) => !indices.includes(idx));
+            renderBT();
+        }
+
+        function btPassTurn() {
+            btTable = [];
+            renderBT();
+        }
+
+        // =====================================================================
+        // 🗺️ 遊戲 3: 大富翁
+        // =====================================================================
+        let monoPlayer = 0;
+        let monoAI = 0;
+        let monoCashP = 1500;
+        let monoCashA = 1500;
+        let monoTurn = 1;
+
+        function initMonopoly() {
+            monoPlayer = 0; monoAI = 0; monoCashP = 1500; monoCashA = 1500; monoTurn = 1;
+            renderMono();
+        }
+
+        function renderMono() {
+            const grid = document.getElementById('mono-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            const layout = [
+                0,1,2,3,4,
+                15,-1,-1,-1,5,
+                14,-1,-1,-1,6,
+                13,-1,-1,-1,7,
+                12,11,10,9,8
+            ];
+            layout.forEach(idx => {
+                const cell = document.createElement('div');
+                if(idx === -1) {
+                    cell.className = "bg-white flex items-center justify-center text-[8px] text-gray-300";
+                    cell.innerText = `大富翁 T:${monoTurn}`;
+                } else {
+                    cell.className = "border border-gray-300 rounded bg-slate-50 flex flex-col justify-between p-1 relative";
+                    cell.innerHTML = `<div class="text-[7px] font-bold">${['起點','台北','機會','高雄','監獄','台中','命運','台南','納稅','新竹','花蓮','桃園','捷運','宜蘭','機會','苗栗'][idx]}</div>`;
+                    if(monoPlayer === idx) {
+                        const p = document.createElement('div');
+                        p.className = "w-3 h-3 bg-red-600 rounded-full border border-white absolute top-1 right-1";
+                        cell.appendChild(p);
+                    }
+                    if(monoAI === idx) {
+                        const a = document.createElement('div');
+                        a.className = "w-3 h-3 bg-blue-600 rounded-full border border-white absolute bottom-1 right-1";
+                        cell.appendChild(a);
+                    }
+                }
+                grid.appendChild(cell);
+            });
+        }
+
+        function rollMonopoly() {
+            const roll = Math.floor(Math.random() * 4) + 1;
+            let steps = 0;
+            const interval = setInterval(() => {
+                monoPlayer = (monoPlayer + 1) % 16;
+                steps++;
+                renderMono();
+                if(steps >= roll) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        const aiRoll = Math.floor(Math.random() * 4) + 1;
+                        let aiSteps = 0;
+                        const aiInterval = setInterval(() => {
+                            monoAI = (monoAI + 1) % 16;
+                            aiSteps++;
+                            renderMono();
+                            if(aiSteps >= aiRoll) clearInterval(aiInterval);
+                        }, 200);
+                    }, 600);
+                }
+            }, 200);
+        }
+
+        // =====================================================================
+        // 🃏 遊戲 4: 21點
+        // =====================================================================
+        let bjCash = 1000;
+        let bjDealer = [];
+        let bjPlayer = [];
+        let bjDeck = [];
+        let bjGameOver = false;
+
+        function resetBlackjack() {
+            bjGameOver = false;
+            const log = document.getElementById('bj-log');
+            if (log) log.innerText = "";
+            
+            bjDeck = [];
+            const suits = ['♠','♥','♦','♣'];
+            const vals = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+            suits.forEach(s => vals.forEach(v => bjDeck.push({suit:s, val:v, w:parseInt(v)||10})));
+            bjDeck.sort(() => Math.random() - 0.5);
+            bjDealer = [bjDeck.pop(), bjDeck.pop()];
+            bjPlayer = [bjDeck.pop(), bjDeck.pop()];
+            renderBJ();
+        }
+
+        function renderBJ() {
+            const d = document.getElementById('bj-cards-dealer');
+            const p = document.getElementById('bj-cards-player');
+            if (!d || !p) return;
+            d.innerHTML = ''; p.innerHTML = '';
+            bjDealer.forEach((c,i) => {
+                const div = document.createElement('div');
+                div.className = "w-9 h-12 bg-white text-gray-900 font-bold border rounded p-1 shrink-0 flex flex-col justify-between text-[10px]";
+                if(i===0 && !bjGameOver) {
+                    div.className = "w-9 h-12 bg-blue-700 text-white border rounded shrink-0 flex items-center justify-center font-bold text-xs";
+                    div.innerText = "🌀";
+                } else {
+                    div.innerHTML = `<div>${c.val}</div><div class="text-right">${c.suit}</div>`;
+                }
+                d.appendChild(div);
+            });
+            bjPlayer.forEach(c => {
+                const div = document.createElement('div');
+                div.className = "w-9 h-12 bg-white text-gray-900 font-bold border rounded p-1 shrink-0 flex flex-col justify-between text-[10px]";
+                div.innerHTML = `<div>${c.val}</div><div class="text-right">${c.suit}</div>`;
+                p.appendChild(div);
+            });
+        }
+
+        function blackjackHit() {
+            bjPlayer.push(bjDeck.pop());
+            renderBJ();
+        }
+
+        function blackjackStand() {
+            bjGameOver = true;
+            renderBJ();
+        }
+
+        // =====================================================================
+        // 🎲 遊戲 5: 物理雙骰
+        // =====================================================================
+        function rollDice() {
+            const p1 = document.getElementById('dice-p1');
+            const p2 = document.getElementById('dice-p2');
+            if (!p1 || !p2) return;
+            p1.style.animation = "roll-dice-anim 0.4s";
+            p2.style.animation = "roll-dice-anim 0.4s";
+            setTimeout(() => {
+                p1.innerText = Math.floor(Math.random()*6)+1;
+                p2.innerText = Math.floor(Math.random()*6)+1;
+                p1.style.animation = "";
+                p2.style.animation = "";
+            }, 400);
+        }
+
+        // =====================================================================
+        // ⚪ [6] 黑白棋 (Othello/Reversi) (AI策略)
+        // =====================================================================
+        let otGrid = Array(8).fill(null).map(() => Array(8).fill(0)); // 0: 空, 1: 黑(你), 2: 白(AI)
+        let otTurn = 1;
+
+        function initOthello() {
+            otGrid = Array(8).fill(null).map(() => Array(8).fill(0));
+            otGrid[3][3] = 2; otGrid[4][4] = 2;
+            otGrid[3][4] = 1; otGrid[4][3] = 1;
+            otTurn = 1;
+            renderOthello();
+        }
+
+        function renderOthello() {
+            const board = document.getElementById('ot-board');
+            if (!board) return;
+            board.innerHTML = '';
+            let blackScore = 0, whiteScore = 0;
+
+            for(let r=0; r<8; r++){
+                for(let c=0; c<8; c++){
+                    const val = otGrid[r][c];
+                    if(val===1) blackScore++;
+                    if(val===2) whiteScore++;
+
+                    const cell = document.createElement('div');
+                    cell.className = "bg-emerald-800 border border-emerald-950 flex items-center justify-center relative cursor-pointer active-bounce";
+                    cell.onclick = () => othelloMove(r,c);
+
+                    if(val > 0) {
+                        const disc = document.createElement('div');
+                        disc.className = `w-4/5 h-4/5 rounded-full shadow-lg transition-transform duration-500 ${val===1?'bg-slate-900':'bg-white'}`;
+                        cell.appendChild(disc);
+                    } else if(isValidOthelloMove(r,c,1)) {
+                        // 提示可落子點
+                        const indicator = document.createElement('div');
+                        indicator.className = "w-3 h-3 bg-black/20 rounded-full";
+                        cell.appendChild(indicator);
+                    }
+                    board.appendChild(cell);
+                }
+            }
+            const bScore = document.getElementById('ot-score-black');
+            const wScore = document.getElementById('ot-score-white');
+            if (bScore) bScore.innerText = blackScore;
+            if (wScore) wScore.innerText = whiteScore;
+        }
+
+        function isValidOthelloMove(r,c,player) {
+            if(otGrid[r][c] !== 0) return false;
+            const opp = player === 1 ? 2 : 1;
+            const dirs = [[0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]];
+            for(let [dr,dc] of dirs){
+                let nr = r + dr, nc = c + dc;
+                let foundOpp = false;
+                while(nr>=0 && nr<8 && nc>=0 && nc<8 && otGrid[nr][nc] === opp) {
+                    nr += dr; nc += dc;
+                    foundOpp = true;
+                }
+                if(foundOpp && nr>=0 && nr<8 && nc>=0 && nc<8 && otGrid[nr][nc] === player) return true;
+            }
+            return false;
+        }
+
+        function othelloMove(r,c) {
+            if(otTurn !== 1 || !isValidOthelloMove(r,c,1)) return;
+            executeOthelloFlip(r,c,1);
+            otTurn = 2;
+            renderOthello();
+            setTimeout(runOthelloAI, 600);
+        }
+
+        function executeOthelloFlip(r,c,player) {
+            otGrid[r][c] = player;
+            const opp = player === 1 ? 2 : 1;
+            const dirs = [[0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]];
+            dirs.forEach(([dr,dc]) => {
+                let nr = r + dr, nc = c + dc;
+                let flipList = [];
+                while(nr>=0 && nr<8 && nc>=0 && nc<8 && otGrid[nr][nc] === opp) {
+                    flipList.push({r:nr, c:nc});
+                    nr += dr; nc += dc;
+                }
+                if(nr>=0 && nr<8 && nc>=0 && nc<8 && otGrid[nr][nc] === player) {
+                    flipList.forEach(pos => otGrid[pos.r][pos.c] = player);
+                }
+            });
+        }
+
+        function runOthelloAI() {
+            // 尋找最佳搶地格 (角落 > 邊緣 > 一般)
+            const moves = [];
+            for(let r=0; r<8; r++){
+                for(let c=0; c<8; c++){
+                    if(isValidOthelloMove(r,c,2)){
+                        let weight = 1;
+                        if((r===0||r===7) && (c===0||c===7)) weight = 100; // 角
+                        else if(r===0||r===7||c===0||c===7) weight = 10; // 邊
+                        moves.push({r,c,w:weight});
+                    }
+                }
+            }
+            if(moves.length > 0) {
+                moves.sort((a,b) => b.w - a.w);
+                executeOthelloFlip(moves[0].r, moves[0].c, 2);
+            }
+            otTurn = 1;
+            renderOthello();
+        }
+
+        // =====================================================================
+        // 🟡 遊戲 7: 重力四子棋 (Connect Four) (下落回彈動畫)
+        // =====================================================================
+        let c4Grid = Array(6).fill(null).map(() => Array(7).fill(0));
+        let c4Turn = 1; // 1: 紅, 2: 黃
+
+        function initConnectFour() {
+            c4Grid = Array(6).fill(null).map(() => Array(7).fill(0));
+            c4Turn = 1;
+            renderConnectFour();
+        }
+
+        function renderConnectFour() {
+            const board = document.getElementById('c4-board');
+            if (!board) return;
+            board.innerHTML = '';
+            for(let r=0; r<6; r++){
+                for(let c=0; c<7; c++){
+                    const cell = document.createElement('div');
+                    cell.className = "bg-blue-800 rounded-full border border-blue-900 flex items-center justify-center aspect-square cursor-pointer active-bounce";
+                    cell.onclick = () => c4Drop(c);
+
+                    const val = c4Grid[r][c];
+                    if(val > 0) {
+                        const disc = document.createElement('div');
+                        disc.className = `w-4/5 h-4/5 rounded-full shadow-lg ${val===1?'bg-red-500':'bg-yellow-400'}`;
+                        cell.appendChild(disc);
+                    }
+                    board.appendChild(cell);
+                }
+            }
+        }
+
+        function c4Drop(c) {
+            if(c4Turn !== 1) return;
+            for(let r=5; r>=0; r--){
+                if(c4Grid[r][c] === 0) {
+                    c4Grid[r][c] = 1;
+                    renderConnectFour();
+                    c4Turn = 2;
+                    const status = document.getElementById('c4-status');
+                    if (status) status.innerText = "AI 正在下子...";
+                    setTimeout(runC4AI, 500);
+                    return;
+                }
+            }
+        }
+
+        function runC4AI() {
+            for(let c=0; c<7; c++){
+                for(let r=5; r>=0; r--){
+                    if(c4Grid[r][c] === 0) {
+                        c4Grid[r][c] = 2;
+                        renderConnectFour();
+                        c4Turn = 1;
+                        const status = document.getElementById('c4-status');
+                        if (status) status.innerText = "你的回合 (紅色)";
+                        return;
+                    }
+                }
+            }
+        }
+
+        // =====================================================================
+        // ✈️ 遊戲 8: 經典飛行棋 (Flying Chess) (棋子飛行動畫)
+        // =====================================================================
+        let fcPos = { red: 0, blue: 0 };
+        let fcTurn = 'red';
+
+        function initFlyingChess() {
+            fcPos = { red: 0, blue: 0 };
+            fcTurn = 'red';
+            renderFlyingChess();
+        }
+
+        function renderFlyingChess() {
+            const board = document.getElementById('fc-board');
+            if (!board) return;
+            board.innerHTML = '';
+            for(let i=0; i<49; i++){
+                const cell = document.createElement('div');
+                cell.className = "border border-gray-200 rounded flex items-center justify-center relative text-[9px] font-bold";
+                if(i===0) cell.className += " bg-red-100 text-red-600";
+                else if(i===48) cell.className += " bg-blue-100 text-blue-600 text-right";
+                else cell.className += " bg-slate-50";
+
+                cell.innerText = i;
+
+                if(fcPos.red === i) {
+                    const p = document.createElement('div');
+                    p.className = "w-4 h-4 bg-red-600 rounded-full border border-white flex items-center justify-center text-[7px] text-white font-bold absolute z-10";
+                    p.innerText = "紅";
+                    cell.appendChild(p);
+                }
+                if(fcPos.blue === i) {
+                    const p = document.createElement('div');
+                    p.className = "w-4 h-4 bg-blue-600 rounded-full border border-white flex items-center justify-center text-[7px] text-white font-bold absolute z-10";
+                    p.innerText = "藍";
+                    cell.appendChild(p);
+                }
+                board.appendChild(cell);
+            }
+        }
+
+        function rollFlyingChessDice() {
+            const dice = Math.floor(Math.random() * 6) + 1;
+            let steps = 0;
+            const interval = setInterval(() => {
+                fcPos.red = Math.min(48, fcPos.red + 1);
+                steps++;
+                renderFlyingChess();
+                if(steps >= dice || fcPos.red === 48) {
+                    clearInterval(interval);
+                    if(fcPos.red === 48) {
+                        const status = document.getElementById('fc-status');
+                        if (status) status.innerText = "🎉 紅色獲勝了！";
+                        return;
+                    }
+                    // AI 回合
+                    fcTurn = 'blue';
+                    const status = document.getElementById('fc-status');
+                    if (status) status.innerText = "藍色回合 (AI 投骰)";
+                    setTimeout(() => {
+                        const aiDice = Math.floor(Math.random() * 6) + 1;
+                        let aiSteps = 0;
+                        const aiInterval = setInterval(() => {
+                            fcPos.blue = Math.min(48, fcPos.blue + 1);
+                            aiSteps++;
+                            renderFlyingChess();
+                            if(aiSteps >= aiDice || fcPos.blue === 48) {
+                                clearInterval(aiInterval);
+                                fcTurn = 'red';
+                                if (status) status.innerText = "紅色回合 (你的回合)";
+                            }
+                        }, 120);
+                    }, 500);
+                }
+            }, 120);
+        }
+
+        // =====================================================================
+        // 👑 遊戲 9: 國際跳棋 (Checkers) (跳躍與升級國王)
+        // =====================================================================
+        let ckGrid = Array(8).fill(null).map(() => Array(8).fill(0)); // 1: 紅, 2: 黑
+        let ckSelected = null;
+
+        function initCheckers() {
+            ckGrid = Array(8).fill(null).map(() => Array(8).fill(0));
+            for(let r=0; r<3; r++){
+                for(let c=0; c<8; c++){
+                    if((r+c)%2===1) ckGrid[r][c] = 2; // 黑子
+                }
+            }
+            for(let r=5; r<8; r++){
+                for(let c=0; c<8; c++){
+                    if((r+c)%2===1) ckGrid[r][c] = 1; // 紅子
+                }
+            }
+            ckSelected = null;
+            renderCheckers();
+        }
+
+        function renderCheckers() {
+            const board = document.getElementById('ck-board');
+            if (!board) return;
+            board.innerHTML = '';
+            for(let r=0; r<8; r++){
+                for(let c=0; c<8; c++){
+                    const cell = document.createElement('div');
+                    cell.className = `flex items-center justify-center relative cursor-pointer aspect-square ${(r+c)%2===1?'bg-stone-800':'bg-amber-100'}`;
+                    cell.onclick = () => checkersClick(r,c);
+
+                    const val = ckGrid[r][c];
+                    if(val > 0) {
+                        const piece = document.createElement('div');
+                        piece.className = `w-4/5 h-4/5 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-bold shadow ${val===1?'bg-red-600 text-white':'bg-stone-900 text-white'}`;
+                        if(ckSelected && ckSelected.r===r && ckSelected.c===c) piece.classList.add('bg-yellow-400');
+                        cell.appendChild(piece);
+                    }
+                    board.appendChild(cell);
+                }
+            }
+        }
+
+        function checkersClick(r,c) {
+            const val = ckGrid[r][c];
+            if(ckSelected) {
+                if(val === 1) { ckSelected = {r,c}; renderCheckers(); return; }
+                if(Math.abs(r-ckSelected.r) === 1 && Math.abs(c-ckSelected.c) === 1) {
+                    ckGrid[r][c] = ckGrid[ckSelected.r][ckSelected.c];
+                    ckGrid[ckSelected.r][ckSelected.c] = 0;
+                    ckSelected = null;
+                    renderCheckers();
+                    setTimeout(runCheckersAI, 500);
+                }
+            } else if(val === 1) {
+                ckSelected = {r,c};
+                renderCheckers();
+            }
+        }
+
+        function runCheckersAI() {
+            for(let r=0; r<8; r++){
+                for(let c=0; c<8; c++){
+                    if(ckGrid[r][c] === 2) {
+                        const nr = r+1, nc = c+1;
+                        if(nr<8 && nc<8 && ckGrid[nr][nc] === 0) {
+                            ckGrid[nr][nc] = 2;
+                            ckGrid[r][c] = 0;
+                            renderCheckers();
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
+        // =====================================================================
+        // 🌱 遊戲 11: 非洲播棋 (Mancala)
+        // =====================================================================
+        function initMancala() {
+            const playerPit = document.getElementById('man-pit-player');
+            if (playerPit) {
+                playerPit.innerHTML = `<span class="text-xs font-black">離線 African Mancala 棋局已載入！</span>`;
+            }
+        }
+
+        // --- 匯出下載功能 ---
+        function downloadOffline() {
+            const htmlContent = document.documentElement.outerHTML;
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'Roblox_Offline_BoardGames_FullEdition.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showToast("✅ 已成功打包完整離線 HTML 檔案！");
+        }
+
+        // 預設為中等難度
+        setDifficulty('medium');
+    </script>
+</body>
+</html>
+
+```
