@@ -7966,7 +7966,8 @@
                 modal.classList.add('hidden');
             }
 // ==========================================
-        // 🚀 網頁開機自動登入與「強行暴力進度還原」檢查器
+        // 🚀 網頁開機自動登入與「智慧防沖刷進度還原」檢查器
+        // 優點：延遲還原時機，防止進度被「蛇形地圖系統初始化」強行覆蓋
         // ==========================================
         async function checkAutoLogin() {
             const savedUser = localStorage.getItem('duo_remember_username');
@@ -7984,50 +7985,63 @@
                     await loadDataFromCloud();
                 }
 
-                // 🌟 暴力恢復法：直接從通用大書籤抓取上次活動的位置
-                const lastUnit = localStorage.getItem(`duo_last_active_unit`);
-                const lastIdx = localStorage.getItem(`duo_last_active_index`);
+                // 🌟 【智慧延遲保護】：等待 300 毫秒，等「7000單字終極蛇形地圖系統」徹底初始化完畢後，才執行還原
+                setTimeout(() => {
+                    const lastUnit = localStorage.getItem(`duo_last_active_unit`);
+                    const lastIdx = localStorage.getItem(`duo_last_active_index`);
 
-                if (lastUnit !== null && lastIdx !== null && typeof vocabularyDB !== 'undefined') {
-                    const targetUnit = parseInt(lastUnit);
-                    const targetIdx = parseInt(lastIdx);
-                    
-                    let unitWords = vocabularyDB.filter(w => w.unit === targetUnit);
-                    if (unitWords.length > 0 && targetIdx < unitWords.length) {
-                        console.log(`🔥 【暴力還原中】嘗試強制將畫面推回第 ${targetUnit} 關，第 ${targetIdx + 1} 個字...`);
+                    if (lastUnit !== null && lastIdx !== null && typeof vocabularyDB !== 'undefined') {
+                        const targetUnit = parseInt(lastUnit);
+                        const targetIdx = parseInt(lastIdx);
                         
-                        // 1. 強制組裝符合你系統的 sessionState
-                        sessionState = {
-                            currentUnit: targetUnit,
-                            unit: targetUnit, // 雙保險
-                            currentWords: [...unitWords],
-                            currentIndex: targetIdx,
-                            totalToFinish: unitWords.length,
-                            isReview: typeof userData !== 'undefined' ? (targetUnit < userData.unlockedUnit) : false
-                        };
+                        let unitWords = vocabularyDB.filter(w => w.unit === targetUnit);
                         
-                        // 2. 切換分頁並執行渲染
-                        if (typeof switchTab === 'function') switchTab('lesson');
-                        if (typeof setupLessonWord === 'function') {
-                            setupLessonWord();
-                            showToast(`⏰ 歡迎回來！已為您還原到上次進度！`);
+                        // 🌟 防呆：如果紀錄的索引大於等於總字數（代表上一次背完了），自動回復成第 0 個字（從頭複習）
+                        let safeIdx = targetIdx;
+                        if (unitWords.length > 0 && safeIdx >= unitWords.length) {
+                            safeIdx = 0; 
+                            localStorage.setItem(`duo_last_active_index`, 0); // 修正快取
                         }
-                        return;
-                    }
-                }
 
-                if (typeof updateUI === 'function') updateUI();
-                if (typeof renderMap === 'function') renderMap();
+                        if (unitWords.length > 0 && safeIdx < unitWords.length) {
+                            console.log(`🔥 【安全還原】避開初始化沖刷！成功恢復至第 ${targetUnit} 關第 ${safeIdx + 1} 個字。`);
+                            
+                            // 強制組裝狀態
+                            sessionState = {
+                                currentUnit: targetUnit,
+                                unit: targetUnit,
+                                currentWords: [...unitWords],
+                                currentIndex: safeIdx,
+                                totalToFinish: unitWords.length,
+                                isReview: typeof userData !== 'undefined' ? (targetUnit < userData.unlockedUnit) : false
+                            };
+                            
+                            // 執行切換與畫面渲染
+                            if (typeof switchTab === 'function') switchTab('lesson');
+                            if (typeof setupLessonWord === 'function') {
+                                setupLessonWord();
+                                showToast(`⏰ 歡迎回來！已為您還原到上次進度！`);
+                            }
+                            return; // 成功還原，攔截退出
+                        }
+                    }
+
+                    // 如果沒有歷史紀錄，就乖乖渲染一般大地圖
+                    if (typeof updateUI === 'function') updateUI();
+                    if (typeof renderMap === 'function') renderMap();
+
+                }, 400); // 👈 延遲 400 毫秒，確保排在所有初始化代碼的最後面
                 
             } else {
                 console.log("【自動登入】本機尚無儲存的帳密憑證。");
             }
         }
 
-        if (document.readyState === "loading") {
-            document.addEventListener("DOMContentLoaded", checkAutoLogin);
-        } else {
+        // ✨ 確保在網頁最晚期、所有 script 都加載完才啟動
+        if (document.readyState === "complete") {
             checkAutoLogin();
+        } else {
+            window.addEventListener("load", checkAutoLogin);
         }
     </script>                                         
     <div id="login-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] hidden items-center justify-center p-4">
