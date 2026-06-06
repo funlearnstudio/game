@@ -236,7 +236,9 @@
         <section id="profile" class="tab-content pb-10">
             <div class="glass-panel p-5 mb-6 flex items-center gap-6">
                 <div class="relative cursor-pointer" onclick="changeAvatar()">
-                    <img id="profile-avatar" src="https://api.dicebear.com/7.x/adventurer/svg?seed=Felix" class="w-20 h-20 rounded-full bg-gray-100 border-4 border-gray-200">
+                   <div id="user-avatar-container" onclick="openAvatarPicker()" class="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-3xl shadow-lg border-4 border-white dark:border-slate-800 cursor-pointer hover:scale-105 active:scale-95 transition-all duration-300" title="💡 點擊可以自己選酷炫 Icon 頭像喔！">
+                        <i class="fa-solid fa-user-astronaut"></i>
+                    </div>
                     <div class="absolute bottom-0 right-0 bg-secondary text-white w-6 h-6 rounded-full flex items-center justify-center border-2 border-white text-xs"><i class="fa-solid fa-pen"></i></div>
                 </div>
                 <div>
