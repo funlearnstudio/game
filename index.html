@@ -7317,61 +7317,65 @@ function updateUI() {
                 streakEl.innerText = userData.streak;
             }
 
-            // ==========================================
-            // 🎯 【核心修改】智慧聯盟徽章與「剩餘 XP」動態計算
+// ==========================================
+            // 🎯 【精準對齊】智慧聯盟徽章與「剩餘 XP + 進度條」動態計算
             // ==========================================
             let league = "銅牌聯盟";
-            let nextLeagueXp = 300; // 晉升銀牌需要 300 XP
-            let currentLeagueBaseXp = 0;
+            let nextLeagueXp = 300;      // 晉升銀牌需要 300 XP
+            let currentLeagueBaseXp = 0;  // 銅牌起點是 0 XP
             let lBadge = document.getElementById('league-badge');
             
+            // 根據目前使用者的總 XP 判斷目前在哪個聯盟、以及下一階的目標
             if (userData.xp >= 300 && userData.xp < 800) { 
                 league = "銀牌聯盟"; 
-                nextLeagueXp = 800; // 晉升金牌需要 800 XP
-                currentLeagueBaseXp = 300;
+                nextLeagueXp = 800;       // 晉升金牌需要 800 XP
+                currentLeagueBaseXp = 300; // 銀牌起點是 300 XP
                 if (lBadge) lBadge.className = "flex flex-col items-center bg-slate-100 text-slate-700 px-3 py-1.5 rounded-2xl"; 
             } else if (userData.xp >= 800) { 
                 league = "金牌聯盟"; 
-                nextLeagueXp = 99999; // 最高階級
-                currentLeagueBaseXp = 800;
+                nextLeagueXp = 99999;     // 最高階級頂天了
+                currentLeagueBaseXp = 800; // 金牌起點是 800 XP
                 if (lBadge) lBadge.className = "flex flex-col items-center bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-2xl"; 
             } else {
-                // 銅牌階段的樣式
+                // 銅牌階段的徽章樣式
                 if (lBadge) lBadge.className = "flex flex-col items-center bg-orange-100 text-orange-700 px-3 py-1.5 rounded-2xl";
             }
             
-            // 更新聯盟名稱
+            // 1. 更新聯盟徽章上的中文名稱
             if (lBadge) {
                 const badgeSpan = lBadge.querySelector('span');
                 if (badgeSpan) badgeSpan.innerText = league;
             }
 
-            // ✨ 自動動態更新「距離下一階級還差: XXX XP」
-            // 系統會智慧尋找包含 "距離下一階級還差" 的網頁元件
-            const leagueNextEl = document.getElementById('league-next-xp') || document.getElementById('ui-next-league-xp');
+            // 2. ✨ 精準修復：動態計算並更新「距離下一階級還差: XXX XP」
+            // 對齊你的 HTML ID: league-progress-text
+            const leagueNextEl = document.getElementById('league-progress-text');
             if (leagueNextEl) {
                 if (userData.xp >= 800) {
-                    leagueNextEl.innerText = "已達到最高階級！";
+                    leagueNextEl.innerText = "🎉 恭喜！您已達到最高階的金牌聯盟！";
                 } else {
                     const diffXp = nextLeagueXp - userData.xp;
                     leagueNextEl.innerText = `距離下一階級還差: ${diffXp} XP`;
                 }
             }
 
-            // ✨ (選配功能) 如果你有設計聯盟進度條，也可以順便自動同步
-            const leagueProgress = document.getElementById('league-progress-bar');
-            if (leagueProgress) {
+            // 3. ✨ 精準修復：動態同步你的進度條長度
+            // 對齊你的 HTML ID: league-progress-bar
+            const leagueProgressBar = document.getElementById('league-progress-bar');
+            if (leagueProgressBar) {
                 if (userData.xp >= 800) {
-                    leagueProgress.style.width = "100%";
+                    leagueProgressBar.style.width = "100%";
                 } else {
+                    // 計算當前聯盟階層內的相對進度百分比
                     const totalNeededInThisStage = nextLeagueXp - currentLeagueBaseXp;
                     const earnedInThisStage = userData.xp - currentLeagueBaseXp;
                     const percentage = Math.min(100, Math.max(0, (earnedInThisStage / totalNeededInThisStage) * 100));
-                    leagueProgress.style.width = `${percentage}%`;
+                    
+                    // 動態賦值給 style.width，觸發 CSS 的 transition 滑順動畫
+                    leagueProgressBar.style.width = `${percentage}%`;
                 }
             }
             // ==========================================
-
             const dictWrongCount = document.getElementById('dict-wrong-count');
             if (dictWrongCount) dictWrongCount.innerText = userData.wrongWords ? userData.wrongWords.length : 0;
             
