@@ -7726,10 +7726,13 @@
         }
         function openLoginModal() { document.getElementById('login-modal')?.classList.remove('hidden'); }
         function closeLoginModal() { document.getElementById('login-modal')?.classList.add('hidden'); }
-        // 🛠️ 修正：真正讀取輸入代碼並雙向同步雲端存檔
-       // ==========================================
-        // 🔐 帳號密碼雙欄位雲端登入與進度下載模組
-        // ==========================================
+        // ==========================================================================
+        // 🔐 帳號密碼雙欄位雲端登入與自動登入記憶模組
+        // 優點特色：
+        // 1. 自動記憶身分 (Auto Remember)：登入成功後將帳密寫入本機，下次開網頁自動登入。
+        // 2. 核心架構對接 (Core Integration)：直接呼叫相容性最高的防爆 loadDataFromCloud()。
+        // 3. 雙通道雙欄位 (Dual Inputs)：自動相容、精準抓取彈窗內任意排列的帳號與密碼欄位。
+        // ==========================================================================
         async function handleAuthAction(type) {
             // 1. 自動尋找彈窗內的所有輸入框 (支援各種不同的 id 或 class 命名)
             const textInputs = document.querySelectorAll('#login-modal input[type="text"], #login-modal input[type="password"]');
@@ -7760,56 +7763,63 @@
             }
 
             // 3. 綁定身分識別碼 (將帳號密碼組合成雲端唯一的金鑰識別碼)
-            // 這樣不管是從哪台電腦登入，只要輸入相同的帳密，就會對應到相同的雲端存檔
             myUserId = username + "_" + password;
             localStorage.setItem('duo_unique_user_id', myUserId); 
+
+            // ✨ 【新增記憶點】：將這組成功的憑證暫存於本地端，提供未來啟動網頁時「自動辨識」使用
+            localStorage.setItem('duo_remember_username', username);
+            localStorage.setItem('duo_remember_password', password);
 
             closeLoginModal();
             showToast("🔑 帳密驗證中，正在連線下載雲端存檔...");
 
             try {
-                // 4. 強制向 Google Apps Script (GAS) 請求該帳密的最新進度
+                // 4. 對接核心雲端防爆下載模組
                 if (!GAS_API_URL || GAS_API_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
-                    updateSyncStatus(false, "僅限本機");
+                    if (typeof updateSyncStatus === 'function') updateSyncStatus(false, "僅限本機");
                     showToast("💡 尚未填寫 GAS 後端網址，進度目前僅保存在本機喔！");
                     return;
                 }
 
-                document.getElementById('loading-overlay')?.classList.remove('hidden');
-                const url = `${GAS_API_URL}?action=getUserData&userId=${encodeURIComponent(myUserId)}`;
-                const res = await fetch(url, { method: "GET", mode: "cors" });
-                
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data && !data.status) { 
-                        // 成功抓回雲端存檔，覆蓋本機資料
-                        userData = data;
-                        localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
-                        updateSyncStatus(true, "已連線");
-                        showToast("🎉 歡迎回來！雲端存檔已順利同步完成。");
-                    } else {
-                        // 雲端若還沒有這組帳密的資料，就以目前進度作為這組新帳密的起點，並自動備份上去
-                        showToast("🆕 偵測為新註冊帳密，已自動為您開通雲端空間！");
-                        await saveToCloudNow();
+                // 直接啟用先前優化過、相容性最高的防爆讀檔核心
+                if (typeof loadDataFromCloud === 'function') {
+                    await loadDataFromCloud();
+                } else {
+                    // 備用原始機制：如果找不到該核心，則降級執行基本的 GET 請求
+                    document.getElementById('loading-overlay')?.classList.remove('hidden');
+                    const url = `${GAS_API_URL}?action=getUserData&userId=${encodeURIComponent(myUserId)}&_ts=${Date.now()}`;
+                    const res = await fetch(url, { method: "GET" });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data && !data.status) { 
+                            userData = data;
+                            localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
+                            if (typeof updateSyncStatus === 'function') updateSyncStatus(true, "已連線");
+                            showToast("🎉 歡迎回來！雲端存檔已順利同步完成。");
+                        } else {
+                            showToast("🆕 偵測為新註冊帳密，已自動為您開通雲端空間！");
+                            if (typeof saveToCloud === 'function') await saveToCloud();
+                        }
                     }
                 }
             } catch (e) {
                 console.error("雲端登入讀取失敗:", e);
-                updateSyncStatus(false, "離線模式");
+                if (typeof updateSyncStatus === 'function') updateSyncStatus(false, "離線模式");
                 showToast("⚠️ 雲端連線失敗，目前將先以本地端進度遊玩。", true);
             } finally {
                 document.getElementById('loading-overlay')?.classList.add('hidden');
                 
                 // 5. 重新全面刷新網頁介面、關卡地圖與成就系統
-                updateUI();
-                renderMap();
-                renderStoryTab();
+                if (typeof updateUI === 'function') updateUI();
+                if (typeof renderMap === 'function') renderMap();
+                if (typeof renderStoryTab === 'function') renderStoryTab();
 
-                // 隱藏登入按鈕
+                // 隱藏主頁的「帳密登入/註冊」按鈕，代表登入成功
                 const triggerBtn = document.getElementById('btn-login-trigger');
                 if(triggerBtn) triggerBtn.classList.add('hidden');
             }
         }
+       
         function handleLogout() { localStorage.removeItem('duo_unique_user_id'); location.reload(); }
 // ✨ 補回失蹤功能：重設所有學習進度
         function resetData() {
@@ -7850,6 +7860,44 @@
                 modal.style.display = 'none';
                 modal.classList.add('hidden');
             }
+        }
+// ==========================================
+        // 🚀 網頁開機自動登入檢查器 (全自動初始化啟動版)
+        // 優點：免手動修改 onload，網頁載入完成後會自動插隊執行
+        // ==========================================
+        async function checkAutoLogin() {
+            const savedUser = localStorage.getItem('duo_remember_username');
+            const savedPass = localStorage.getItem('duo_remember_password');
+            
+            if (savedUser && savedPass) {
+                console.log("【自動登入】發現已儲存的認證，正在背景同步雲端檔案...");
+                myUserId = savedUser + "_" + savedPass;
+                localStorage.setItem('duo_unique_user_id', myUserId);
+                
+                // 隱藏登入按鈕
+                const triggerBtn = document.getElementById('btn-login-trigger');
+                if(triggerBtn) triggerBtn.classList.add('hidden');
+                
+                // 背景直接讀檔
+                if (typeof loadDataFromCloud === 'function') {
+                    await loadDataFromCloud();
+                } else {
+                    // 備用安全重新渲染：萬一 loadDataFromCloud 還沒準備好，至少先刷新畫面
+                    if (typeof updateUI === 'function') updateUI();
+                    if (typeof renderMap === 'function') renderMap();
+                }
+            } else {
+                console.log("【自動登入】本機尚無儲存的帳密憑證。");
+            }
+        }
+
+        // ✨ 【智慧開機啟動器】：不需要去找 window.onload，這段程式會自動偵測瀏覽器狀態並立即啟動
+        if (document.readyState === "loading") {
+            // 如果網頁還在載入中，監聽 DOMContentLoaded 事件（畫面排好就立刻執行）
+            document.addEventListener("DOMContentLoaded", checkAutoLogin);
+        } else {
+            // 如果網頁早就跑完了（例如非同步加載或局部刷新），直接當場執行
+            checkAutoLogin();
         }
     </script>                                         
     <div id="login-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] hidden items-center justify-center p-4">
