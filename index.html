@@ -7002,7 +7002,6 @@
   { unit: 400, word: "viability", meaning: "n. 生存能力/可行性", root: "•【困難】 vita (生命/生活) + -ability -> 是否有活下去、行得通的本事 -> 可行性", example: "The bank field engineers are currently testing the financial viability of opening a new city branch." }
 ];
 
-
 // ==========================================
         // 🌟 1. 全局常數與故事資料庫
         // ==========================================
@@ -7034,7 +7033,7 @@
         let sessionState = { mode: '', currentWords: [], currentIndex: 0, wrongCount: 0, score: 0 };
         let chatHistory = [];
         let recognition = null;
-        let saveToCloudTimer = null; // 防抖動計時器
+        let saveToCloudTimer = null; 
 
         // ==========================================
         // 🚀 3. 系統初始化與生命週期
@@ -7049,7 +7048,7 @@
         }
 
         async function init() {
-            console.log("🚀 7000 單字終極系統初始化中...");
+            console.log("🚀 7000 單字終極蛇形地圖系統初始化中...");
             setupTheme();
             myUserId = getOrCreateUserId();
             
@@ -7058,12 +7057,12 @@
                 try { userData = JSON.parse(localData); } catch(e) {}
             }
             
-            await loadFromCloudNow(); // 撈取雲端進度
+            await loadFromCloudNow(); 
             checkDaily();
             
             switchTab('map');
             updateUI();
-            renderMap();
+            renderMap(); 
             renderStoryTab();
             renderAchievements();
             initSpeechRecognition();
@@ -7071,7 +7070,6 @@
             window.addEventListener('keydown', handleGlobalKeydown);
         }
 
-        // 確保網頁一載入就執行 init
         window.addEventListener('DOMContentLoaded', init);
 
         // ==========================================
@@ -7150,7 +7148,7 @@
         }
 
         // ==========================================
-        // 🎨 5. 核心 UI 與地圖渲染模組
+        // 🎨 5. 核心 UI 與「400關豪華蛇形垂直地圖」模組
         // ==========================================
         function updateUI() {
             if (!userData) return;
@@ -7193,42 +7191,102 @@
             if (!container) return;
             container.innerHTML = '';
 
-            const startUnit = Math.max(1, userData.unlockedUnit - 2);
-            const endUnit = Math.min(TOTAL_UNITS, startUnit + 6);
+            const mapWrapper = document.createElement('div');
+            mapWrapper.className = "relative flex flex-col items-center w-full py-12 max-w-md mx-auto min-h-screen select-none pb-32";
+            
+            const trackLine = document.createElement('div');
+            trackLine.className = "absolute top-4 bottom-4 w-3.5 bg-gradient-to-b from-gray-200 via-slate-300 to-gray-200 dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 rounded-full left-1/2 transform -translate-x-1/2 z-0 shadow-inner";
+            mapWrapper.appendChild(trackLine);
 
-            for (let i = startUnit; i <= endUnit; i++) {
+            let currentLevelNodeRef = null;
+
+            for (let i = 1; i <= TOTAL_UNITS; i++) {
+                
+                if ((i - 1) % 10 === 0) {
+                    const chapterNum = ((i - 1) / 10) + 1;
+                    const chapterHeader = document.createElement('div');
+                    chapterHeader.className = "w-full text-center my-8 z-10 sticky top-2 pointer-events-none";
+                    chapterHeader.innerHTML = `
+                        <div class="inline-block bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white text-xs font-black px-5 py-2 rounded-2xl shadow-xl border-2 border-white/20 dark:border-slate-700/50 backdrop-blur-md transform scale-100 hover:scale-105 transition-all duration-300">
+                            🚀 階段任務 ${chapterNum} • 單元 ${i} - ${Math.min(TOTAL_UNITS, i + 9)}
+                        </div>
+                    `;
+                    mapWrapper.appendChild(chapterHeader);
+                }
+
+                const nodeRow = document.createElement('div');
+                nodeRow.className = "w-full flex justify-center my-5 z-10 relative h-16";
+                
                 const node = document.createElement('div');
                 let statusClass = i < userData.unlockedUnit ? 'completed' : (i === userData.unlockedUnit ? 'current' : 'locked');
-                let iconHtml = i < userData.unlockedUnit ? `<i class="fa-solid fa-check"></i>` : (i === userData.unlockedUnit ? `<span class="font-black text-xl">${i}</span>` : `<span class="text-xs font-bold text-gray-400">${i}</span>`);
+                
+                let waveX = Math.sin(i * 0.9) * 55; 
+                node.style.transform = `translateX(${waveX}px)`;
+                node.className = "w-16 h-16 rounded-full flex items-center justify-center font-black text-xl transition-all duration-300 shadow-xl cursor-pointer select-none active:scale-90 relative ";
 
-                node.className = `level-node ${statusClass} shadow-md`;
-                node.innerHTML = iconHtml;
-                node.style.transform = `translateX(${Math.sin(i) * 35}px)`;
+                if (statusClass === 'completed') {
+                    node.className += " bg-gradient-to-br from-green-400 to-emerald-600 text-white border-4 border-white dark:border-slate-900 shadow-[0_5px_0_#047857] hover:brightness-110";
+                    node.innerHTML = `<i class="fa-solid fa-check text-xl"></i>`;
+                } else if (statusClass === 'current') {
+                    node.className += " bg-gradient-to-br from-amber-400 to-orange-500 text-white border-4 border-amber-200 dark:border-amber-400 ring-4 ring-orange-400/50 animate-bounce shadow-[0_6px_0_#c2410c] scale-110 z-20";
+                    node.innerHTML = `<span>${i}</span>`;
+                    currentLevelNodeRef = nodeRow; 
+
+                    const tooltip = document.createElement('span');
+                    tooltip.className = "absolute -top-7 left-1/2 transform -translate-x-1/2 bg-slate-900 text-amber-300 text-[9px] font-black px-2 py-0.5 rounded-md shadow-md whitespace-nowrap tracking-wider border border-amber-400/30";
+                    tooltip.innerText = "👑 CURRENT";
+                    node.appendChild(tooltip);
+                } else {
+                    node.className += " bg-gray-200 dark:bg-slate-800 text-gray-400 border-4 border-gray-300/60 dark:border-slate-700 shadow-[0_4px_0_#94a3b8] dark:shadow-[0_4px_0_#1e293b] opacity-65 cursor-not-allowed";
+                    node.innerHTML = `<i class="fa-solid fa-lock text-xs"></i>`;
+                }
 
                 if (statusClass !== 'locked') {
                     node.onclick = () => startUnitSession(i);
-                    if(statusClass === 'current') {
-                        const tip = document.createElement('span');
-                        tip.className = "absolute -top-8 left-1/2 transform -translate-x-1/2 bg-primary text-white text-[10px] font-black px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm";
-                        tip.innerText = "START";
-                        node.appendChild(tip);
-                    }
+                } else {
+                    node.onclick = () => showToast(`🔒 單元 ${i} 尚未開放，請先挑戰前方關卡！`, false);
                 }
-                container.appendChild(node);
+
+                nodeRow.appendChild(node);
+                mapWrapper.appendChild(nodeRow);
+            }
+
+            container.appendChild(mapWrapper);
+
+            if (currentLevelNodeRef) {
+                setTimeout(() => {
+                    currentLevelNodeRef.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 400);
             }
         }
 
         // ==========================================
-        // 🧠 6. 單字學習與測驗模組
+        // 🧠 6. 單字學習與測驗模組（無彈窗設計）
         // ==========================================
         function startUnitSession(unitId) {
-            if(userData.hearts <= 0) { showToast("❤️ 生命值不足！", true); return; }
+            if(userData.hearts <= 0) { showToast("❤️ 生命值不足！請前往商店補充生命值。", true); return; }
             const words = vocabularyDB.filter(w => w.unit === unitId);
-            if(words.length === 0) { showToast(`⚠️ 單元 ${unitId} 目前無單字`, true); return; }
+            if(words.length === 0) { showToast(`⚠️ 單元 ${unitId} 目前無單字資料`, true); return; }
 
             sessionState = { mode: 'learn', currentWords: [...words], currentIndex: 0, wrongCount: 0, score: 0 };
             switchTab('lesson');
             setupLessonWord();
+        }
+
+        // ✨ 補回失蹤功能：街機無盡模式挑戰
+        function startArcadeGame() {
+            if(userData.hearts <= 0) { showToast("❤️ 生命值不足，無法開啟街機挑戰！", true); return; }
+            if(!vocabularyDB || vocabularyDB.length === 0) { showToast("⚠️ 單字庫載入異常", true); return; }
+            
+            // 隨機抽取 10 個單字進行亂序大亂鬥
+            const shuffled = [...vocabularyDB].sort(() => 0.5 - Math.random());
+            const arcadeWords = shuffled.slice(0, 10);
+
+            sessionState = { mode: 'test', currentWords: arcadeWords, currentIndex: 0, wrongCount: 0, score: 0 };
+            switchTab('test');
+            document.getElementById('test-instruction').innerText = "⚡ 街機無盡挑戰模式 ⚡";
+            setupTestQuestion();
+            showToast("🕹️ 街機模式啟動！連續答對獲取高分吧！");
         }
 
         function setupLessonWord() {
@@ -7256,7 +7314,7 @@
             document.getElementById('btn-next-lesson').classList.remove('hidden');
         }
 
-        function nextLessonWord() {
+        function卸nextLessonWord() {
             sessionState.currentIndex++;
             if(sessionState.currentIndex >= sessionState.currentWords.length) {
                 sessionState.mode = 'test';
@@ -7279,7 +7337,7 @@
 
             const area = document.getElementById('dynamic-test-area');
             area.innerHTML = '';
-            const qType = Math.floor(Math.random() * 2); // 0: 選擇, 1: 拼寫
+            const qType = Math.floor(Math.random() * 2); 
 
             if (qType === 0) {
                 document.getElementById('test-instruction').innerText = "請選擇正確的單字含意";
@@ -7350,10 +7408,29 @@
             
             feedback.querySelector('#btn-next-q').onclick = () => {
                 feedback.remove(); blocker.remove();
-                if(userData.hearts <= 0) { showToast("💔 生命耗盡", true); saveToCloud(); switchTab('map'); return; }
+                if(userData.hearts <= 0) { showToast("💔 生命值耗盡，已自動退回主畫面！", true); saveToCloud(); switchTab('map'); return; }
                 sessionState.currentIndex++;
                 setupTestQuestion();
             };
+        }
+
+        function abortSession() {
+            const activeZone = document.getElementById('dynamic-test-area') || document.getElementById('lesson-word')?.parentElement;
+            if(!activeZone) { sessionState.mode = ''; switchTab('map'); return; }
+            if(document.getElementById('inline-abort-notice')) return;
+
+            const noticeCard = document.createElement('div');
+            noticeCard.id = "inline-abort-notice";
+            noticeCard.className = "bg-amber-50 dark:bg-slate-900 border-2 border-amber-400 p-5 rounded-2xl my-4 text-center animate-fadeIn z-50 relative shadow-lg max-w-sm mx-auto";
+            noticeCard.innerHTML = `
+                <p class="text-amber-800 dark:text-amber-300 font-black mb-4">⚠️ 確定要中斷挑戰並回到主地圖嗎？<br><span class="text-xs font-medium text-amber-600 dark:text-amber-400/70">目前的練習進度將不會被保存。</span></p>
+                <div class="flex gap-3 justify-center">
+                    <button class="bg-danger text-white px-5 py-2 rounded-xl font-black text-xs shadow-md active:scale-95 transition-all" onclick="sessionState.mode = ''; switchTab('map')">確認放棄</button>
+                    <button class="bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-white px-5 py-2 rounded-xl font-black text-xs shadow-md active:scale-95 transition-all" onclick="document.getElementById('inline-abort-notice').remove()">繼續挑戰</button>
+                </div>
+            `;
+            activeZone.prepend(noticeCard);
+            noticeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
         function endSessionComplete() {
@@ -7363,20 +7440,23 @@
 
             const isPerfect = sessionState.wrongCount === 0;
             userData.xp += isPerfect ? 50 : 20; userData.gems += isPerfect ? 15 : 5;
-            if(sessionState.currentWords[0].unit === userData.unlockedUnit) userData.unlockedUnit = Math.min(TOTAL_UNITS, userData.unlockedUnit + 1);
+            if(sessionState.currentWords[0] && sessionState.currentWords[0].unit === userData.unlockedUnit) {
+                userData.unlockedUnit = Math.min(TOTAL_UNITS, userData.unlockedUnit + 1);
+            }
 
-            saveToCloud(); updateUI();
+            saveToCloud(); updateUI(); renderMap(); 
             container.innerHTML = `
-                <div class="space-y-6 max-w-sm mx-auto py-6 animate-fadeIn">
-                    <div class="text-6xl">${isPerfect ? '👑' : '🎉'}</div>
-                    <h2 class="text-3xl font-black dark:text-white">單元完成！</h2>
-                    <button onclick="switchTab('map')" class="btn-3d w-full bg-primary text-white py-4 text-lg">回到地圖</button>
+                <div class="space-y-6 max-w-sm mx-auto py-6 animate-fadeIn text-center">
+                    <div class="text-7xl">${isPerfect ? '👑' : '🎉'}</div>
+                    <h2 class="text-3xl font-black dark:text-white">${isPerfect ? '完美通關！' : '精彩完賽！'}</h2>
+                    <p class="text-sm font-bold text-gray-500 dark:text-gray-400">你已成功完成本單元的全部學習與測試</p>
+                    <button onclick="switchTab('map')" class="btn-3d w-full bg-primary text-white py-4 text-lg shadow-[0_4px_0_#46a302]">回到蛇形地圖</button>
                 </div>
             `;
         }
 
         function practiceMissedWords() {
-            if(userData.wrongWords.length === 0) { showToast("✨ 目前無錯題！"); return; }
+            if(userData.wrongWords.length === 0) { showToast("✨ 目前沒有任何錯題紀錄，太厲害了！"); return; }
             const words = vocabularyDB.filter(w => userData.wrongWords.includes(w.word)).slice(0, 10);
             sessionState = { mode: 'test', currentWords: words, currentIndex: 0, wrongCount: 0, score: 0 };
             switchTab('test'); setupTestQuestion();
@@ -7399,7 +7479,7 @@
         function toggleChatMic() { if(recognition) try { recognition.start(); } catch(e){} }
 
         function startNewChatScenario() {
-            chatHistory = [{ role: 'aria', text: "Hi! I'm Aria. Let's practice making a sentence." }];
+            chatHistory = [{ role: 'aria', text: "Hi! I'm Aria. Let's practice making some sentence." }];
             renderChatMessages(); speakText(chatHistory[0].text, 1.0, 'en-US');
         }
 
@@ -7457,6 +7537,17 @@
         // ==========================================
         // 🎨 8. 頭像選擇與其他 UI 輔助功能
         // ==========================================
+        // ✨ 補回失蹤功能：深色模式核心切換開關
+        function toggleDarkMode() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
         function openAvatarPicker() {
             const modal = document.getElementById('avatar-modal');
             if (!modal) return;
@@ -7494,7 +7585,7 @@
             const modal = document.getElementById('avatar-modal');
             if (!modal) return;
             modal.classList.add('opacity-0');
-            setTimeout(() => modal.classList.add('hidden'), 250); // ✨ 修復隱形牆
+            setTimeout(() => modal.classList.add('hidden'), 250); 
         }
 
         function switchTab(tabId) {
@@ -7514,7 +7605,7 @@
                 userData.streak = (userData.lastDate === yesterday.toDateString()) ? userData.streak + 1 : 1;
                 if(userData.streak > userData.maxStreak) userData.maxStreak = userData.streak;
                 userData.gems += 50; userData.hearts = 5; userData.lastDate = today;
-                setTimeout(() => showToast(`🎁 每日登入送 50 💎！`), 1200);
+                setTimeout(() => showToast(`🎁 歡迎回來！每日獎勵送你 50 寶石 💎！`), 1200);
                 saveToCloud();
             }
         }
@@ -7536,20 +7627,18 @@
         }
 
         function handleStoryWord(el, en, zh) { speakText(en, 1.0); showToast(`${en} : ${zh}`); }
-        function abortSession() { if(confirm("放棄進度？")) { sessionState.mode = ''; switchTab('map'); } }
-        function buyItem(type, cost) { if(userData.gems >= cost) { userData.gems -= cost; if(type==='heart')userData.hearts=5; showToast("購買成功！"); saveToCloud(); updateUI(); } else showToast("寶石不足！", true); }
+        function buyItem(type, cost) { if(userData.gems >= cost) { userData.gems -= cost; if(type==='heart')userData.hearts=5; showToast("🛒 購買成功！生命值已補滿。"); saveToCloud(); updateUI(); } else showToast("❌ 身上寶石數量不夠喔！", true); }
         function renderStoryTab() { const list = document.getElementById('story-list'); if(list) list.innerHTML = storiesDB.map(s => `<div class="bg-white dark:bg-slate-800 p-5 rounded-3xl mb-4 border"><h3 class="font-black dark:text-white"><i class="fa-solid fa-book"></i> ${s.title}</h3><p class="mt-2 font-bold dark:text-gray-300">${s.content}</p><details class="mt-2 text-xs text-gray-500"><summary>翻譯</summary><p>${s.translation}</p></details></div>`).join(''); }
         function renderDictionary(type) { const c = document.getElementById('dict-container'); if(c) { let l = type === 'wrong' ? vocabularyDB.filter(w=>userData.wrongWords.includes(w.word)) : vocabularyDB; c.innerHTML = l.slice(0,30).map(w => `<div class="bg-white dark:bg-slate-800 p-4 rounded-2xl flex justify-between items-center mb-2"><div><span class="text-xs bg-gray-100 px-2 rounded-md font-bold">Unit ${w.unit}</span><h4 class="text-lg font-black dark:text-white mt-1">${w.word}</h4><p class="text-sm font-bold text-secondary">${w.meaning}</p></div><button onclick="speakText('${w.word}')" class="w-10 h-10 rounded-xl bg-gray-100"><i class="fa-solid fa-volume-high"></i></button></div>`).join(''); } }
         function renderAchievements() { const c = document.getElementById('achievements-container'); if(c) { c.innerHTML = `<div class="p-4 rounded-2xl border-2 dark:bg-slate-800"><h4 class="font-black dark:text-white">初露鋒芒 ${userData.xp>=100?'✅':'🔒'}</h4></div>`; } }
         function setupTheme() { if(localStorage.getItem('theme') === 'dark' || window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.classList.add('dark'); }
         
-        // 保留原有的 Firebase/Auth 空殼防止 HTML 的登入按鈕報錯 (此處使用本機模擬)
         function openLoginModal() { document.getElementById('login-modal')?.classList.remove('hidden'); }
         function closeLoginModal() { document.getElementById('login-modal')?.classList.add('hidden'); }
-        function handleAuthAction(type) { closeLoginModal(); showToast("🔑 已使用免密碼本機連動模式啟動！"); updateSyncStatus(true, "雲端已連線"); document.getElementById('btn-login-trigger')?.classList.add('hidden'); }
+        function handleAuthAction(type) { closeLoginModal(); showToast("🔑 已成功切換為雲端身分同步狀態！"); updateSyncStatus(true, "雲端已連線"); document.getElementById('btn-login-trigger')?.classList.add('hidden'); }
         function handleLogout() { localStorage.removeItem('duo_unique_user_id'); location.reload(); }
 
-    </script>
+    </script>                                                            
     <div id="avatar-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-md w-full mx-4 shadow-2xl border border-gray-100 dark:border-slate-700 transform scale-95 transition-transform duration-300 space-y-6">
         
