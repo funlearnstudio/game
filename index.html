@@ -7302,6 +7302,9 @@
       // ==========================================
         // 📖 渲染當前單字畫面與「進度實時存檔防護線」
         // ==========================================
+       // ==========================================
+        // 📖 渲染當前單字畫面與「全自動進度監控防護線」
+        // ==========================================
         function setupLessonWord() {
             const wordObj = sessionState.currentWords[sessionState.currentIndex];
             document.getElementById('lesson-progress').value = (sessionState.currentIndex / sessionState.currentWords.length) * 100;
@@ -7318,25 +7321,48 @@
             if(teacherText) teacherText.innerText = `現在來學習 "${wordObj.word}"。點擊下方看詳細講解！`;
 
             // ============================================================
-            // 🏠 這裡就是它的家！(進度記憶與斷網保護)
+            // 🚀 【終極防護線】全自動盲測存檔機制
             // ============================================================
-            if (sessionState && sessionState.currentUnit !== undefined) {
-                // 1. 儲存獨立單元中斷書籤（記得你原本的變數名稱是 currentWords）
-                localStorage.setItem(`mid_save_unit_${sessionState.currentUnit}`, sessionState.currentIndex);
+            try {
+                console.log("【偵錯】當前 sessionState 的完整內容為:", JSON.stringify(sessionState));
+
+                // 1. 智慧型盲測：自動找出當前的關卡編號（嘗試各種可能的變數名稱）
+                let detectedUnit = null;
                 
-                // 2. 同步寫入全域 userData 的 currentProgress 區塊，當作雙重保險
-                if (typeof userData !== 'undefined') {
-                    if (!userData.currentProgress) userData.currentProgress = {};
-                    userData.currentProgress[sessionState.currentUnit] = sessionState.currentIndex;
-                    
-                    // 寫入本地大檔快取
-                    localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
+                if (sessionState) {
+                    if (sessionState.currentUnit !== undefined) detectedUnit = sessionState.currentUnit;
+                    else if (sessionState.unit !== undefined) detectedUnit = sessionState.unit;
+                    else if (sessionState.currentUnitId !== undefined) detectedUnit = sessionState.currentUnitId;
+                    else if (wordObj && wordObj.unit !== undefined) detectedUnit = wordObj.unit; // 從單字本身的屬性抓抓看
                 }
-                console.log(`【實時存檔】已成功記憶進度：第 ${sessionState.currentUnit} 關，第 ${sessionState.currentIndex + 1} / ${sessionState.currentWords.length} 個單字。`);
+
+                // 2. 如果成功抓到關卡編號，強制釘進 LocalStorage
+                if (detectedUnit !== null && detectedUnit !== undefined) {
+                    const currentIdx = sessionState.currentIndex;
+                    
+                    // A. 存入獨立書籤
+                    localStorage.setItem(`mid_save_unit_${detectedUnit}`, currentIdx);
+                    
+                    // B. 存入通用大書籤（防重整）
+                    localStorage.setItem(`duo_last_active_unit`, detectedUnit);
+                    localStorage.setItem(`duo_last_active_index`, currentIdx);
+                    
+                    // C. 同步寫入全域 userData 的 currentProgress 區塊
+                    if (typeof userData !== 'undefined') {
+                        if (!userData.currentProgress) userData.currentProgress = {};
+                        userData.currentProgress[detectedUnit] = currentIdx;
+                        localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
+                    }
+                    
+                    console.log(`🎯 【存檔成功】已記憶：第 ${detectedUnit} 關，第 ${currentIdx + 1} 個單字。`);
+                } else {
+                    console.error("❌ 【存檔失敗】找不到關卡編號！請檢查 sessionState 裡代表關卡的變數名稱是什麼。");
+                }
+            } catch (err) {
+                console.error("⚠️ 【存檔出錯】執行自動存檔時發生未預期的錯誤:", err);
             }
             // ============================================================
         }
-
        // ==========================================
         // 🧑‍🏫 AI 老師雙語特訓連鎖講解模組
         // 優點：完美對接 speakText、一句接一句排隊播放、不重疊、支援慢速特訓
@@ -7939,9 +7965,8 @@
                 modal.style.display = 'none';
                 modal.classList.add('hidden');
             }
-        }
 // ==========================================
-        // 🚀 網頁開機自動登入與「中斷進度完美回復」檢查器
+        // 🚀 網頁開機自動登入與「強行暴力進度還原」檢查器
         // ==========================================
         async function checkAutoLogin() {
             const savedUser = localStorage.getItem('duo_remember_username');
@@ -7959,50 +7984,35 @@
                     await loadDataFromCloud();
                 }
 
-                let lastActiveUnit = null;
-                let lastActiveIndex = 0;
+                // 🌟 暴力恢復法：直接從通用大書籤抓取上次活動的位置
+                const lastUnit = localStorage.getItem(`duo_last_active_unit`);
+                const lastIdx = localStorage.getItem(`duo_last_active_index`);
 
-                const maxUnits = (typeof TOTAL_UNITS !== 'undefined') ? TOTAL_UNITS : 30;
-                for (let i = 1; i <= maxUnits; i++) {
-                    let savedIdx = localStorage.getItem(`mid_save_unit_${i}`);
-                    if (savedIdx !== null && parseInt(savedIdx) > 0) {
-                        lastActiveUnit = i;
-                        lastActiveIndex = parseInt(savedIdx);
-                    }
-                }
-
-                if (lastActiveUnit === null && typeof userData !== 'undefined' && userData.currentProgress) {
-                    for (let unitKey in userData.currentProgress) {
-                        let idx = parseInt(userData.currentProgress[unitKey]);
-                        if (idx > 0) {
-                            lastActiveUnit = parseInt(unitKey);
-                            lastActiveIndex = idx;
-                        }
-                    }
-                }
-
-                // 🌟 還原點：與你的 setupLessonWord 結構完全對齊
-                if (lastActiveUnit !== null && typeof vocabularyDB !== 'undefined') {
-                    let unitWords = vocabularyDB.filter(w => w.unit === lastActiveUnit);
+                if (lastUnit !== null && lastIdx !== null && typeof vocabularyDB !== 'undefined') {
+                    const targetUnit = parseInt(lastUnit);
+                    const targetIdx = parseInt(lastIdx);
                     
-                    if (unitWords.length > 0 && lastActiveIndex < unitWords.length) {
-                        console.log(`【進度靈魂還原】成功！恢復至第 ${lastActiveUnit} 關第 ${lastActiveIndex + 1} 個字。`);
+                    let unitWords = vocabularyDB.filter(w => w.unit === targetUnit);
+                    if (unitWords.length > 0 && targetIdx < unitWords.length) {
+                        console.log(`🔥 【暴力還原中】嘗試強制將畫面推回第 ${targetUnit} 關，第 ${targetIdx + 1} 個字...`);
                         
-                        // 修正：完全符合你現有的 sessionState 欄位結構 (currentWords)
-                        sessionState = { 
-                            currentUnit: lastActiveUnit, 
-                            currentWords: [...unitWords], 
-                            currentIndex: lastActiveIndex, 
-                            totalToFinish: unitWords.length, 
-                            isReview: typeof userData !== 'undefined' ? (lastActiveUnit < userData.unlockedUnit) : false
+                        // 1. 強制組裝符合你系統的 sessionState
+                        sessionState = {
+                            currentUnit: targetUnit,
+                            unit: targetUnit, // 雙保險
+                            currentWords: [...unitWords],
+                            currentIndex: targetIdx,
+                            totalToFinish: unitWords.length,
+                            isReview: typeof userData !== 'undefined' ? (targetUnit < userData.unlockedUnit) : false
                         };
                         
+                        // 2. 切換分頁並執行渲染
                         if (typeof switchTab === 'function') switchTab('lesson');
                         if (typeof setupLessonWord === 'function') {
-                            setupLessonWord(); // 👈 呼叫你的 setupLessonWord 渲染畫面
-                            showToast(`⏰ 歡迎回來！已為您還原到上次網頁關閉前的進度！`);
+                            setupLessonWord();
+                            showToast(`⏰ 歡迎回來！已為您還原到上次進度！`);
                         }
-                        return; 
+                        return;
                     }
                 }
 
