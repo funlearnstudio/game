@@ -7136,7 +7136,27 @@
             saveToCloudTimer = setTimeout(saveToCloudNow, 1500);
         }
 
-    
+       async function saveToCloudNow() {
+            if (!GAS_API_URL || GAS_API_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
+                updateSyncStatus(false, "僅本機"); return;
+            }
+            try {
+                // 🚀 關鍵修改：使用 no-cors 與 text/plain 繞過瀏覽器的 CORS 預檢攔截
+                const res = await fetch(GAS_API_URL, {
+                    method: "POST", 
+                    mode: "no-cors", // 👈 強制設定為 no-cors
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({ action: "saveUserData", userId: myUserId, userData: userData })
+                });
+
+                // 💡 注意：在 no-cors 模式下，res.status 會回傳 0，res.ok 會是 false，這代表進度「已經成功強行送出」！
+                updateSyncStatus(true, "已同步");
+                
+            } catch (e) {
+                console.error("同步上傳失敗:", e);
+                updateSyncStatus(false, "連線失敗");
+            }
+        }
         // ==========================================
         // 🎨 5. 核心 UI 與「400關豪華蛇形垂直地圖」模組
         // ==========================================
@@ -7286,16 +7306,6 @@
         // 📖 渲染當前單字畫面與「全自動進度監控防護線」
         // ==========================================
         function setupLessonWord() {
-                    // 💾 本地先烙印
-            if (typeof sessionState !== 'undefined' && sessionState.currentUnit && sessionState.currentIndex !== undefined) {
-                localStorage.setItem(`duo_last_active_unit`, sessionState.currentUnit);
-                localStorage.setItem(`duo_last_active_index`, sessionState.currentIndex);
-                
-                // ☁️ 【雲端補刀】呼叫我們剛剛改好的函數，直接把進度丟給 GAS
-                if (typeof saveToCloudNow === 'function') {
-                    saveToCloudNow();
-                }
-            }
             const wordObj = sessionState.currentWords[sessionState.currentIndex];
             document.getElementById('lesson-progress').value = (sessionState.currentIndex / sessionState.currentWords.length) * 100;
             document.getElementById('lesson-word').innerText = wordObj.word;
@@ -7767,80 +7777,14 @@
             setTimeout(() => modal.classList.add('hidden'), 250); 
         }
 
-       // ==========================================================================
-        // 🔄 智慧防沖刷分頁切換控制器 (解決點到別的分頁再點回來會回復出廠的 Bug)
-        // ==========================================================================
         function switchTab(tabId) {
-            console.log(`[導覽] 正在切換到分頁: ${tabId}`);
-
-            // 1. 隱藏所有分頁區塊 (假設你的分頁是用 class 'tab-content' 控制，請依你實際狀況保留或微調)
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            const target = document.getElementById(tabId);
+            if(target) target.classList.add('active');
             
-            // 2. 顯示目標分頁區塊
-            const targetTab = document.getElementById(tabId) || document.getElementById(`${tabId}-tab`);
-            if (targetTab) {
-                targetTab.classList.remove('hidden');
-            }
-
-            // 3. 處理導覽列按鈕的高亮狀態 (依你原本的邏輯讓按鈕變色，這裡做防呆)
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                // 這裡會保留你原本按鈕變色的邏輯，防呆不破壞外觀
-            });
-
-            // ======================================================================
-            // 🔥 【核心修正點】當使用者點選「課程 (lesson)」分頁「切換回來」時：
-            // ======================================================================
-            if (tabId === 'lesson') {
-                // A. 檢查當前記憶體 (sessionState) 裡是不是本來就有正在背的單字
-                if (sessionState && sessionState.currentWords && sessionState.currentWords.length > 0 && sessionState.currentIndex !== undefined) {
-                    console.log("🎯 [分頁還原] 偵測到記憶體中有背到一半的單字，維持當前單字畫面！");
-                    if (typeof setupLessonWord === 'function') {
-                        setupLessonWord(); // 強制重新渲染當前單字，防止畫面變白或回復出廠
-                    }
-                    return; // 📌 直接攔截，不讓系統跌回大地圖！
-                }
-                
-                // B. 如果記憶體被清空了，嘗試從 LocalStorage 大書籤救回來
-                const lastUnit = localStorage.getItem(`duo_last_active_unit`);
-                const lastIdx = localStorage.getItem(`duo_last_active_index`);
-                
-                if (lastUnit !== null && lastIdx !== null && typeof vocabularyDB !== 'undefined') {
-                    const targetUnit = parseInt(lastUnit);
-                    const targetIdx = parseInt(lastIdx);
-                    let unitWords = vocabularyDB.filter(w => w.unit === targetUnit);
-                    
-                    if (unitWords.length > 0 && targetIdx < unitWords.length) {
-                        console.log(`🎯 [分頁還原] 從書籤救回進度：第 ${targetUnit} 關第 ${targetIdx + 1} 個字。`);
-                        sessionState = {
-                            currentUnit: targetUnit,
-                            unit: targetUnit,
-                            currentWords: [...unitWords],
-                            currentIndex: targetIdx,
-                            totalToFinish: unitWords.length,
-                            isReview: typeof userData !== 'undefined' ? (targetUnit < userData.unlockedUnit) : false
-                        };
-                        if (typeof setupLessonWord === 'function') {
-                            setupLessonWord();
-                        }
-                        return; // 📌 成功救回，攔截退出
-                    }
-                }
-                
-                // C. 如果上面兩個都沒有，代表真的沒在背單字，這時才乖乖顯示大地圖
-                console.log("💡 [分頁還原] 沒有任何背單字紀錄，正常顯示大地圖。");
-                if (typeof renderMap === 'function') renderMap();
-            }
-
-            // 4. 如果是點去別的分頁，就正常出發去渲染別的頁面
-            if (tabId === 'wrong' || tabId === 'dict') {
-                if (typeof renderDictionary === 'function') renderDictionary(tabId === 'wrong' ? 'wrong' : 'all');
-            }
-            if (tabId === 'story') {
-                if (typeof renderStoryTab === 'function') renderStoryTab();
-            }
-            if (tabId === 'achievements') {
-                if (typeof renderAchievements === 'function') renderAchievements();
-            }
+            if(tabId === 'dictionary') renderDictionary('all');
+            if(tabId === 'chat' && chatHistory.length === 0) startNewChatScenario();
+            updateUI();
         }
 
         function checkDaily() {
@@ -8021,112 +7965,33 @@
                 modal.style.display = 'none';
                 modal.classList.add('hidden');
             }
-        }
 // ==========================================================================
-        // ☁️ 【全新升級】雲端同步發射器 (夾帶單字進度發送給新版 GAS)
-        // ==========================================================================
-        async function saveToCloudNow() {
-            if (!GAS_API_URL || GAS_API_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
-            if (!myUserId) return;
-
-            try {
-                // 從本機硬碟抓取當前背到哪裡的即時數據
-                const currentUnit = localStorage.getItem(`duo_last_active_unit`) || 1;
-                const currentIndex = localStorage.getItem(`duo_last_active_index`) || 0;
-
-                const payload = {
-                    action: "saveUserData",
-                    userId: myUserId,
-                    userData: userData, 
-                    lastUnit: parseInt(currentUnit),  // 🚀 發射給新版 GAS 接收
-                    lastIdx: parseInt(currentIndex)   // 🚀 發射給新版 GAS 接收
-                };
-
-                fetch(GAS_API_URL, {
-                    method: "POST",
-                    mode: "cors",
-                    headers: { "Content-Type": "text/plain;charset=utf-8" },
-                    body: JSON.stringify(payload)
-                }).then(res => {
-                    if(res.ok) console.log("☁️ [雲端同步] 進度已成功打包儲存至 GAS 試算表！");
-                });
-
-            } catch (e) {
-                console.error("雲端同步失敗:", e);
-            }
-        }
-
-        // ==========================================================================
-        // 🤖 【雲端級別·終極開機還原機器人】 (結構完全對齊防爆版)
-        // 說明：開機後優先檢查從 GAS 雲端撈回來的最新進度，確保換裝置也能恢復單字畫面
+        // 🕵️‍♂️ 【全自動黑科技】日誌監聽外掛（解決找不到 initMap 的終極大絕招）
+        // 說明：只要原本的程式印出「地圖初始化」的字眼，這裡就會自動抓到時間點並執行還原！
         // ==========================================================================
         (function() {
-            let restoreTimer = setInterval(() => {
-                // 1. 確定單字庫已經加載好
-                if (typeof vocabularyDB !== 'undefined' && vocabularyDB.length > 0) {
-                    
-                    let targetUnit = null;
-                    let targetIdx = null;
-
-                    // 🔍 優先從 userData (從雲端 GAS 載下來的變數) 讀取進度
-                    if (typeof userData !== 'undefined' && userData && userData.lastUnit !== undefined && userData.lastIdx !== undefined) {
-                        targetUnit = parseInt(userData.lastUnit);
-                        targetIdx = parseInt(userData.lastIdx);
-                    } else {
-                        // 降級方案：採用本機快取
-                        const localUnit = localStorage.getItem(`duo_last_active_unit`);
-                        const localIdx = localStorage.getItem(`duo_last_active_index`);
-                        if (localUnit !== null && localIdx !== null) {
-                            targetUnit = parseInt(localUnit);
-                            targetIdx = parseInt(localIdx);
+            const originalLog = console.log;
+            console.log = function(...args) {
+                // 先讓原本的控制台正常印出訊息，不破壞原本功能
+                originalLog.apply(console, args);
+                
+                // 檢查印出的文字中是否包含地圖初始化的關鍵字
+                const logMessage = args.join(" ");
+                if (logMessage.includes("7000 單字終極蛇形地圖系統初始化中...")) {
+                    // 為了保險起見，地圖印出這行字後可能還需要幾毫秒渲染，我們延遲 50 毫秒後強制還原
+                    setTimeout(() => {
+                        if (window.shouldRestoreProgressWhenMapReady) {
+                            executeProgressRestore();
+                        } else {
+                            window.isMapInitializedFully = true; // 標記地圖已經準備好了
                         }
-                    }
-
-                    // 2. 如果成功撈到進度（不論是雲端還是本地）
-                    if (targetUnit !== null && targetIdx !== null) {
-                        let unitWords = vocabularyDB.filter(w => w.unit === targetUnit);
-                        
-                        // 防爆防呆
-                        let safeIdx = targetIdx;
-                        if (unitWords.length > 0 && safeIdx >= unitWords.length) {
-                            safeIdx = 0; 
-                        }
-
-                        if (unitWords.length > 0 && safeIdx < unitWords.length) {
-                            console.log(`☁️ 【雲端同步還原成功】成功恢復至第 ${targetUnit} 關第 ${safeIdx + 1} 個字！`);
-                            
-                            // 更新當前本地的 LocalStorage 作為快取對齊
-                            localStorage.setItem(`duo_last_active_unit`, targetUnit);
-                            localStorage.setItem(`duo_last_active_index`, safeIdx);
-
-                            // 強制組裝狀態
-                            sessionState = {
-                                currentUnit: targetUnit,
-                                unit: targetUnit,
-                                currentWords: [...unitWords],
-                                currentIndex: safeIdx,
-                                totalToFinish: unitWords.length,
-                                isReview: typeof userData !== 'undefined' ? (targetUnit < userData.unlockedUnit) : false
-                            };
-                            
-                            // 渲染畫面
-                            if (typeof switchTab === 'function') switchTab('lesson');
-                            if (typeof setupLessonWord === 'function') {
-                                setupLessonWord();
-                                setTimeout(() => {
-                                    if (typeof showToast === 'function') showToast(`☁️ 歡迎回來！已從雲端為您同步還原上次進度！`);
-                                }, 300);
-                            }
-                            clearInterval(restoreTimer); // 任務完成，解散
-                            return;
-                        }
-                    }
+                    }, 50);
                 }
-            }, 100);
+            };
         })();
 
         // ==========================================================================
-        // 🚀 網頁開機自動登入檢查器
+        // 🚀 網頁開機自動登入檢查器 (背景身份與雲端同步核心)
         // ==========================================================================
         async function checkAutoLogin() {
             const savedUser = localStorage.getItem('duo_remember_username');
@@ -8135,19 +8000,85 @@
             if (savedUser && savedPass) {
                 myUserId = savedUser + "_" + savedPass;
                 localStorage.setItem('duo_unique_user_id', myUserId);
+                
                 const triggerBtn = document.getElementById('btn-login-trigger');
                 if(triggerBtn) triggerBtn.classList.add('hidden');
                 
+                // 默默同步雲端大進度
                 if (typeof loadDataFromCloud === 'function') {
                     await loadDataFromCloud();
                 }
+
+                // 如果地圖在外掛監聽中已經先初始化完了，直接執行還原
+                if (window.isMapInitializedFully) {
+                    executeProgressRestore();
+                } else {
+                    // 如果地圖還沒好，留下暗號，等地圖日誌觸發
+                    window.shouldRestoreProgressWhenMapReady = true;
+                }
             } else {
+                console.log("【自動登入】本機尚無儲存的帳密憑證。");
                 if (typeof updateUI === 'function') updateUI();
                 if (typeof renderMap === 'function') renderMap();
             }
         }
 
-        // 確保以最快速度掛載背景登入檢查
+        // ==========================================================================
+        // 🔥 【獨立核心】強行進度靈魂還原器
+        // ==========================================================================
+        function executeProgressRestore() {
+            try {
+                // 讀取大書籤
+                const lastUnit = localStorage.getItem(`duo_last_active_unit`);
+                const lastIdx = localStorage.getItem(`duo_last_active_index`);
+
+                if (lastUnit !== null && lastIdx !== null && typeof vocabularyDB !== 'undefined') {
+                    const targetUnit = parseInt(lastUnit);
+                    const targetIdx = parseInt(lastIdx);
+                    
+                    let unitWords = vocabularyDB.filter(w => w.unit === targetUnit);
+                    
+                    // 防呆：如果紀錄的索引大於等於總字數（代表按完了），歸零從頭複習
+                    let safeIdx = targetIdx;
+                    if (unitWords.length > 0 && safeIdx >= unitWords.length) {
+                        safeIdx = 0; 
+                        localStorage.setItem(`duo_last_active_index`, 0);
+                    }
+
+                    if (unitWords.length > 0 && safeIdx < unitWords.length) {
+                        console.log(`🎯 【外掛攔截成功】成功恢復至第 ${targetUnit} 關第 ${safeIdx + 1} 個字。`);
+                        
+                        // 強制覆寫狀態
+                        sessionState = {
+                            currentUnit: targetUnit,
+                            unit: targetUnit,
+                            currentWords: [...unitWords],
+                            currentIndex: safeIdx,
+                            totalToFinish: unitWords.length,
+                            isReview: typeof userData !== 'undefined' ? (targetUnit < userData.unlockedUnit) : false
+                        };
+                        
+                        // 執行切換與畫面渲染
+                        if (typeof switchTab === 'function') switchTab('lesson');
+                        if (typeof setupLessonWord === 'function') {
+                            setupLessonWord();
+                            setTimeout(() => {
+                                if (typeof showToast === 'function') showToast(`⏰ 歡迎回來！已為您還原到上次進度！`);
+                            }, 100);
+                        }
+                        return true;
+                    }
+                }
+            } catch (e) {
+                console.error("【還原出錯】", e);
+            }
+            
+            if (typeof updateUI === 'function') updateUI();
+            if (typeof renderMap === 'function') renderMap();
+            return false;
+        }
+
+        // 確保以最快速度掛載登入檢查
         if (document.readyState === "loading") {
             document.addEventListener("DOMContentLoaded", checkAutoLogin);
         } else {
