@@ -7380,11 +7380,14 @@
             document.getElementById('lesson-progress').value = (sessionState.currentIndex / sessionState.totalToFinish) * 100;
             document.getElementById('lesson-remaining').innerText = `剩餘: ${sessionState.totalToFinish - sessionState.currentIndex}`;
 
-            // 畫面元素更新
-            document.getElementById('lesson-word').innerText = w.word;
-            document.getElementById('lesson-meaning').innerText = w.meaning;
-            document.getElementById('lesson-root').innerText = w.root || "無特定字根/衍生詞";
-            
+           // ✨ 安全更新畫面元素：先檢查標籤存在，才填入文字，絕對不崩潰！
+            const elWord = document.getElementById('lesson-word');
+            const elMeaning = document.getElementById('lesson-meaning');
+            const elRoot = document.getElementById('lesson-root') || document.getElementById('lesson-roots'); // 同時相容兩種可能的 ID
+
+            if (elWord) elWord.innerText = w.word;
+            if (elMeaning) elMeaning.innerText = w.meaning;
+            if (elRoot) elRoot.innerText = w.root || "無特定字根/衍生詞";
             // ✨ 修改：在例句前面加上獨立播放喇叭按鈕
             document.getElementById('lesson-example').innerHTML = `
                 <div class="flex items-start gap-2 bg-gray-50 dark:bg-slate-900 p-3 rounded-xl border border-gray-100 dark:border-slate-800">
