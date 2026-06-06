@@ -7126,19 +7126,42 @@ let currentLoggedInUser = { email: "", password: "" };
             }, 1500); 
         }
 
-        async function saveToCloudNow() {
+       async function saveToCloudNow() {
             if (!GAS_API_URL || GAS_API_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
                 updateSyncStatus(false, "僅本機");
                 return;
             }
             try {
+                // 🚀 改良版：改為 text/plain 格式發送 JSON 字串，能徹底杜絕瀏覽器的 CORS 預檢攔截 (Failed to fetch)
                 const res = await fetch(GAS_API_URL, {
                     method: "POST",
-                    mode: "cors",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "saveUserData", userId: myUserId, userData: userData })
+                    mode: "cors", 
+                    headers: {
+                        "Content-Type": "text/plain;charset=utf-8"
+                    },
+                    body: JSON.stringify({
+                        action: "saveUserData",
+                        userId: myUserId,
+                        userData: userData
+                    })
                 });
-                if(res.ok) updateSyncStatus(true, "雲端已同步");
+
+                if (res.ok) {
+                    const result = await res.json();
+                    if (result && result.status === "success") {
+                        updateSyncStatus(true, "雲端已同步");
+                    } else {
+                        console.warn("GAS 內部回報錯誤:", result ? result.message : "未知錯誤");
+                        updateSyncStatus(false, "儲存失敗");
+                    }
+                } else {
+                    // 如果因為 no-cors 模式导致狀態碼為 0，也視為已送出或進行離線備援
+                    if(res.status === 0) {
+                        updateSyncStatus(true, "雲端已發送");
+                    } else {
+                        throw new Error(`HTTP 錯誤狀態碼: ${res.status}`);
+                    }
+                }
             } catch (e) {
                 console.error("雲端上傳失敗:", e);
                 updateSyncStatus(false, "連線失敗");
