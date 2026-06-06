@@ -393,16 +393,20 @@
         </div>
     </div>
 
-    <!-- 🏆 升級/成就解鎖彈窗 -->
-    <div id="reward-modal" class="fixed inset-0 bg-black/70 z-50 hidden flex-col items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-800 w-full max-w-sm rounded-3xl p-8 text-center animate-[fadeIn_0.3s_ease-out] border-2 border-gray-200 dark:border-slate-700">
-            <div id="reward-icon" class="text-7xl mb-4 animate-bounce">🎁</div>
-            <h2 id="reward-title" class="text-3xl font-black text-gold mb-2">解鎖！</h2>
-            <p id="reward-desc" class="text-gray-600 dark:text-gray-300 font-bold mb-6">描述</p>
-            <button onclick="document.getElementById('reward-modal').style.display='none'" class="btn-3d w-full bg-primary text-white text-xl py-4 shadow-[0_4px_0_#46a302]">收下</button>
-        </div>
+   <div id="reward-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9999] hidden flex flex-col items-center justify-center p-4 transition-opacity duration-300 opacity-0">
+    <div class="bg-white dark:bg-slate-800 w-full max-w-sm rounded-3xl p-8 text-center border-2 border-gray-100 dark:border-slate-700 shadow-2xl transform scale-95 transition-transform duration-300">
+        
+        <div id="reward-icon" class="text-7xl mb-4 select-none drop-shadow-md">🎁</div>
+        
+        <h2 id="reward-title" class="text-3xl font-black text-amber-500 dark:text-amber-400 mb-2 tracking-wide">恭喜解鎖！</h2>
+        
+        <p id="reward-desc" class="text-gray-600 dark:text-gray-300 font-medium mb-6 text-base px-2">描述內容</p>
+        
+        <button onclick="closeRewardModal()" class="w-full bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white text-xl py-4 rounded-2xl font-black shadow-lg shadow-orange-500/20 active:scale-95 transition-all duration-150">
+            高興收下 ✨
+        </button>
     </div>
-
+</div>
     <!-- 音效庫與音訊連結 -->
     <audio id="sfx-success" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3"></audio>
     <audio id="sfx-error" src="https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3"></audio>
@@ -7285,24 +7289,20 @@
 function updateUI() {
             if (!userData) return;
 
-            // ⚙️ 初始化安全檢查：如果使用者資料裡沒有 Icon 與背景，就給他一組超讚的預設值
-            if (!userData.avatarIcon) userData.avatarIcon = "fa-user-astronaut"; // 預設太空人
-            if (!userData.avatarBg) userData.avatarBg = "from-blue-500 to-indigo-600"; // 預設科技藍紫漸層
+            // ⚙️ 初始化安全檢查：頭像 Icon
+            if (!userData.avatarIcon) userData.avatarIcon = "fa-user-astronaut";
+            if (!userData.avatarBg) userData.avatarBg = "from-blue-500 to-indigo-600";
 
-            // 🎯 【核心修改】將原本的醜圖片，轉換成極簡高質感 Icon 頭像
-            // 系統會自動尋找畫面上叫做 'user-avatar-container' 或 'profile-avatar' 的區塊
+            // 更新頭像
             const avatarContainer = document.getElementById('user-avatar-container') || document.getElementById('profile-avatar');
             if (avatarContainer) {
-                // 自動套用 Tailwind CSS 的精緻圓角漸層與陰影，並強制滑鼠移過去變成手指（支援點擊切換）
                 avatarContainer.className = `w-20 h-20 rounded-2xl bg-gradient-to-br ${userData.avatarBg} flex items-center justify-center text-white text-3xl shadow-lg border-4 border-white dark:border-slate-800 transition-all duration-300 cursor-pointer hover:scale-105 active:scale-95`;
                 avatarContainer.innerHTML = `<i class="fa-solid ${userData.avatarIcon}"></i>`;
-                
-                // 綁定點擊事件：點了頭像就觸發下面寫好的 openAvatarPicker() 隨機換頭像
                 avatarContainer.onclick = openAvatarPicker;
                 avatarContainer.title = "💡 點擊可以直接更換下一組 Icon 頭像喔！";
             }
 
-            // --- 以下為你原本的 UI 渲染邏輯，加上安全防護 ---
+            // 基本數據渲染
             const uiStreak = document.getElementById('ui-streak'); if (uiStreak) uiStreak.innerText = userData.streak;
             const uiXp = document.getElementById('ui-xp'); if (uiXp) uiXp.innerText = userData.xp;
             const uiGems = document.getElementById('ui-gems'); if (uiGems) uiGems.innerText = userData.gems;
@@ -7317,21 +7317,60 @@ function updateUI() {
                 streakEl.innerText = userData.streak;
             }
 
-            // 聯盟徽章判定
+            // ==========================================
+            // 🎯 【核心修改】智慧聯盟徽章與「剩餘 XP」動態計算
+            // ==========================================
             let league = "銅牌聯盟";
+            let nextLeagueXp = 300; // 晉升銀牌需要 300 XP
+            let currentLeagueBaseXp = 0;
             let lBadge = document.getElementById('league-badge');
+            
+            if (userData.xp >= 300 && userData.xp < 800) { 
+                league = "銀牌聯盟"; 
+                nextLeagueXp = 800; // 晉升金牌需要 800 XP
+                currentLeagueBaseXp = 300;
+                if (lBadge) lBadge.className = "flex flex-col items-center bg-slate-100 text-slate-700 px-3 py-1.5 rounded-2xl"; 
+            } else if (userData.xp >= 800) { 
+                league = "金牌聯盟"; 
+                nextLeagueXp = 99999; // 最高階級
+                currentLeagueBaseXp = 800;
+                if (lBadge) lBadge.className = "flex flex-col items-center bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-2xl"; 
+            } else {
+                // 銅牌階段的樣式
+                if (lBadge) lBadge.className = "flex flex-col items-center bg-orange-100 text-orange-700 px-3 py-1.5 rounded-2xl";
+            }
+            
+            // 更新聯盟名稱
             if (lBadge) {
-                if(userData.xp >= 300) { 
-                    league = "銀牌聯盟"; 
-                    lBadge.className = "flex flex-col items-center bg-slate-100 text-slate-700 px-3 py-1.5 rounded-2xl"; 
-                }
-                if(userData.xp >= 800) { 
-                    league = "金牌聯盟"; 
-                    lBadge.className = "flex flex-col items-center bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-2xl"; 
-                }
                 const badgeSpan = lBadge.querySelector('span');
                 if (badgeSpan) badgeSpan.innerText = league;
             }
+
+            // ✨ 自動動態更新「距離下一階級還差: XXX XP」
+            // 系統會智慧尋找包含 "距離下一階級還差" 的網頁元件
+            const leagueNextEl = document.getElementById('league-next-xp') || document.getElementById('ui-next-league-xp');
+            if (leagueNextEl) {
+                if (userData.xp >= 800) {
+                    leagueNextEl.innerText = "已達到最高階級！";
+                } else {
+                    const diffXp = nextLeagueXp - userData.xp;
+                    leagueNextEl.innerText = `距離下一階級還差: ${diffXp} XP`;
+                }
+            }
+
+            // ✨ (選配功能) 如果你有設計聯盟進度條，也可以順便自動同步
+            const leagueProgress = document.getElementById('league-progress-bar');
+            if (leagueProgress) {
+                if (userData.xp >= 800) {
+                    leagueProgress.style.width = "100%";
+                } else {
+                    const totalNeededInThisStage = nextLeagueXp - currentLeagueBaseXp;
+                    const earnedInThisStage = userData.xp - currentLeagueBaseXp;
+                    const percentage = Math.min(100, Math.max(0, (earnedInThisStage / totalNeededInThisStage) * 100));
+                    leagueProgress.style.width = `${percentage}%`;
+                }
+            }
+            // ==========================================
 
             const dictWrongCount = document.getElementById('dict-wrong-count');
             if (dictWrongCount) dictWrongCount.innerText = userData.wrongWords ? userData.wrongWords.length : 0;
@@ -7340,7 +7379,6 @@ function updateUI() {
                 renderAchievements();
             }
         }
-
        // ==========================================
         // ✨ 進階優化：手動自主挑選頭像系統 (Modal 彈窗版)
         // ==========================================
@@ -8423,6 +8461,50 @@ function runMemoryMatch() {
             saveToCloud();
             updateUI();
         }
+        // ==========================================
+// ✨ 新增：智慧打開/關閉成就解鎖彈窗系統
+// ==========================================
+
+// 1. 打開彈窗的函數（供系統其他地方呼叫）
+function openRewardModal(icon, title, desc) {
+    const modal = document.getElementById('reward-modal');
+    if (!modal) return;
+
+    // 填入動態內容
+    if (icon) document.getElementById('reward-icon').innerText = icon;
+    if (title) document.getElementById('reward-title').innerText = title;
+    if (desc) document.getElementById('reward-desc').innerText = desc;
+
+    // 啟動炫酷的彈跳金幣/獎勵動畫效果
+    const iconEl = document.getElementById('reward-icon');
+    if (iconEl) {
+        iconEl.classList.add('animate-bounce');
+        // 3秒後自動停止蹦蹦跳，讓畫面變穩定
+        setTimeout(() => iconEl.classList.remove('animate-bounce'), 3000);
+    }
+
+    // 顯示外殼並觸發漸入動畫
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        modal.querySelector('.transform').classList.remove('scale-95');
+    }, 20);
+}
+
+// 2. 智慧關閉彈窗的函數（對應按鈕的 onclick）
+function closeRewardModal() {
+    const modal = document.getElementById('reward-modal');
+    if (!modal) return;
+
+    // 觸發縮小與淡出動畫
+    modal.classList.add('opacity-0');
+    modal.querySelector('.transform').classList.add('scale-95');
+    
+    // 等動畫跑完 (300毫秒) 再徹底隱藏標籤，完全不卡頓
+    setTimeout(() => {
+        modal.classList.add('hidden');
+    }, 300);
+}
     </script>
     <div id="avatar-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-md w-full mx-4 shadow-2xl border border-gray-100 dark:border-slate-700 transform scale-95 transition-transform duration-300 space-y-6">
