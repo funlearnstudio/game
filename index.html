@@ -295,6 +295,7 @@
                 <button onclick="abortSession()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-2xl"></i></button>
                 <progress id="lesson-progress" value="0" max="100" class="w-full h-4 rounded-full overflow-hidden appearance-none [&::-webkit-progress-bar]:bg-gray-200 dark:[&::-webkit-progress-bar]:bg-slate-700 [&::-webkit-progress-value]:bg-gradient-to-r [&::-webkit-progress-value]:from-green-400 [&::-webkit-progress-value]:to-primary"></progress>
             </div>
+            
             <div class="glass-panel p-6 relative overflow-hidden">
                 <div class="flex flex-col items-start gap-4 mb-6">
                     <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-3xl border-4 border-blue-200 shadow-sm relative">🦉</div>
@@ -7259,11 +7260,18 @@ async function loadDataFromCloud() {
                 } else if(userData.lastDate !== '') {
                     userData.streak = 0;
                 }
+                
+                // ✨ 修改：每日登入送 50 寶石，並延遲一點點顯示通知以免被其他訊息蓋掉
+                userData.gems += 50;
+                setTimeout(() => {
+                    showToast(`🎁 每日登入獎勵！系統已發放 50 💎 寶石！`);
+                }, 1500);
+
                 userData.hearts = 5;
                 userData.lastDate = today;
                 saveToCloud();
             }
-        }
+        }    
 
         function updateUI() {
             document.getElementById('ui-streak').innerText = userData.streak;
@@ -7406,7 +7414,7 @@ async function loadDataFromCloud() {
             if(sessionState.currentIndex >= sessionState.words.length) {
                 switchTab('report');
                 document.getElementById('rep-xp').innerText = `+${sessionState.totalToFinish * 15}`;
-                document.getElementById('rep-gems').innerText = `+${sessionState.totalToFinish * 2}`;
+                document.getElementById('rep-gems').innerText = `+${sessionState.totalToFinish * 3}`;
                 userData.xp += sessionState.totalToFinish * 15;
                 userData.gems += sessionState.totalToFinish * 2;
                 
@@ -7940,13 +7948,16 @@ function runMemoryMatch() {
             input.value = '';
             chatBox.scrollTop = chatBox.scrollHeight;
 
-            setTimeout(() => {
+           setTimeout(() => {
                 let response = "";
                 if(sessionState.currentChatTargetWord && text.toLowerCase().includes(sessionState.currentChatTargetWord.toLowerCase())) {
-                    response = `好棒的造句！你成功運用了 「${sessionState.currentChatTargetWord}」，獎勵 15 經驗值。`;
+                    // ✨ 修改：加入 5 顆寶石的獎勵與提示
+                    response = `好棒的造句！你成功運用了 「${sessionState.currentChatTargetWord}」，獎勵 15 經驗值與 5 顆寶石 💎！`;
                     userData.xp += 15;
+                    userData.gems += 5;
                     playSFX('success');
                     saveToCloud();
+                    updateUI(); // 確保畫面上的寶石數量馬上跳動更新
                     sessionState.currentChatTargetWord = null;
                 } else if(sessionState.currentChatTargetWord) {
                     response = `句中好像沒有包含單字 「${sessionState.currentChatTargetWord}」 喔。別氣餒，再試一次！`;
@@ -8049,6 +8060,50 @@ function runMemoryMatch() {
                     </div>
                 `;
             });
+        }
+        // ==========================================
+        // ✨ 新增：單字複誦與發音判定 (Shadowing) + 寶石獎勵 (方案 A)
+        // ==========================================
+        function startShadowing(targetWord) {
+            // 檢查瀏覽器是否支援語音辨識
+            if(!recognition) return showToast("您的瀏覽器不支援語音輸入", true);
+            
+            // 如果原本有在收音，先切斷，避免重複開啟出錯
+            if (isRecognitionActive) { 
+                try { recognition.abort(); } catch(e) {} 
+            }
+
+            // 提示使用者開始講話
+            showToast(`🎤 聆聽中... 請大聲唸出：「${targetWord}」`, false);
+            
+            recognition.onresult = (event) => {
+                // 將聽到的字和目標字都轉成小寫並去除標點符號來比對
+                let transcript = event.results[0][0].transcript.toLowerCase().replace(/[^a-z]/g, '');
+                let cleanTarget = targetWord.toLowerCase().replace(/[^a-z]/g, '');
+                
+                // 如果念的內容有包含目標單字，或是目標單字包含念的內容，就算過關！
+                if (transcript.includes(cleanTarget) || cleanTarget.includes(transcript)) {
+                    playSFX('success');
+                    showToast(`🎉 發音標準！獲得 +2 XP 與 +1 💎 寶石`);
+                    
+                    // ✨ 給予 XP 與寶石獎勵，然後存檔與更新畫面
+                    userData.xp += 2;
+                    userData.gems += 1; 
+                    saveToCloud();
+                    updateUI(); 
+                } else {
+                    playSFX('error');
+                    // 提示使用者系統聽成什麼字了，方便修正發音
+                    showToast(`❌ 聽起來像「${event.results[0][0].transcript}」，再試一次！`, true);
+                }
+            };
+            
+            recognition.onerror = () => {
+                showToast("收音失敗，請點擊按鈕重試", true);
+            };
+            
+            // 啟動麥克風開始收音
+            recognition.start();
         }
     </script>
 </body>
