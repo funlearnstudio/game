@@ -197,8 +197,7 @@
             </div>
         </section>
 
-        <!-- 🤖 AI 語音對話 (Aria) -->
-        <section id="chat" class="tab-content">
+<section id="chat" class="tab-content">
             <div class="glass-panel p-4 mb-4 flex items-center gap-3">
                 <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Aria" class="w-12 h-12 rounded-full border-2 border-ai bg-purple-100">
                 <div>
@@ -219,7 +218,6 @@
             <button onclick="startNewChatScenario()" class="btn-3d w-full bg-indigo-100 text-ai py-3 border border-indigo-200 shadow-sm text-lg font-black"><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>讓導師隨機出題</button>
         </section>
 
-        <!-- 📖 字典與特訓頁 -->
         <section id="dictionary" class="tab-content">
             <h2 class="text-2xl font-black mb-4"><i class="fa-solid fa-book text-secondary"></i> 單字庫與錯題特訓</h2>
             <div class="flex gap-2 mb-4">
@@ -227,7 +225,7 @@
                 <button onclick="renderDictionary('fav')" class="flex-1 bg-white border-2 border-gold/50 text-gold py-2 rounded-xl font-bold hover:bg-gold/10"><i class="fa-solid fa-star"></i> 收藏</button>
                 <button onclick="renderDictionary('wrong')" class="flex-1 bg-white border-2 border-danger/50 text-danger py-2 rounded-xl font-bold hover:bg-danger/10"><i class="fa-solid fa-heart-crack"></i> 錯題 (<span id="dict-wrong-count">0</span>)</button>
             </div>
-            <button onclick="practiceAllWrongWords()" class="btn-3d w-full bg-danger text-white py-3 shadow-[0_4px_0_#ea2b2b] mb-4 font-black flex items-center justify-center gap-2">
+            <button onclick="practiceMissedWords()" class="btn-3d w-full bg-danger text-white py-3 shadow-[0_4px_0_#ea2b2b] mb-4 font-black flex items-center justify-center gap-2">
                 <i class="fa-solid fa-fire"></i> 啟動錯題地獄特訓 (Spaced Repetition)
             </button>
             <div class="content-container">
@@ -235,7 +233,6 @@
             </div>
         </section>
 
-        <!-- 👤 個人主頁 (Profile/Shop/Achievements) -->
         <section id="profile" class="tab-content pb-10">
             <div class="glass-panel p-5 mb-6 flex items-center gap-6">
                 <div class="relative cursor-pointer" onclick="changeAvatar()">
@@ -249,7 +246,14 @@
                 </div>
             </div>
 
-            <!-- 📊 學習統計 -->
+            <div class="glass-panel p-5 mb-6">
+                <h3 class="text-lg font-black mb-2 text-gray-800 dark:text-white"><i class="fa-solid fa-trophy text-gold"></i> 聯盟晉升進度 (XP)</h3>
+                <p class="text-sm text-gray-500 font-bold mb-3" id="league-progress-text">距離下一階級還差: 0 XP</p>
+                <div class="w-full h-4 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                    <div id="league-progress-bar" class="h-full bg-gradient-to-r from-gold to-orange-400 transition-all duration-500" style="width: 0%;"></div>
+                </div>
+            </div>
+
             <h3 class="text-lg font-black mb-3 text-gray-700 dark:text-gray-200"><i class="fa-solid fa-chart-simple text-blue-500"></i> 學習統計與熱力</h3>
             <div class="grid grid-cols-2 gap-3 mb-6 text-sm">
                 <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border-2 border-gray-100 dark:border-slate-700">
@@ -262,7 +266,6 @@
                 </div>
             </div>
 
-            <!-- 🛒 寶石商店 -->
             <h3 class="text-lg font-black mb-3 text-gem"><i class="fa-solid fa-store"></i> 寶石商店 Shop</h3>
             <div class="bg-white dark:bg-slate-800 rounded-3xl p-2 border-2 border-gray-100 dark:border-slate-700 mb-6">
                 <div class="flex justify-between items-center p-4 border-b-2 border-gray-50 dark:border-slate-700">
@@ -281,14 +284,12 @@
                 </div>
             </div>
 
-            <!-- 🏅 成就徽章 -->
             <h3 class="text-lg font-black mb-3 text-gold"><i class="fa-solid fa-medal"></i> 成就徽章</h3>
             <div id="achievements-container" class="grid grid-cols-1 gap-3"></div>
             
             <button onclick="forceSyncData()" class="btn-3d w-full bg-blue-100 text-blue-600 border border-blue-200 py-3 my-6"><i class="fa-solid fa-rotate mr-2"></i>手動同步到雲端</button>
         </section>
 
-        <!-- 📖 AI老師講解區 (Lesson) -->
         <section id="lesson" class="tab-content">
             <div class="flex items-center gap-4 mb-6">
                 <button onclick="abortSession()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-2xl"></i></button>
@@ -304,10 +305,13 @@
 
                 <div class="text-center pt-2 pb-6 border-t-2 border-dashed border-gray-100 dark:border-slate-700 pt-6">
                     <h1 id="lesson-word" class="text-5xl font-black bg-clip-text text-transparent bg-gradient-to-r from-gray-800 to-gray-600 dark:from-white dark:to-gray-300 mb-3 drop-shadow-sm">word</h1>
+                    
                     <div class="flex justify-center gap-4 mb-4">
                         <button onclick="speakSystemWord(false)" class="w-12 h-12 rounded-full bg-secondary/10 text-secondary hover:bg-secondary hover:text-white transition-all text-xl shadow-sm"><i class="fa-solid fa-volume-high"></i></button>
                         <button onclick="speakSystemWord(true)" class="w-12 h-12 rounded-full bg-orange-100/30 text-orange-500 hover:bg-orange-500 hover:text-white transition-all text-lg shadow-sm" title="慢速模式"><i class="fa-solid fa-turtle"></i></button>
+                        <button onclick="startShadowing(document.getElementById('lesson-word').innerText)" class="w-12 h-12 rounded-full bg-red-100/30 text-danger hover:bg-danger hover:text-white transition-all text-xl shadow-sm" title="口說複誦"><i class="fa-solid fa-microphone"></i></button>
                     </div>
+
                     <p id="lesson-meaning" class="text-2xl font-black text-secondary mb-6">解釋</p>
                     <div class="bg-blue-50/50 dark:bg-slate-900/50 p-4 rounded-2xl text-left border border-blue-100/50 dark:border-slate-800 mb-4">
                         <p class="text-[11px] font-black text-blue-500 uppercase tracking-widest mb-1">💡 記憶拆解 (詞根與詞綴)</p>
@@ -322,7 +326,6 @@
                 <button id="btn-next-lesson" onclick="nextLessonWord()" class="btn-3d w-full bg-primary text-white text-lg py-4 shadow-[0_5px_0_#46a302] hidden">我記住了，繼續！</button>
             </div>
         </section>
-
         <!-- ⚔️ 測驗區 (Test) -->
         <section id="test" class="tab-content">
             <div class="flex items-center gap-4 mb-6 px-2">
