@@ -7023,7 +7023,8 @@
             wordMemoryProgress: {} 
         };
 
-        let sessionState = { words: [], currentIndex: 0, totalToFinish: 0, isReview: false, currentChatTargetWord: null, lastHeard: "" };
+       // 確保整份檔案只有這一個地方有宣告 sessionState 喔！
+        let sessionState = { currentUnit: null, words: [], currentIndex: 0, totalToFinish: 0, isReview: false, currentChatTargetWord: null, lastHeard: "" };
         let voices = [];
         let recognition = null;
         let isRecognitionActive = false;
@@ -7184,8 +7185,8 @@
             loadTestWord();
         }
         // ✨ 加入 currentUnit 欄位來追蹤中途進度
-        let sessionState = { currentUnit: null, words: [], currentIndex: 0, totalToFinish: 0, isReview: false, currentChatTargetWord: null, lastHeard: "" };
 
+        
         async function loadDataFromCloud() {
             if (GAS_API_URL === "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE" || !GAS_API_URL) {
                 let local = localStorage.getItem('duo_cloud_data');
@@ -7398,7 +7399,7 @@
             if(w) speak(w.word, 'en-US', isSlow);
         }
 
-        function playBilingualExplanation() {
+       function playBilingualExplanation() {
             // ✨ 修改：抓取當前畫面的單字，完美支援 AI 強制特訓
             const wordText = document.getElementById('lesson-word').innerText;
             const w = vocabularyDB.find(v => v.word === wordText) || sessionState.words[sessionState.currentIndex];
@@ -7440,7 +7441,7 @@
             loadTestWord();
         }
 
-       function loadTestWord() {
+        function loadTestWord() {
             if(sessionState.currentIndex >= sessionState.words.length) {
                 switchTab('report');
                 
@@ -7448,15 +7449,22 @@
                 if (sessionState.currentUnit) {
                     localStorage.removeItem(`mid_save_unit_${sessionState.currentUnit}`);
                 }
-                document.getElementById('rep-xp').innerText = `+${sessionState.totalToFinish * 15}`;
-                document.getElementById('rep-gems').innerText = `+${sessionState.totalToFinish * 3}`;
-                userData.xp += sessionState.totalToFinish * 15;
-                userData.gems += sessionState.totalToFinish * 2;
+                
+                // 💎 方案 D：將通關獎勵倍率全面統一調高為「單字數 × 5」
+                const rewardXp = sessionState.totalToFinish * 15;
+                const rewardGems = sessionState.totalToFinish * 5; // 原本是 * 3 或 * 2
+                
+                document.getElementById('rep-xp').innerText = `+${rewardXp}`;
+                document.getElementById('rep-gems').innerText = `+${rewardGems}`;
+                
+                userData.xp += rewardXp;
+                userData.gems += rewardGems;
                 
                 if(!sessionState.isReview && userData.unlockedUnit <= TOTAL_UNITS) {
                     userData.unlockedUnit++;
                 }
                 saveToCloud();
+                updateUI(); // 同步更新右上角的寶石與經驗值
                 return;
             }
 
@@ -7563,37 +7571,36 @@
             processAnswer(input.toLowerCase() === correctWord.toLowerCase(), w);
         }
 
+        // 🎤 補上測驗模式中「口說檢測」專用的判定函數
         function startPronunciationTest(targetWord) {
-            if(!recognition) return showToast("瀏覽器不支援語音辨識", true);
-            if (isRecognitionActive) { try { recognition.abort(); } catch(e) {} }
-
-            const btn = document.getElementById('mic-btn');
-            const status = document.getElementById('mic-status');
-            btn.classList.add('mic-active');
-            status.innerText = "聆聽中，請唸單字...";
-            status.classList.replace('text-gray-500', 'text-red-500');
+            if(!recognition) return showToast("您的瀏覽器不支援語音輸入", true);
+            const statusEl = document.getElementById('mic-status');
+            const micBtn = document.getElementById('mic-btn');
             
+            micBtn.classList.add('bg-red-100', 'text-red-500', 'animate-pulse');
+            statusEl.innerText = "🎤 系統正在聆聽，請朗讀單字...";
+
             recognition.onresult = (event) => {
                 let transcript = event.results[0][0].transcript.toLowerCase().replace(/[^a-z]/g, '');
                 let cleanTarget = targetWord.toLowerCase().replace(/[^a-z]/g, '');
-                btn.classList.remove('mic-active');
                 
-                sessionState.lastHeard = event.results[0][0].transcript;
-                status.innerText = "比對中...";
+                micBtn.className = "w-24 h-24 mx-auto bg-gray-100 dark:bg-slate-700 text-gray-400 rounded-full flex items-center justify-center text-4xl shadow-inner cursor-pointer";
                 
-                let isCorrect = transcript.includes(cleanTarget) || cleanTarget.includes(transcript);
-                setTimeout(() => {
-                    processAnswer(isCorrect, sessionState.words[sessionState.currentIndex], true);
-                }, 500);
+                const w = sessionState.words[sessionState.currentIndex];
+                if(transcript.includes(cleanTarget) || cleanTarget.includes(transcript)) {
+                    processAnswer(true, w);
+                } else {
+                    processAnswer(false, w);
+                }
             };
+
             recognition.onerror = () => {
-                btn.classList.remove('mic-active');
-                status.innerText = "收音失敗，請點按重試";
-                status.classList.replace('text-red-500', 'text-gray-500');
+                micBtn.className = "w-24 h-24 mx-auto bg-gray-100 dark:bg-slate-700 text-gray-400 rounded-full flex items-center justify-center text-4xl shadow-inner cursor-pointer";
+                statusEl.innerText = "❌ 錄音失敗，請點擊重試";
             };
+
             recognition.start();
         }
-
         // ✨ 核心大升級：4次/7次 Spaced Repetition 智慧判斷與 AI 導師強制介入
         function processAnswer(isCorrect, wordObj, isSpeakMode = false) {
             const fb = document.getElementById('test-feedback');
