@@ -8645,73 +8645,107 @@ function closeRewardModal() {
         const db = firebase.firestore();
 
         // 監聽使用者的登入狀態變化（跨裝置核心）
+        // ==========================================
+        // ☁️ Firebase 雲端多裝置同步系統（最高主權控制版）
+        // ==========================================
+        
+        // 監聽使用者的登入狀態變化（這裡才是網頁啟動的最高指揮官！）
         auth.onAuthStateChanged(async (user) => {
             const infoEl = document.getElementById('auth-user-info');
             const loginBtn = document.getElementById('btn-login-trigger');
             const logoutBtn = document.getElementById('btn-logout');
 
+            console.log("🔄 [Firebase 檢查] 正在偵測使用者帳號狀態...");
+
             if (user) {
-                // 😎 狀況一：使用者已登入
-                if (infoEl) infoEl.innerText = `🟢 已同步雲端：${user.email}`;
+                // 😎 情況 A：使用者已成功登入
+                if (infoEl) infoEl.innerText = `🟢 雲端同步中：${user.email}`;
                 if (loginBtn) loginBtn.classList.add('hidden');
                 if (logoutBtn) logoutBtn.classList.remove('hidden');
 
-                // 從雲端資料庫抓取這個帳號在其他裝置上存下來的最新進度
+                // 🚨 核心強迫：去 Firebase 雲端把進度下載下來，並在下載成功後才啟動遊戲
                 await fetchUserDataFromCloud(user.uid);
             } else {
-                // ⚪ 狀況二：使用者未登入（維持本機讀取模式）
+                // ⚪ 情況 B：使用者未登入（離線模式）
                 if (infoEl) infoEl.innerText = `☁️ 目前為：本機離線模式`;
                 if (loginBtn) loginBtn.classList.remove('hidden');
                 if (logoutBtn) logoutBtn.classList.add('hidden');
                 
-                // 讀取本地原本的進度
+                // 🚨 離線時，才允許去讀舊的本機 LocalStorage 備份
                 loadFromLocalBackup();
             }
         });
 
-        // 🎯 覆蓋並升級你原本的 saveToCloud() 函數
-        // 現在它不僅存本地，如果登入了，還會自動上傳雲端，讓其他裝置可以讀到！
+// ==========================================
+        // ☁️ Firebase 雲端多裝置同步系統（全資料深度同步版）
+        // ==========================================
+
+        // 🎯 究極同步：將目前所有的遊戲進度、錯題、單字庫整包發射到 Firebase
         function saveToCloud() {
             if (!userData) return;
 
-            // 1. 同步存入當前裝置的 localStorage（防斷網）
+            // 1. 同步存入本機 LocalStorage 作為臨時雙重備份
             localStorage.setItem('funlearn_user_data_v4', JSON.stringify(userData));
 
-            // 2. 如果使用者有登入，一併將最新的 XP、寶石、頭像、連勝天數同步發送到雲端
+            // 2. 核心雲端同步：如果使用者已登入，將完整的 userData 物件不漏掉任何一個欄位送上雲端
             const currentUser = auth.currentUser;
             if (currentUser) {
                 db.collection("users").doc(currentUser.uid).set(userData)
-                .then(() => console.log("✨ [雲端同步成功] 進度已完美同步至雲端基地！"))
-                .catch(err => console.error("❌ [雲端同步失敗]", err));
+                .then(() => {
+                    console.log("✨ [Firebase 深度同步] 所有資料（包含錯題本、已學單字、頭像、愛心）已完美連動！");
+                })
+                .catch(err => console.error("❌ [Firebase 同步失敗]", err));
             }
         }
 
-        // 抓取雲端進度資料
+        // 🎯 究極同步：從雲端把整包資料完完整整地下載回來，並完美分發給各個系統
         async function fetchUserDataFromCloud(uid) {
             try {
                 const doc = await db.collection("users").doc(uid).get();
                 if (doc.exists) {
-                    // 如果雲端有資料，直接用雲端最新的進度，強制覆蓋這台裝置的舊進度！
-                    userData = doc.data();
-                    console.log("🚀 [跨裝置同步] 成功從雲端下載最新進度！", userData);
+                    const cloudData = doc.data();
+                    
+                    // 智慧補全防禦：萬一雲端某些新欄位是空的，用本地預設值補上，防止程式壞掉
+                    userData = {
+                        streak: cloudData.streak !== undefined ? cloudData.streak : 0,
+                        maxStreak: cloudData.maxStreak !== undefined ? cloudData.maxStreak : 0,
+                        xp: cloudData.xp !== undefined ? cloudData.xp : 0,
+                        gems: cloudData.gems !== undefined ? cloudData.gems : 0,
+                        hearts: cloudData.hearts !== undefined ? cloudData.hearts : 5,
+                        unlockedUnit: cloudData.unlockedUnit !== undefined ? cloudData.unlockedUnit : 1,
+                        learnedWords: cloudData.learnedWords || [],
+                        wrongWords: cloudData.wrongWords || [],
+                        avatarIcon: cloudData.avatarIcon || "fa-user-astronaut",
+                        avatarBg: cloudData.avatarBg || "from-blue-500 to-indigo-600",
+                        lastActiveDate: cloudData.lastActiveDate || ""
+                    };
+                    
+                    console.log("🚀 [Firebase 跨裝置連動] 成功下載完整雲端進度！錯題本數量:", userData.wrongWords.length);
                 } else {
-                    // 如果是全新帳號，把當前這台裝置累積的成果上傳當作雲端初始進度
+                    // 如果是全新登入的帳號，直接把這台裝置目前的所有進度整包當作初始資料傳上雲端
                     await db.collection("users").doc(uid).set(userData);
+                    console.log("☁️ [Firebase 初始化] 已將您目前的本地成果綁定至新雲端帳號！");
                 }
-                updateUI(); // 刷新畫面，XP 和連勝天數立刻跟雲端同步
+                
+                // 雲端資料覆蓋本地後，立刻逼迫全網頁 UI 刷新畫面
+                updateUI(); 
             } catch (err) {
-                console.error("抓取雲端進度失敗", err);
+                console.error("❌ 抓取雲端進度失敗", err);
             }
         }
 
+        // 當沒網路或登出時，從本機暫存讀取所有東西
         function loadFromLocalBackup() {
             const localData = localStorage.getItem('funlearn_user_data_v4');
             if (localData) {
-                userData = JSON.parse(localData);
+                try {
+                    userData = JSON.parse(localData);
+                } catch(e) {
+                    console.error("本地快取資料解析出錯", e);
+                }
             }
             updateUI();
         }
-
         // ==========================================
         // 🔐 登入/註冊/登出 介面按鈕互動控制
         // ==========================================
