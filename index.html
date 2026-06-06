@@ -7299,6 +7299,9 @@
             showToast("🕹️ 街機模式啟動！連續答對獲取高分吧！");
         }
 
+      // ==========================================
+        // 📖 渲染當前單字畫面與「進度實時存檔防護線」
+        // ==========================================
         function setupLessonWord() {
             const wordObj = sessionState.currentWords[sessionState.currentIndex];
             document.getElementById('lesson-progress').value = (sessionState.currentIndex / sessionState.currentWords.length) * 100;
@@ -7313,6 +7316,25 @@
             
             const teacherText = document.getElementById('teacher-text');
             if(teacherText) teacherText.innerText = `現在來學習 "${wordObj.word}"。點擊下方看詳細講解！`;
+
+            // ============================================================
+            // 🏠 這裡就是它的家！(進度記憶與斷網保護)
+            // ============================================================
+            if (sessionState && sessionState.currentUnit !== undefined) {
+                // 1. 儲存獨立單元中斷書籤（記得你原本的變數名稱是 currentWords）
+                localStorage.setItem(`mid_save_unit_${sessionState.currentUnit}`, sessionState.currentIndex);
+                
+                // 2. 同步寫入全域 userData 的 currentProgress 區塊，當作雙重保險
+                if (typeof userData !== 'undefined') {
+                    if (!userData.currentProgress) userData.currentProgress = {};
+                    userData.currentProgress[sessionState.currentUnit] = sessionState.currentIndex;
+                    
+                    // 寫入本地大檔快取
+                    localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
+                }
+                console.log(`【實時存檔】已成功記憶進度：第 ${sessionState.currentUnit} 關，第 ${sessionState.currentIndex + 1} / ${sessionState.currentWords.length} 個單字。`);
+            }
+            // ============================================================
         }
 
        // ==========================================
@@ -7920,7 +7942,6 @@
         }
 // ==========================================
         // 🚀 網頁開機自動登入與「中斷進度完美回復」檢查器
-        // 優點：關掉網頁再打開，自動幫你開啟上次讀到一半的關卡與單字！
         // ==========================================
         async function checkAutoLogin() {
             const savedUser = localStorage.getItem('duo_remember_username');
@@ -7931,64 +7952,60 @@
                 myUserId = savedUser + "_" + savedPass;
                 localStorage.setItem('duo_unique_user_id', myUserId);
                 
-                // 隱藏登入按鈕
                 const triggerBtn = document.getElementById('btn-login-trigger');
                 if(triggerBtn) triggerBtn.classList.add('hidden');
                 
-                // 1. 背景直接讀取雲端大進度 (XP, 寶石, 總關卡)
                 if (typeof loadDataFromCloud === 'function') {
                     await loadDataFromCloud();
                 }
 
-                // 🌟 2. 【核心新增】：尋找有沒有「背到一半關掉網頁」的幽靈紀錄
-                // 我們巡檢所有關卡，看看有沒有哪一關存了「大於 0 且小於總數」的單字索引
                 let lastActiveUnit = null;
                 let lastActiveIndex = 0;
 
-                // 假設 TOTAL_UNITS 是你的總關卡數（例如 5 或 10）
-                // 如果找不到 TOTAL_UNITS，預設巡檢前 30 關
-                const maxUnitsToSearch = (typeof TOTAL_UNITS !== 'undefined') ? TOTAL_UNITS : 30;
-
-                for (let i = 1; i <= maxUnitsToSearch; i++) {
+                const maxUnits = (typeof TOTAL_UNITS !== 'undefined') ? TOTAL_UNITS : 30;
+                for (let i = 1; i <= maxUnits; i++) {
                     let savedIdx = localStorage.getItem(`mid_save_unit_${i}`);
-                    if (savedIdx !== null) {
-                        let parsedIdx = parseInt(savedIdx);
-                        // 只要進度大於 0，代表這一關有被「刀」過，它是最後活動的關卡
-                        if (parsedIdx > 0) {
-                            lastActiveUnit = i;
-                            lastActiveIndex = parsedIdx;
+                    if (savedIdx !== null && parseInt(savedIdx) > 0) {
+                        lastActiveUnit = i;
+                        lastActiveIndex = parseInt(savedIdx);
+                    }
+                }
+
+                if (lastActiveUnit === null && typeof userData !== 'undefined' && userData.currentProgress) {
+                    for (let unitKey in userData.currentProgress) {
+                        let idx = parseInt(userData.currentProgress[unitKey]);
+                        if (idx > 0) {
+                            lastActiveUnit = parseInt(unitKey);
+                            lastActiveIndex = idx;
                         }
                     }
                 }
 
-                // 🌟 3. 如果真的有找到上次讀到一半的紀錄，直接幫他「靈魂還原」！
+                // 🌟 還原點：與你的 setupLessonWord 結構完全對齊
                 if (lastActiveUnit !== null && typeof vocabularyDB !== 'undefined') {
                     let unitWords = vocabularyDB.filter(w => w.unit === lastActiveUnit);
                     
-                    // 確保上次紀錄的索引沒有超出該關卡的單字總數（防呆）
                     if (unitWords.length > 0 && lastActiveIndex < unitWords.length) {
-                        console.log(`【進度還原】偵測到上次網頁關閉前，停在第 ${lastActiveUnit} 關第 ${lastActiveIndex + 1} 個字。`);
+                        console.log(`【進度靈魂還原】成功！恢復至第 ${lastActiveUnit} 關第 ${lastActiveIndex + 1} 個字。`);
                         
-                        // 還原全域課程暫存狀態
+                        // 修正：完全符合你現有的 sessionState 欄位結構 (currentWords)
                         sessionState = { 
                             currentUnit: lastActiveUnit, 
-                            words: [...unitWords], 
+                            currentWords: [...unitWords], 
                             currentIndex: lastActiveIndex, 
                             totalToFinish: unitWords.length, 
-                            isReview: (lastActiveUnit < userData.unlockedUnit) // 如果小於目前解鎖關卡就是複習模式
+                            isReview: typeof userData !== 'undefined' ? (lastActiveUnit < userData.unlockedUnit) : false
                         };
                         
-                        // 自動切換到上課分頁，並載入上次那個單字！
                         if (typeof switchTab === 'function') switchTab('lesson');
-                        if (typeof loadLessonWord === 'function') {
-                            loadLessonWord();
-                            showToast(`⏰ 歡迎回來！已為您還原到上次關閉網頁時的單字進度！`);
+                        if (typeof setupLessonWord === 'function') {
+                            setupLessonWord(); // 👈 呼叫你的 setupLessonWord 渲染畫面
+                            showToast(`⏰ 歡迎回來！已為您還原到上次網頁關閉前的進度！`);
                         }
-                        return; // 還原成功，直接結束，不跑下面的純渲染
+                        return; 
                     }
                 }
 
-                // 4. 如果沒有中斷進度，就照常刷新畫面（留在大地圖）
                 if (typeof updateUI === 'function') updateUI();
                 if (typeof renderMap === 'function') renderMap();
                 
@@ -7997,7 +8014,6 @@
             }
         }
 
-        // 智慧開機啟動器（確保網頁一開好就立刻執行上述還原邏輯）
         if (document.readyState === "loading") {
             document.addEventListener("DOMContentLoaded", checkAutoLogin);
         } else {
