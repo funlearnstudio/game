@@ -7965,83 +7965,124 @@
                 modal.style.display = 'none';
                 modal.classList.add('hidden');
             }
-// ==========================================
-        // 🚀 網頁開機自動登入與「智慧防沖刷進度還原」檢查器
-        // 優點：延遲還原時機，防止進度被「蛇形地圖系統初始化」強行覆蓋
-        // ==========================================
+// ==========================================================================
+        // 🕵️‍♂️ 【全自動黑科技】日誌監聽外掛（解決找不到 initMap 的終極大絕招）
+        // 說明：只要原本的程式印出「地圖初始化」的字眼，這裡就會自動抓到時間點並執行還原！
+        // ==========================================================================
+        (function() {
+            const originalLog = console.log;
+            console.log = function(...args) {
+                // 先讓原本的控制台正常印出訊息，不破壞原本功能
+                originalLog.apply(console, args);
+                
+                // 檢查印出的文字中是否包含地圖初始化的關鍵字
+                const logMessage = args.join(" ");
+                if (logMessage.includes("7000 單字終極蛇形地圖系統初始化中...")) {
+                    // 為了保險起見，地圖印出這行字後可能還需要幾毫秒渲染，我們延遲 50 毫秒後強制還原
+                    setTimeout(() => {
+                        if (window.shouldRestoreProgressWhenMapReady) {
+                            executeProgressRestore();
+                        } else {
+                            window.isMapInitializedFully = true; // 標記地圖已經準備好了
+                        }
+                    }, 50);
+                }
+            };
+        })();
+
+        // ==========================================================================
+        // 🚀 網頁開機自動登入檢查器 (背景身份與雲端同步核心)
+        // ==========================================================================
         async function checkAutoLogin() {
             const savedUser = localStorage.getItem('duo_remember_username');
             const savedPass = localStorage.getItem('duo_remember_password');
             
             if (savedUser && savedPass) {
-                console.log("【自動登入】發現已儲存的認證，正在背景同步雲端檔案...");
                 myUserId = savedUser + "_" + savedPass;
                 localStorage.setItem('duo_unique_user_id', myUserId);
                 
                 const triggerBtn = document.getElementById('btn-login-trigger');
                 if(triggerBtn) triggerBtn.classList.add('hidden');
                 
+                // 默默同步雲端大進度
                 if (typeof loadDataFromCloud === 'function') {
                     await loadDataFromCloud();
                 }
 
-                // 🌟 【智慧延遲保護】：等待 300 毫秒，等「7000單字終極蛇形地圖系統」徹底初始化完畢後，才執行還原
-                setTimeout(() => {
-                    const lastUnit = localStorage.getItem(`duo_last_active_unit`);
-                    const lastIdx = localStorage.getItem(`duo_last_active_index`);
-
-                    if (lastUnit !== null && lastIdx !== null && typeof vocabularyDB !== 'undefined') {
-                        const targetUnit = parseInt(lastUnit);
-                        const targetIdx = parseInt(lastIdx);
-                        
-                        let unitWords = vocabularyDB.filter(w => w.unit === targetUnit);
-                        
-                        // 🌟 防呆：如果紀錄的索引大於等於總字數（代表上一次背完了），自動回復成第 0 個字（從頭複習）
-                        let safeIdx = targetIdx;
-                        if (unitWords.length > 0 && safeIdx >= unitWords.length) {
-                            safeIdx = 0; 
-                            localStorage.setItem(`duo_last_active_index`, 0); // 修正快取
-                        }
-
-                        if (unitWords.length > 0 && safeIdx < unitWords.length) {
-                            console.log(`🔥 【安全還原】避開初始化沖刷！成功恢復至第 ${targetUnit} 關第 ${safeIdx + 1} 個字。`);
-                            
-                            // 強制組裝狀態
-                            sessionState = {
-                                currentUnit: targetUnit,
-                                unit: targetUnit,
-                                currentWords: [...unitWords],
-                                currentIndex: safeIdx,
-                                totalToFinish: unitWords.length,
-                                isReview: typeof userData !== 'undefined' ? (targetUnit < userData.unlockedUnit) : false
-                            };
-                            
-                            // 執行切換與畫面渲染
-                            if (typeof switchTab === 'function') switchTab('lesson');
-                            if (typeof setupLessonWord === 'function') {
-                                setupLessonWord();
-                                showToast(`⏰ 歡迎回來！已為您還原到上次進度！`);
-                            }
-                            return; // 成功還原，攔截退出
-                        }
-                    }
-
-                    // 如果沒有歷史紀錄，就乖乖渲染一般大地圖
-                    if (typeof updateUI === 'function') updateUI();
-                    if (typeof renderMap === 'function') renderMap();
-
-                }, 400); // 👈 延遲 400 毫秒，確保排在所有初始化代碼的最後面
-                
+                // 如果地圖在外掛監聽中已經先初始化完了，直接執行還原
+                if (window.isMapInitializedFully) {
+                    executeProgressRestore();
+                } else {
+                    // 如果地圖還沒好，留下暗號，等地圖日誌觸發
+                    window.shouldRestoreProgressWhenMapReady = true;
+                }
             } else {
                 console.log("【自動登入】本機尚無儲存的帳密憑證。");
+                if (typeof updateUI === 'function') updateUI();
+                if (typeof renderMap === 'function') renderMap();
             }
         }
 
-        // ✨ 確保在網頁最晚期、所有 script 都加載完才啟動
-        if (document.readyState === "complete") {
-            checkAutoLogin();
+        // ==========================================================================
+        // 🔥 【獨立核心】強行進度靈魂還原器
+        // ==========================================================================
+        function executeProgressRestore() {
+            try {
+                // 讀取大書籤
+                const lastUnit = localStorage.getItem(`duo_last_active_unit`);
+                const lastIdx = localStorage.getItem(`duo_last_active_index`);
+
+                if (lastUnit !== null && lastIdx !== null && typeof vocabularyDB !== 'undefined') {
+                    const targetUnit = parseInt(lastUnit);
+                    const targetIdx = parseInt(lastIdx);
+                    
+                    let unitWords = vocabularyDB.filter(w => w.unit === targetUnit);
+                    
+                    // 防呆：如果紀錄的索引大於等於總字數（代表按完了），歸零從頭複習
+                    let safeIdx = targetIdx;
+                    if (unitWords.length > 0 && safeIdx >= unitWords.length) {
+                        safeIdx = 0; 
+                        localStorage.setItem(`duo_last_active_index`, 0);
+                    }
+
+                    if (unitWords.length > 0 && safeIdx < unitWords.length) {
+                        console.log(`🎯 【外掛攔截成功】成功恢復至第 ${targetUnit} 關第 ${safeIdx + 1} 個字。`);
+                        
+                        // 強制覆寫狀態
+                        sessionState = {
+                            currentUnit: targetUnit,
+                            unit: targetUnit,
+                            currentWords: [...unitWords],
+                            currentIndex: safeIdx,
+                            totalToFinish: unitWords.length,
+                            isReview: typeof userData !== 'undefined' ? (targetUnit < userData.unlockedUnit) : false
+                        };
+                        
+                        // 執行切換與畫面渲染
+                        if (typeof switchTab === 'function') switchTab('lesson');
+                        if (typeof setupLessonWord === 'function') {
+                            setupLessonWord();
+                            setTimeout(() => {
+                                if (typeof showToast === 'function') showToast(`⏰ 歡迎回來！已為您還原到上次進度！`);
+                            }, 100);
+                        }
+                        return true;
+                    }
+                }
+            } catch (e) {
+                console.error("【還原出錯】", e);
+            }
+            
+            if (typeof updateUI === 'function') updateUI();
+            if (typeof renderMap === 'function') renderMap();
+            return false;
+        }
+
+        // 確保以最快速度掛載登入檢查
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", checkAutoLogin);
         } else {
-            window.addEventListener("load", checkAutoLogin);
+            checkAutoLogin();
         }
     </script>                                         
     <div id="login-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] hidden items-center justify-center p-4">
