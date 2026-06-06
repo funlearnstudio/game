@@ -7365,30 +7365,62 @@
             }
         }
 
-       function loadLessonWord() {
+        function loadLessonWord() {
             if(sessionState.currentIndex >= sessionState.totalToFinish) {
                 startTestSession();
                 return;
             }
             
-            // ✨ 單字切換時，立刻把「看到第幾個字」自動存到本機書籤裡
+            // 單字切換時，立刻把「看到第幾個字」自動存到本機書籤裡
             if (sessionState.currentUnit) {
                 localStorage.setItem(`mid_save_unit_${sessionState.currentUnit}`, sessionState.currentIndex);
             }
+
             const w = sessionState.words[sessionState.currentIndex];
             document.getElementById('lesson-progress').value = (sessionState.currentIndex / sessionState.totalToFinish) * 100;
+            document.getElementById('lesson-remaining').innerText = `剩餘: ${sessionState.totalToFinish - sessionState.currentIndex}`;
+
+            // 畫面元素更新
             document.getElementById('lesson-word').innerText = w.word;
             document.getElementById('lesson-meaning').innerText = w.meaning;
-            document.getElementById('lesson-root').innerText = w.root;
-            document.getElementById('lesson-example').innerText = w.example;
+            document.getElementById('lesson-root').innerText = w.root || "無特定字根/衍生詞";
             
-            document.getElementById('teacher-text').innerText = "點擊「雙語講解發音」我會為您拆解詞根進行深刻解釋！";
+            // ✨ 修改：在例句前面加上獨立播放喇叭按鈕
+            document.getElementById('lesson-example').innerHTML = `
+                <div class="flex items-start gap-2 bg-gray-50 dark:bg-slate-900 p-3 rounded-xl border border-gray-100 dark:border-slate-800">
+                    <button onclick="speakExample()" class="mt-1 text-secondary hover:text-secondaryDark transition-colors shrink-0" title="單獨播放例句">
+                        <i class="fa-solid fa-volume-high text-xl p-1 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-100 dark:border-slate-700"></i>
+                    </button>
+                    <div class="flex-1">
+                        <p class="text-base text-gray-700 dark:text-gray-200 italic font-medium">"${w.example}"</p>
+                        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">💡 點擊喇叭可單獨重複聆聽例句</p>
+                    </div>
+                </div>
+            `;
+
+            // 初始化底部控制按鈕狀態
             document.getElementById('btn-teach').classList.remove('hidden');
             document.getElementById('btn-next-lesson').classList.add('hidden');
-            
-            speak(w.word);
-        }
+            document.getElementById('teacher-text').innerText = "點擊下方「AI 老師雙語講解」啟動完整特訓，或直接點擊上方喇叭單獨聽發音。";
 
+            // 自動播放一次單字發音
+            speak(w.word, 'en-US');
+        }
+        // ==========================================
+        // ✨ 新增：單獨播放當前例句的發音函數
+        // ==========================================
+        function speakExample() {
+            // 抓取當前畫面的單字，完美支援進度與 AI 特訓模式
+            const wordText = document.getElementById('lesson-word').innerText;
+            const w = vocabularyDB.find(v => v.word === wordText) || sessionState.words[sessionState.currentIndex];
+            
+            if (w && w.example) {
+                // 播放英文例句
+                speak(w.example, 'en-US');
+            } else {
+                showToast("找不到對應的例句資料", true);
+            }
+        }
         function speakSystemWord(isSlow = false) {
             const wordText = document.getElementById('lesson-word').innerText;
             if(wordText) speak(wordText, 'en-US', isSlow);
