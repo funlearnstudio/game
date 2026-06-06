@@ -7280,26 +7280,146 @@
             }
         }    
 
-        function updateUI() {
-            document.getElementById('ui-streak').innerText = userData.streak;
-            document.getElementById('ui-xp').innerText = userData.xp;
-            document.getElementById('ui-gems').innerText = userData.gems;
-            document.getElementById('ui-hearts').innerText = userData.hearts;
+function updateUI() {
+            if (!userData) return;
+
+            // ⚙️ 初始化安全檢查：如果使用者資料裡沒有 Icon 與背景，就給他一組超讚的預設值
+            if (!userData.avatarIcon) userData.avatarIcon = "fa-user-astronaut"; // 預設太空人
+            if (!userData.avatarBg) userData.avatarBg = "from-blue-500 to-indigo-600"; // 預設科技藍紫漸層
+
+            // 🎯 【核心修改】將原本的醜圖片，轉換成極簡高質感 Icon 頭像
+            // 系統會自動尋找畫面上叫做 'user-avatar-container' 或 'profile-avatar' 的區塊
+            const avatarContainer = document.getElementById('user-avatar-container') || document.getElementById('profile-avatar');
+            if (avatarContainer) {
+                // 自動套用 Tailwind CSS 的精緻圓角漸層與陰影，並強制滑鼠移過去變成手指（支援點擊切換）
+                avatarContainer.className = `w-20 h-20 rounded-2xl bg-gradient-to-br ${userData.avatarBg} flex items-center justify-center text-white text-3xl shadow-lg border-4 border-white dark:border-slate-800 transition-all duration-300 cursor-pointer hover:scale-105 active:scale-95`;
+                avatarContainer.innerHTML = `<i class="fa-solid ${userData.avatarIcon}"></i>`;
+                
+                // 綁定點擊事件：點了頭像就觸發下面寫好的 openAvatarPicker() 隨機換頭像
+                avatarContainer.onclick = openAvatarPicker;
+                avatarContainer.title = "💡 點擊可以直接更換下一組 Icon 頭像喔！";
+            }
+
+            // --- 以下為你原本的 UI 渲染邏輯，加上安全防護 ---
+            const uiStreak = document.getElementById('ui-streak'); if (uiStreak) uiStreak.innerText = userData.streak;
+            const uiXp = document.getElementById('ui-xp'); if (uiXp) uiXp.innerText = userData.xp;
+            const uiGems = document.getElementById('ui-gems'); if (uiGems) uiGems.innerText = userData.gems;
+            const uiHearts = document.getElementById('ui-hearts'); if (uiHearts) uiHearts.innerText = userData.hearts;
             
-            document.getElementById('stat-maxstreak').innerText = userData.maxStreak;
-            document.getElementById('stat-totalxp').innerText = userData.xp;
-            document.getElementById('prof-words').innerText = userData.learnedWords.length;
+            const statMaxstreak = document.getElementById('stat-maxstreak'); if (statMaxstreak) statMaxstreak.innerText = userData.maxStreak;
+            const statTotalxp = document.getElementById('stat-totalxp'); if (statTotalxp) statTotalxp.innerText = userData.xp;
+            const profWords = document.getElementById('prof-words'); if (profWords) profWords.innerText = userData.learnedWords ? userData.learnedWords.length : 0;
             
+            const streakEl = document.getElementById('user-streak') || document.getElementById('streak-count');
+            if (streakEl && userData.streak !== undefined) {
+                streakEl.innerText = userData.streak;
+            }
+
+            // 聯盟徽章判定
             let league = "銅牌聯盟";
             let lBadge = document.getElementById('league-badge');
-            if(userData.xp >= 300) { league = "銀牌聯盟"; lBadge.className = "flex flex-col items-center bg-slate-100 text-slate-700 px-3 py-1.5 rounded-2xl"; }
-            if(userData.xp >= 800) { league = "金牌聯盟"; lBadge.className = "flex flex-col items-center bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-2xl"; }
-            lBadge.querySelector('span').innerText = league;
+            if (lBadge) {
+                if(userData.xp >= 300) { 
+                    league = "銀牌聯盟"; 
+                    lBadge.className = "flex flex-col items-center bg-slate-100 text-slate-700 px-3 py-1.5 rounded-2xl"; 
+                }
+                if(userData.xp >= 800) { 
+                    league = "金牌聯盟"; 
+                    lBadge.className = "flex flex-col items-center bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-2xl"; 
+                }
+                const badgeSpan = lBadge.querySelector('span');
+                if (badgeSpan) badgeSpan.innerText = league;
+            }
 
-            document.getElementById('dict-wrong-count').innerText = userData.wrongWords.length;
-            renderAchievements();
+            const dictWrongCount = document.getElementById('dict-wrong-count');
+            if (dictWrongCount) dictWrongCount.innerText = userData.wrongWords ? userData.wrongWords.length : 0;
+            
+            if (typeof renderAchievements === 'function') {
+                renderAchievements();
+            }
         }
 
+       // ==========================================
+        // ✨ 進階優化：手動自主挑選頭像系統 (Modal 彈窗版)
+        // ==========================================
+        function openAvatarPicker() {
+            const modal = document.getElementById('avatar-modal');
+            if (!modal) return;
+
+            // 🎨 定義你可以自己選的漸層背景庫
+            const bgPool = [
+                { class: "from-blue-500 to-indigo-600", name: "極光藍" },
+                { class: "from-purple-500 to-pink-500", name: "潮流紫" },
+                { class: "from-amber-400 to-orange-500", name: "活力橘" },
+                { class: "from-emerald-400 to-teal-600", name: "翡翠綠" },
+                { class: "from-rose-500 to-red-600", name: "熱血紅" },
+                { class: "from-indigo-900 to-slate-900", name: "極客黑" },
+                { class: "from-fuchsia-600 to-pink-600", name: "幻境粉" },
+                { class: "from-cyan-400 to-blue-500", name: "天空藍" }
+            ];
+
+            // 👑 定義你可以自己選的帥氣 Icon 庫
+            const iconPool = [
+                "fa-user-astronaut", "fa-brain", "fa-rocket", "fa-fire", 
+                "fa-graduation-cap", "fa-bolt", "fa-crown", "fa-gamepad", 
+                "fa-book-open", "fa-gem", "fa-cat", "fa-dragon", 
+                "fa-shield-halved", "fa-lightbulb", "fa-ghost", "fa-mask",
+                "fa-compass", "fa-trophy", "fa-medal", "fa-clover"
+            ];
+
+            // 渲染背景挑選按鈕
+            const bgContainer = document.getElementById('picker-bg-pool');
+            bgContainer.innerHTML = '';
+            bgPool.forEach(bg => {
+                const btn = document.createElement('button');
+                // 圓形色塊按鈕，如果是目前選中的底色，就加上黑/白框框
+                const isSelected = userData.avatarBg === bg.class;
+                btn.className = `w-8 h-8 rounded-full bg-gradient-to-br ${bg.class} transition-transform active:scale-90 shadow-sm ${isSelected ? 'ring-4 ring-offset-2 ring-secondary' : 'hover:scale-110'}`;
+                btn.onclick = () => {
+                    userData.avatarBg = bg.class;
+                    saveToCloud();
+                    updateUI(); // 即時看畫面更新效果
+                    openAvatarPicker(); // 重新渲染選中狀態
+                };
+                bgContainer.appendChild(btn);
+            });
+
+            // 渲染 Icon 挑選按鈕
+            const iconContainer = document.getElementById('picker-icon-pool');
+            iconContainer.innerHTML = '';
+            iconPool.forEach(icon => {
+                const btn = document.createElement('button');
+                const isSelected = userData.avatarIcon === icon;
+                // 方塊網格，選中的話背景變藍色，沒選中就是一般灰色
+                btn.className = `p-3 rounded-xl text-xl flex items-center justify-center transition-all ${isSelected ? 'bg-secondary text-white shadow-md' : 'bg-gray-50 dark:bg-slate-700 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-600'}`;
+                btn.innerHTML = `<i class="fa-solid ${icon}"></i>`;
+                btn.onclick = () => {
+                    userData.avatarIcon = icon;
+                    saveToCloud();
+                    updateUI(); // 即時看畫面更新效果
+                    openAvatarPicker(); // 重新渲染選中狀態
+                };
+                iconContainer.appendChild(btn);
+            });
+
+            // 顯示彈窗動畫效果
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.querySelector('.transform').classList.remove('scale-95');
+            }, 10);
+        }
+
+        // 關閉頭像選單彈窗
+        function closeAvatarPicker() {
+            const modal = document.getElementById('avatar-modal');
+            if (!modal) return;
+            modal.classList.add('opacity-0');
+            modal.querySelector('.transform').classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
         function switchTab(tabId) {
             window.speechSynthesis.cancel();
             if(isRecognitionActive && recognition) { try { recognition.abort(); } catch(e){} }
@@ -7502,14 +7622,14 @@
             if(sessionState.currentIndex >= sessionState.words.length) {
                 switchTab('report');
                 
-                // ✨ 測驗順利通關！清除這個單元的中斷記憶，下次複習才會從頭開始
+                // 清除這個單元的中斷記憶
                 if (sessionState.currentUnit) {
                     localStorage.removeItem(`mid_save_unit_${sessionState.currentUnit}`);
                 }
                 
-                // 💎 方案 D：將通關獎勵倍率全面統一調高為「單字數 × 5」
+                // 💎 方案 D：獎勵倍率發放
                 const rewardXp = sessionState.totalToFinish * 15;
-                const rewardGems = sessionState.totalToFinish * 5; // 原本是 * 3 或 * 2
+                const rewardGems = sessionState.totalToFinish * 5;
                 
                 document.getElementById('rep-xp').innerText = `+${rewardXp}`;
                 document.getElementById('rep-gems').innerText = `+${rewardGems}`;
@@ -7517,14 +7637,65 @@
                 userData.xp += rewardXp;
                 userData.gems += rewardGems;
                 
+                // ==========================================
+                // 🔥 【完美連勝機制】只要每天有練 3 個字，連勝就一直疊加！
+                // ==========================================
+                if (userData.streak === undefined) userData.streak = 0;
+                if (!userData.lastActiveDate) userData.lastActiveDate = "";
+
+                // 取得今天的純日期（去除時分秒的干擾）
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                const todayStr = today.toLocaleDateString('zh-TW'); // 格式例如 "2026/6/6"
+
+                const lastActive = userData.lastActiveDate;
+
+                if (!lastActive) {
+                    // 情況 1：新玩家第一次練習
+                    userData.streak = 1;
+                    userData.lastActiveDate = todayStr;
+                    showToast("🔥 啟動每日連勝特訓！");
+                } else if (lastActive !== todayStr) {
+                    // 情況 2：今天第一次來練習（跟上次記錄的日期不同）
+                    const lastDate = new Date(lastActive);
+                    lastDate.setHours(0,0,0,0);
+                    
+                    // 計算跟上一次練習隔了多少毫秒
+                    const diffTime = today.getTime() - lastDate.getTime();
+                    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+                    if (diffDays <= 1) {
+                        // 剛好隔天來，或是時差算出來小於等於1天 ➡️ 連勝大方加 1！
+                        userData.streak++;
+                        showToast(`🔥 達成連續練習！目前連勝 ${userData.streak} 天！`);
+                    } else {
+                        // 超過 1 天沒來練習 ➡️ 連勝中斷，重設為 1
+                        userData.streak = 1;
+                        showToast(`⏳ 太久沒練習，連勝紀錄重新計數囉！`);
+                    }
+                    userData.lastActiveDate = todayStr; // 鎖定今天的日期
+                } else {
+                    // 情況 3：今天已經練習過、增加過連勝了，再次練習則維持原連勝
+                    console.log(`[連勝] 今天已練習過，目前連勝保持: ${userData.streak} 天`);
+                }
+
+                // 🎯 雙重保障：立刻更新畫面上所有可能的火苗數字 ID
+                const streakIndicators = ['user-streak', 'streak-count', 'top-streak'];
+                streakIndicators.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.innerText = userData.streak;
+                });
+
+                // 推進解鎖進度
                 if(!sessionState.isReview && userData.unlockedUnit <= TOTAL_UNITS) {
                     userData.unlockedUnit++;
                 }
-                saveToCloud();
-                updateUI(); // 同步更新右上角的寶石與經驗值
+                
+                saveToCloud(); // 儲存到本機與雲端快取
+                updateUI();    // 更新全域數據顯示
                 return;
             }
-
+            // ... 下面維持你原本的測驗題目渲染邏輯不變
             const w = sessionState.words[sessionState.currentIndex];
             document.getElementById('test-progress').value = (sessionState.currentIndex / sessionState.totalToFinish) * 100;
             document.getElementById('test-remaining').innerText = `剩餘: ${sessionState.words.length - sessionState.currentIndex}`;
@@ -8204,6 +8375,79 @@ function runMemoryMatch() {
             // 啟動麥克風開始收音
             recognition.start();
         }
+        // ==========================================
+        // 🔥 新增：智慧連勝判定系統（支援跨日、當天重複防刷）
+        // ==========================================
+        function checkStreak() {
+            if (!userData) return;
+            
+            // 確保儲存結構裡有連勝 (streak) 和最後活躍日期 (lastActiveDate)
+            if (userData.streak === undefined) userData.streak = 0;
+            if (!userData.lastActiveDate) userData.lastActiveDate = "";
+
+            const todayStr = new Date().toLocaleDateString('zh-TW'); // 取得今天日期 (例如 "2026/6/6")
+            const lastActive = userData.lastActiveDate;
+
+            // 情況一：如果今天已經有紀錄了，就直接跳過，不用重複加
+            if (lastActive === todayStr) {
+                console.log(`[連勝] 今天已記錄過，目前連勝: ${userData.streak} 天`);
+                return;
+            }
+
+            if (lastActive) {
+                const today = new Date(new Date().setHours(0,0,0,0));
+                const lastDate = new Date(new Date(lastActive).setHours(0,0,0,0));
+                
+                // 計算跟上一次玩的時間差了幾天
+                const diffTime = Math.abs(today - lastDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays === 1) {
+                    // 情況二：剛好隔一天（昨天有來，今天也來了）-> 連勝 +1！
+                    userData.streak++;
+                    showToast(`🔥 達成每日連勝！目前連勝 ${userData.streak} 天！`);
+                } else if (diffDays > 1) {
+                    // 情況三：中間斷掉了（超過一天沒來） -> 連勝重設為 1
+                    userData.streak = 1;
+                    showToast(`⏳ 太久沒練習，連勝紀錄重新計數囉！`);
+                }
+            } else {
+                // 情況四：全新的玩家，第一次通關或登入
+                userData.streak = 1;
+            }
+
+            // 更新活躍日期為今天，並同步到雲端與畫面
+            userData.lastActiveDate = todayStr;
+            saveToCloud();
+            updateUI();
+        }
     </script>
+    <div id="avatar-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+    <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-md w-full mx-4 shadow-2xl border border-gray-100 dark:border-slate-700 transform scale-95 transition-transform duration-300 space-y-6">
+        
+        <div class="flex justify-between items-center border-b border-gray-100 dark:border-slate-700 pb-3">
+            <h3 class="text-xl font-black text-gray-800 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-palette text-secondary"></i> 設計你的專屬頭像
+            </h3>
+            <button onclick="closeAvatarPicker()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <div>
+            <span class="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">1. 選擇底色漸層</span>
+            <div id="picker-bg-pool" class="flex flex-wrap gap-2.5"></div>
+        </div>
+
+        <div>
+            <span class="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">2. 選擇角色圖標</span>
+            <div id="picker-icon-pool" class="grid grid-cols-5 gap-2.5 max-h-[180px] overflow-y-auto pr-1"></div>
+        </div>
+
+        <button onclick="closeAvatarPicker()" class="w-full bg-secondary text-white py-3 rounded-2xl font-black shadow-lg shadow-blue-500/20 hover:bg-secondaryDark transition-colors">
+            設定完成，完美登場！
+        </button>
+    </div>
+</div>
 </body>
 </html>
