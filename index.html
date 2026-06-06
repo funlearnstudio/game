@@ -7315,13 +7315,70 @@
             if(teacherText) teacherText.innerText = `現在來學習 "${wordObj.word}"。點擊下方看詳細講解！`;
         }
 
+       // ==========================================
+        // 🧑‍🏫 AI 老師雙語特訓連鎖講解模組
+        // 優點：完美對接 speakText、一句接一句排隊播放、不重疊、支援慢速特訓
+        // ==========================================
         function playBilingualExplanation() {
-            const wordObj = sessionState.currentWords[sessionState.currentIndex];
-            const explanation = `這個字唸作 ${wordObj.word}，意思是 ${wordObj.meaning}。記法：${wordObj.root}。例句：${wordObj.example}`;
-            document.getElementById('teacher-text').innerText = explanation;
-            speakText(explanation, 1.0, 'zh-TW');
-            document.getElementById('btn-teach').classList.add('hidden');
-            document.getElementById('btn-next-lesson').classList.remove('hidden');
+            // 1. 智慧抓取當前畫面的單字與資料
+            const wordText = document.getElementById('lesson-word')?.innerText;
+            if (!wordText) return;
+            
+            const w = vocabularyDB.find(v => v.word === wordText) || sessionState.words[sessionState.currentIndex];
+            if (!w) return;
+            
+            const textEl = document.getElementById('teacher-text');
+            const btnTeach = document.getElementById('btn-teach');
+            const btnNext = document.getElementById('btn-next-lesson');
+
+            // 2. 進入講解中狀態，變更 UI 提示
+            if (btnTeach) btnTeach.classList.add('hidden');
+            if (textEl) {
+                textEl.innerHTML = `<span class="animate-pulse text-secondary"><i class="fa-solid fa-comment-dots"></i> AI 老師正在雙語特訓講解中...</span>`;
+            }
+
+            // 3. 核心連鎖播放邏輯 (排隊鏈)
+            const playChain = async () => {
+                const scripts = [
+                    { t: w.word, l: 'en-US', r: 1.0 }, // 唸單字（正常語速）
+                    { t: `。它的意思是，${w.meaning}。`, l: 'zh-TW', r: 1.0 },
+                    { t: `字根結構是，${w.root || "無特定字根"}。`, l: 'zh-TW', r: 1.0 },
+                    { t: `請跟我大聲唸一遍例句：`, l: 'zh-TW', r: 1.0 },
+                    { t: w.example, l: 'en-US', r: 0.95 } // 唸例句（稍微放慢 0.85 語速，聽得更清楚！）
+                ];
+
+                try {
+                    for (let s of scripts) {
+                        // 🌟 優點核心：利用 Promise 確保前一句確實播完（onend），才開放下一句 fetch 播放
+                        await new Promise((resolve, reject) => {
+                            // 呼叫剛剛優化過、會回傳語音物件的 speakText
+                            const utterObj = speakText(s.t, s.r, s.l);
+                            
+                            if (utterObj) {
+                                // 當這句話順利唸完，觸發 resolve 往下個迴圈前進
+                                utterObj.onend = () => resolve();
+                                // 萬一發生錯誤（例如被其他音效切斷），也必須安全放行，避免整條鏈死鎖
+                                utterObj.onerror = () => resolve();
+                            } else {
+                                // 萬一瀏覽器不支援語音，直接跳過
+                                resolve();
+                            }
+                        });
+                    }
+                    
+                    // 4. 全部腳本順利唸完後的收尾
+                    if (textEl) textEl.innerText = "✨ 講解完成！聽懂了嗎？點擊下一步前進吧！";
+                    if (btnNext) btnNext.classList.remove('hidden');
+
+                } catch (err) {
+                    console.error("AI 老師講解鏈中斷:", err);
+                    if (textEl) textEl.innerText = "講解完成！掌握了嗎？那就前進到下一步吧！";
+                    if (btnNext) btnNext.classList.remove('hidden');
+                }
+            };
+
+            // 啟動排隊鏈
+            playChain();
         }
 
        function nextLessonWord() {
