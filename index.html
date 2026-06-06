@@ -7697,9 +7697,115 @@
         }
         function openLoginModal() { document.getElementById('login-modal')?.classList.remove('hidden'); }
         function closeLoginModal() { document.getElementById('login-modal')?.classList.add('hidden'); }
-        function handleAuthAction(type) { closeLoginModal(); showToast("🔑 已成功切換為雲端身分同步狀態！"); updateSyncStatus(true, "雲端已連線"); document.getElementById('btn-login-trigger')?.classList.add('hidden'); }
-        function handleLogout() { localStorage.removeItem('duo_unique_user_id'); location.reload(); }
+        // 🛠️ 修正：真正讀取輸入代碼並雙向同步雲端存檔
+       // ==========================================
+        // 🔐 帳號密碼雙欄位雲端登入與進度下載模組
+        // ==========================================
+        async function handleAuthAction(type) {
+            // 1. 自動尋找彈窗內的所有輸入框 (支援各種不同的 id 或 class 命名)
+            const textInputs = document.querySelectorAll('#login-modal input[type="text"], #login-modal input[type="password"]');
+            
+            let username = "";
+            let password = "";
 
+            // 如果有找到兩個輸入框，通常第一個是帳號、第二個是密碼
+            if (textInputs.length >= 2) {
+                username = textInputs[0].value.trim();
+                password = textInputs[1].value.trim();
+            } else {
+                // 備用方案：嘗試透過常見的 id 直接抓取
+                const userEl = document.getElementById('login-username') || document.getElementById('login-user-id');
+                const passEl = document.getElementById('login-password');
+                if (userEl) username = userEl.value.trim();
+                if (passEl) password = passEl.value.trim();
+            }
+
+            // 2. 驗證欄位是否空白
+            if (!username) {
+                showToast("⚠️ 請輸入您的帳號！", true);
+                return;
+            }
+            if (!password) {
+                showToast("⚠️ 請輸入您的密碼！", true);
+                return;
+            }
+
+            // 3. 綁定身分識別碼 (將帳號密碼組合成雲端唯一的金鑰識別碼)
+            // 這樣不管是從哪台電腦登入，只要輸入相同的帳密，就會對應到相同的雲端存檔
+            myUserId = username + "_" + password;
+            localStorage.setItem('duo_unique_user_id', myUserId); 
+
+            closeLoginModal();
+            showToast("🔑 帳密驗證中，正在連線下載雲端存檔...");
+
+            try {
+                // 4. 強制向 Google Apps Script (GAS) 請求該帳密的最新進度
+                if (!GAS_API_URL || GAS_API_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
+                    updateSyncStatus(false, "僅限本機");
+                    showToast("💡 尚未填寫 GAS 後端網址，進度目前僅保存在本機喔！");
+                    return;
+                }
+
+                document.getElementById('loading-overlay')?.classList.remove('hidden');
+                const url = `${GAS_API_URL}?action=getUserData&userId=${encodeURIComponent(myUserId)}`;
+                const res = await fetch(url, { method: "GET", mode: "cors" });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && !data.status) { 
+                        // 成功抓回雲端存檔，覆蓋本機資料
+                        userData = data;
+                        localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
+                        updateSyncStatus(true, "已連線");
+                        showToast("🎉 歡迎回來！雲端存檔已順利同步完成。");
+                    } else {
+                        // 雲端若還沒有這組帳密的資料，就以目前進度作為這組新帳密的起點，並自動備份上去
+                        showToast("🆕 偵測為新註冊帳密，已自動為您開通雲端空間！");
+                        await saveToCloudNow();
+                    }
+                }
+            } catch (e) {
+                console.error("雲端登入讀取失敗:", e);
+                updateSyncStatus(false, "離線模式");
+                showToast("⚠️ 雲端連線失敗，目前將先以本地端進度遊玩。", true);
+            } finally {
+                document.getElementById('loading-overlay')?.classList.add('hidden');
+                
+                // 5. 重新全面刷新網頁介面、關卡地圖與成就系統
+                updateUI();
+                renderMap();
+                renderStoryTab();
+
+                // 隱藏登入按鈕
+                const triggerBtn = document.getElementById('btn-login-trigger');
+                if(triggerBtn) triggerBtn.classList.add('hidden');
+            }
+        }
+        function handleLogout() { localStorage.removeItem('duo_unique_user_id'); location.reload(); }
+// ✨ 補回失蹤功能：重設所有學習進度
+        function resetData() {
+            if (confirm("⚠️ 確定要重設所有學習進度與清除本地快取嗎？此動作無法復原！")) {
+                localStorage.removeItem('duo_unique_user_id');
+                localStorage.removeItem('duo_local_user_data');
+                
+                // 重新初始化一組乾淨的本地資料
+                myUserId = 'user_' + new Date().getTime() + '_' + Math.floor(Math.random() * 10000);
+                localStorage.setItem('duo_unique_user_id', myUserId);
+                
+                userData = {
+                    xp: 0, streak: 0, hearts: 5, unlockedUnit: 1, lastDate: '', gems: 100, maxStreak: 0,
+                    wrongWords: [], learnedWords: [], avatarIcon: 'fa-user-astronaut', avatarBg: 'from-blue-500 to-indigo-600'
+                };
+                
+                localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
+                
+                // 刷新界面與地圖
+                updateUI();
+                renderMap();
+                showToast("🔄 所有進度已完全歸零重置！");
+                saveToCloudNow(); // 同步告知雲端
+            }
+        }
     </script>                                                            
     <div id="avatar-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-md w-full mx-4 shadow-2xl border border-gray-100 dark:border-slate-700 transform scale-95 transition-transform duration-300 space-y-6">
