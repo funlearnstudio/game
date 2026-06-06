@@ -7183,31 +7183,37 @@
             switchTab('test');
             loadTestWord();
         }
-async function loadDataFromCloud() {
-            if (GAS_API_URL === "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
+        // ✨ 加入 currentUnit 欄位來追蹤中途進度
+        let sessionState = { currentUnit: null, words: [], currentIndex: 0, totalToFinish: 0, isReview: false, currentChatTargetWord: null, lastHeard: "" };
+
+        async function loadDataFromCloud() {
+            if (GAS_API_URL === "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE" || !GAS_API_URL) {
                 let local = localStorage.getItem('duo_cloud_data');
                 if(local) userData = JSON.parse(local);
-                showToast("雲端網址未填寫，運行本機離線模式", true);
+                showToast("未填寫雲端網址，載入本機進度", true);
                 return;
             }
             
             document.getElementById('loading-overlay').classList.remove('hidden');
             try {
-                // ✨ 改變 1：讀檔時，告訴 GAS 我是誰 (帶上 userId 參數)
                 const fetchUrl = `${GAS_API_URL}?action=getUserData&userId=${myUserId}`;
                 const response = await fetch(fetchUrl);
                 const data = await response.json();
                 
-                // 檢查是否成功且不是預設的錯誤格式
-                if(data && !data.error) {
+                // ✨ 終極防護機制：嚴格檢查回傳的資料有沒有 unlockedUnit，有才算是真實玩家資料！
+                if(data && data.unlockedUnit !== undefined && data.status !== "error") {
                     userData = data;
                     showToast("☁️ 雲端資料同步更新成功！");
+                } else {
+                    throw new Error("雲端資料格式異常"); // 如果是錯誤訊息，直接丟出錯誤，不覆蓋進度
                 }
             } catch (err) {
-                console.error(err);
+                console.error("讀檔錯誤:", err);
                 let local = localStorage.getItem('duo_cloud_data');
-                if(local) userData = JSON.parse(local);
-                showToast("雲端連線失敗，載入本機資料", true);
+                if(local) {
+                    userData = JSON.parse(local); // 載入安全的本機備份
+                    showToast("已載入本機安全備用存檔！", true);
+                }
             }
             document.getElementById('loading-overlay').classList.add('hidden');
         }
@@ -7327,11 +7333,30 @@ async function loadDataFromCloud() {
                 else node.style.transform = 'translateX(25px)';
 
                 node.innerHTML = isComp ? '<i class="fa-solid fa-star"></i>' : (isCur ? '<i class="fa-solid fa-play animate-pulse"></i>' : '<i class="fa-solid fa-lock"></i>');
-                node.onclick = () => {
+               node.onclick = () => {
                     if(isComp || isCur) {
                         let unitWords = vocabularyDB.filter(w => w.unit === i);
-                        sessionState = { words: [...unitWords], currentIndex: 0, totalToFinish: unitWords.length, isReview: isComp };
+                        
+                        // ✨ 讀取這個單元是否有「中斷的進度」
+                        let savedIdx = localStorage.getItem(`mid_save_unit_${i}`);
+                        let startIdx = savedIdx ? parseInt(savedIdx) : 0;
+
+                        sessionState = { 
+                            currentUnit: i, // 記錄現在是在哪一關
+                            words: [...unitWords], 
+                            currentIndex: startIdx, // 從中斷的地方開始！
+                            totalToFinish: unitWords.length, 
+                            isReview: isComp,
+                            currentChatTargetWord: null,
+                            lastHeard: ""
+                        };
+                        
                         switchTab('lesson');
+                        
+                        // 提示使用者已恢復進度
+                        if (startIdx > 0 && startIdx < unitWords.length) {
+                            showToast(`已為您恢復到第 ${startIdx + 1} 個單字進度！`);
+                        }
                         loadLessonWord();
                     }
                 };
@@ -7339,10 +7364,15 @@ async function loadDataFromCloud() {
             }
         }
 
-        function loadLessonWord() {
+       function loadLessonWord() {
             if(sessionState.currentIndex >= sessionState.totalToFinish) {
                 startTestSession();
                 return;
+            }
+            
+            // ✨ 單字切換時，立刻把「看到第幾個字」自動存到本機書籤裡
+            if (sessionState.currentUnit) {
+                localStorage.setItem(`mid_save_unit_${sessionState.currentUnit}`, sessionState.currentIndex);
             }
             const w = sessionState.words[sessionState.currentIndex];
             document.getElementById('lesson-progress').value = (sessionState.currentIndex / sessionState.totalToFinish) * 100;
@@ -7410,9 +7440,14 @@ async function loadDataFromCloud() {
             loadTestWord();
         }
 
-        function loadTestWord() {
+       function loadTestWord() {
             if(sessionState.currentIndex >= sessionState.words.length) {
                 switchTab('report');
+                
+                // ✨ 測驗順利通關！清除這個單元的中斷記憶，下次複習才會從頭開始
+                if (sessionState.currentUnit) {
+                    localStorage.removeItem(`mid_save_unit_${sessionState.currentUnit}`);
+                }
                 document.getElementById('rep-xp').innerText = `+${sessionState.totalToFinish * 15}`;
                 document.getElementById('rep-gems').innerText = `+${sessionState.totalToFinish * 3}`;
                 userData.xp += sessionState.totalToFinish * 15;
