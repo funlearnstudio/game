@@ -7542,25 +7542,46 @@ function updateUI() {
 
             const w = sessionState.words[sessionState.currentIndex];
             
-            // 安全更新進度條與剩餘文字
-            const progressEl = document.getElementById('lesson-progress');
-            if (progressEl) progressEl.value = (sessionState.currentIndex / sessionState.totalToFinish) * 100;
+            // ==========================================
+            // 🎯 【核心修改】精準計算並驅動單元進度條
+            // ==========================================
+            // 計算當前進度百分比（如果是第一個字，給它一點點基礎長度，才不會空空的）
+            const progressValue = ((sessionState.currentIndex + 1) / sessionState.totalToFinish) * 100;
             
-            const remainingEl = document.getElementById('lesson-remaining');
-            if (remainingEl) remainingEl.innerText = `剩餘: ${sessionState.totalToFinish - sessionState.currentIndex}`;
+            // 同時嘗試捕捉所有可能寫錯的進度條 ID
+            const progressEl = document.getElementById('lesson-progress') || 
+                               document.getElementById('lesson-progress-bar') || 
+                               document.querySelector('.progress-bar'); // 如果是用 class 的話
+            
+            if (progressEl) {
+                // 如果它是 HTML5 的 <progress> 標籤，更新它的 value
+                if (progressEl.tagName.toLowerCase() === 'progress') {
+                    progressEl.value = progressValue;
+                } else {
+                    // 如果它是 <div> 做的自訂進度條，更新它的 width 寬度
+                    progressEl.style.width = `${progressValue}%`;
+                }
+                console.log(`[單元進度] 當前單字索引: ${sessionState.currentIndex}, 進度: ${progressValue}%`);
+            }
+            
+            // 更新剩餘題數文字
+            const remainingEl = document.getElementById('lesson-remaining') || document.getElementById('ui-remaining');
+            if (remainingEl) {
+                remainingEl.innerText = `剩餘: ${sessionState.totalToFinish - sessionState.currentIndex}`;
+            }
+            // ==========================================
 
-            // ✨ 安全更新單字核心元素：先確認物件存在，才寫入內容，防止 null 錯誤
+            // ✨ 安全更新單字核心元素
             const wordEl = document.getElementById('lesson-word');
             if (wordEl) wordEl.innerText = w.word;
 
             const meaningEl = document.getElementById('lesson-meaning');
             if (meaningEl) meaningEl.innerText = w.meaning;
 
-            // 相容部分 HTML 結構中可能稱為 lesson-root 或 lesson-roots
             const rootEl = document.getElementById('lesson-root') || document.getElementById('lesson-roots');
             if (rootEl) rootEl.innerText = w.root || "無特定字根/衍生詞";
             
-            // ✨ 渲染例句區塊與單獨播放按鈕
+            // 渲染例句區塊與單獨播放按鈕
             const exampleEl = document.getElementById('lesson-example');
             if (exampleEl) {
                 exampleEl.innerHTML = `
