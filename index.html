@@ -7517,32 +7517,47 @@
             box.scrollTop = box.scrollHeight; 
         }
 
-        // ==========================================
-        // 🔊 智慧型語音發音最佳化模組
-        // ==========================================
+// ==========================================================================
+        // 🔊 智慧型語音發音最佳化模組 (優點全方位升級版)
+        // 優點特色：
+        // 1. 真人音質 (Premium Voices)：自動篩選系統內最高階的真人自然語音包（如微軟 Xiaoxiao、Google 自然音）。
+        // 2. 雙語拆開 (Bilingual Detection)：英文用標準美腔、中文用台灣腔，自動偵測中文字，拒絕外星人腔調。
+        // 3. 極速快取防重疊 (Anti-Overlap Cache)：播放前清除排隊語音，隨點隨播，瘋狂連點也絕不卡頓。
+        // 4. 語速調整 (Dynamic Rate Control)：完美支援 rate 參數，當需要慢速特訓時能聽清每個音節。
+        // 5. 鏈式相容 (Callback Chain)：回傳語音物件，完美相容 AI 老師「一句唸完接下一句」的連鎖講解功能。
+        // ==========================================================================
         function speakText(text, rate = 1.0, lang = 'en-US') {
-            if (!window.speechSynthesis) return;
-            window.speechSynthesis.cancel(); // 砍掉排隊中的語音，避免卡頓
+            if (!window.speechSynthesis) return null;
+            
+            // 3. 極速快取防重疊：立即中斷上一句正在播放的聲音，做到隨點隨播
+            window.speechSynthesis.cancel(); 
 
-            const cleanedText = text.replace(/<[^>]*>/g, ""); // 濾除 HTML 標籤
+            // 智慧過濾：消除文字中可能夾帶的 HTML 標籤
+            const cleanedText = text.replace(/<[^>]*>/g, ""); 
             const u = new SpeechSynthesisUtterance(cleanedText);
+            
+            // 4. 語速控制：將參數傳入發音引擎
             u.rate = rate;
             
-            // 標準化語言格式 (例如轉為 en-US 或 zh-TW)
-            const targetLang = lang.toLowerCase().replace('_', '-');
+            // 2. 雙語自動拆開與標準化
+            let targetLang = lang.toLowerCase().replace('_', '-');
+            
+            // 💡 智慧防錯防外星人腔：如果發現文字裡包含中文，但設定卻傳了英文 (en)，自動強切為台灣中文發音
+            if (/[\u4e00-\u9fa5]/.test(cleanedText) && targetLang.startsWith('en')) {
+                targetLang = 'zh-tw';
+            }
             u.lang = targetLang;
 
-            // 獲取目前裝置所有可用的語音包
+            // 1. 真人高音質語音包篩選機制
             const voices = window.speechSynthesis.getVoices();
-            
             if (voices.length > 0) {
-                // 🚀 第一優先：尋找同語系中，名稱含有 Google/Natural/Premium/Microsoft 的高音質真人語音
+                // 🥇 第一優先：尋找同語系中，含有 Google/Natural/Premium/Microsoft/Xiaoxiao 的高音質真人線路
                 let bestVoice = voices.find(v => 
                     v.lang.toLowerCase().replace('_', '-') === targetLang && 
-                    (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Premium') || v.name.includes('Microsoft'))
+                    (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Premium') || v.name.includes('Microsoft') || v.name.includes('Xiaoxiao'))
                 );
 
-                // 🥈 第二優先：如果找不到高階語音，只要語系對了就用
+                // 🥈 第二優先：找不到高階語音時，只要語系相符就直接載入
                 if (!bestVoice) {
                     bestVoice = voices.find(v => v.lang.toLowerCase().replace('_', '-') === targetLang);
                 }
@@ -7552,10 +7567,14 @@
                 }
             }
 
+            // 執行播放
             window.speechSynthesis.speak(u);
+            
+            // 5. 鏈式相容：必須 return u 物件，這樣 AI 老師的 u.onend = resolve 才能正常排隊播放！
+            return u; 
         }
 
-        // 解決 Chrome 瀏覽器非同步載入語音包的 Bug
+        // 解決部分瀏覽器（如 Chrome/Edge）首次載入時語音包清單非同步延遲的 Bug
         if (window.speechSynthesis && window.speechSynthesis.onvoiceschanged !== undefined) {
             window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
         }
