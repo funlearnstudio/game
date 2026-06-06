@@ -416,7 +416,7 @@
   
   // ad- (向) + dare (給予)
   { unit: 1, word: "add", meaning: "v. 增加", root: "ad- (向) + dare (給予)", example: "Please add some sugar." },
-  { unit: 2, word: "date", meaning: "n./v. 日期/約會", root: "ad- (向) + dare (給予)", example: "What is the date today?" },
+  { unit: 1, word: "date", meaning: "n./v. 日期/約會", root: "ad- (向) + dare (給予)", example: "What is the date today?" },
   
   // ang- / anger (緊縮/痛苦/憤怒)
   { unit: 1, word: "anger", meaning: "n. 憤怒", root: "ang- / anger (緊縮/痛苦/憤怒)", example: "He shouted in anger." },
@@ -7011,17 +7011,33 @@
             { id: "wrong_0", title: "零失誤掌握", desc: "清空錯題特訓列表", xp: 150, icon: "🎯" }
         ];
 
-        let userData = {
-            xp: 0, streak: 0, hearts: 5, unlockedUnit: 1, lastDate: '', gems: 50, maxStreak: 0,
-            wrongWords: [], learnedWords: [], favWords: [], achievements: []
+// 升級後的前端使用者資料模型 (與雲端 GAS 資料庫同步同步)
+    // 升級後的前端使用者資料模型 (與雲端 GAS 資料庫同步)
+        let userData = { 
+            xp: 0, streak: 0, hearts: 5, unlockedUnit: 1, lastDate: '', gems: 50, maxStreak: 0, 
+            wrongWords: [], learnedWords: [], favWords: [], achievements: [],
+            wordMemoryProgress: {} 
         };
 
         let sessionState = { words: [], currentIndex: 0, totalToFinish: 0, isReview: false, currentChatTargetWord: null, lastHeard: "" };
         let voices = [];
         let recognition = null;
-        let isRecognitionActive = false; // 🌟 用於追蹤 Web Speech API 語音辨識的啟用狀態
+        let isRecognitionActive = false;
         let arcadeState = { timer: null, score: 0, sec: 0, matchedPairs: [] };
 
+        // ✨ 1. 新增：用來儲存本機專屬身分證的變數
+        let myUserId = ""; 
+
+        // ✨ 2. 新增：取得或自動產生獨一無二的 User ID
+        function getOrCreateUserId() {
+            let id = localStorage.getItem('duo_unique_user_id');
+            if (!id) {
+                // 如果沒有 ID，就用時間戳記 + 隨機亂碼產生一個專屬 ID (例如: user_1698765432_1234)
+                id = 'user_' + new Date().getTime() + '_' + Math.floor(Math.random() * 10000);
+                localStorage.setItem('duo_unique_user_id', id);
+            }
+            return id;
+        }
         function loadVoices() {
             voices = window.speechSynthesis.getVoices();
         }
@@ -7035,13 +7051,9 @@
             recognition.interimResults = false;
             recognition.lang = 'en-US';
 
-            // 🌟 註冊事件監聽以維護 isRecognitionActive 狀態
-            recognition.onstart = () => {
-                isRecognitionActive = true;
-            };
+            recognition.onstart = () => { isRecognitionActive = true; };
             recognition.onend = () => {
                 isRecognitionActive = false;
-                // 重設口說測驗麥克風按鈕外觀與狀態文字
                 const btn = document.getElementById('mic-btn');
                 if(btn) {
                     btn.classList.remove('mic-active');
@@ -7051,11 +7063,8 @@
                         status.classList.replace('text-red-500', 'text-gray-500');
                     }
                 }
-                // 重設 AI Aria 聊天室麥克風按鈕外觀
                 const chatMicBtn = document.getElementById('chat-mic-btn');
-                if(chatMicBtn) {
-                    chatMicBtn.classList.remove('mic-active');
-                }
+                if(chatMicBtn) chatMicBtn.classList.remove('mic-active');
             };
         }
 
@@ -7063,8 +7072,13 @@
             const t = document.getElementById('custom-toast');
             t.innerText = msg;
             t.style.backgroundColor = isError ? '#ef4444' : '#10b981';
+            t.style.cursor = 'default';
             t.classList.remove('opacity-0', 'translate-y-[-20px]', 'pointer-events-none');
-            setTimeout(() => { t.classList.add('opacity-0', 'translate-y-[-20px]', 'pointer-events-none'); }, 3000);
+            setTimeout(() => { 
+                if (t.style.backgroundColor !== 'rgb(139, 92, 246)') { // 確保不覆蓋思念推播的紫色
+                    t.classList.add('opacity-0', 'translate-y-[-20px]', 'pointer-events-none'); 
+                }
+            }, 3000);
         }
 
         function playSFX(type) {
@@ -7079,9 +7093,7 @@
             utter.rate = isSlow ? 0.55 : 0.85;
 
             let selectedVoice = voices.find(v => v.lang.startsWith(lang.split('-')[0]) && (v.name.includes('Google') || v.name.includes('Premium') || v.name.includes('Natural') || v.name.includes('Siri')));
-            if(!selectedVoice) {
-                selectedVoice = voices.find(v => v.lang.startsWith(lang.split('-')[0]));
-            }
+            if(!selectedVoice) selectedVoice = voices.find(v => v.lang.startsWith(lang.split('-')[0]));
             if(selectedVoice) utter.voice = selectedVoice;
             window.speechSynthesis.speak(utter);
             return utter;
@@ -7096,6 +7108,8 @@
         }
 
         async function init() {
+            // ✨ 3. 在系統啟動時，先取得這台裝置的專屬 ID
+            myUserId = getOrCreateUserId();
             if (localStorage.getItem('theme') === 'dark') {
                 document.documentElement.classList.add('dark');
                 document.getElementById('toggle-dark').checked = true;
@@ -7111,9 +7125,61 @@
                     <div class="w-8 h-8 rounded-full bg-ai flex items-center justify-center text-white shrink-0"><i class="fa-solid fa-robot"></i></div>
                     <div class="chat-bubble-bot">嗨！我是 Aria。資料已完全同步完成囉！點擊下方按鈕讓我出題考你造句，磨練口說吧！</div>
                 </div>`;
+            
+            // ✨ 啟動間隔重複的「定時思念回覆」機制
+            startWordMissYouTimer();
         }
 
-        async function loadDataFromCloud() {
+        // 🌟 新增：「思念單字」定時推播機制
+        function startWordMissYouTimer() {
+            // 每 60 秒偵測一次 (實際使用可改為 900000 即 15 分鐘)
+            setInterval(() => {
+                let unfinishedWords = Object.keys(userData.wordMemoryProgress || {}).filter(word => {
+                    return userData.wordMemoryProgress[word].status === "learning";
+                });
+                
+                if (unfinishedWords.length > 0) {
+                    let missWord = unfinishedWords[Math.floor(Math.random() * unfinishedWords.length)];
+                    let progressInfo = userData.wordMemoryProgress[missWord];
+                    let threshold = progressInfo.isUnfamiliar ? 5 : 3;
+                    let msg = `⏰ 【思念廣播】單字「${missWord}」正在思念你！(目前進度: ${progressInfo.count}/${threshold} 次)。點擊立即特訓！`;
+                    
+                    showActiveMissToast(msg);
+                }
+            }, 300000); 
+        }
+
+        // 🌟 新增：思念專用可點擊 Toast
+        function showActiveMissToast(message) {
+            const toast = document.getElementById('custom-toast');
+            toast.innerText = message;
+            toast.style.backgroundColor = '#8b5cf6'; // AI 紫色
+            toast.style.cursor = 'pointer';
+            toast.classList.remove('opacity-0', 'translate-y-[-20px]', 'pointer-events-none');
+            
+            toast.onclick = () => {
+                toast.classList.add('opacity-0', 'translate-y-[-20px]', 'pointer-events-none');
+                toast.onclick = null;
+                toast.style.cursor = 'default';
+                practiceMissedWords(); // 點擊啟動錯題特訓
+            };
+            
+            setTimeout(() => { 
+                toast.classList.add('opacity-0', 'translate-y-[-20px]', 'pointer-events-none'); 
+                toast.onclick = null;
+                toast.style.cursor = 'default';
+            }, 8000);
+        }
+
+        // 🌟 新增：啟動思念的錯題地獄特訓
+        function practiceMissedWords() {
+            let reviewWords = vocabularyDB.filter(w => userData.wrongWords.includes(w.word));
+            if(reviewWords.length === 0) return showToast("你太棒了！目前沒有不熟的單字喔！");
+            sessionState = { words: reviewWords.sort(()=> Math.random()-0.5), currentIndex: 0, totalToFinish: reviewWords.length, isReview: true };
+            switchTab('test');
+            loadTestWord();
+        }
+async function loadDataFromCloud() {
             if (GAS_API_URL === "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
                 let local = localStorage.getItem('duo_cloud_data');
                 if(local) userData = JSON.parse(local);
@@ -7123,13 +7189,18 @@
             
             document.getElementById('loading-overlay').classList.remove('hidden');
             try {
-                const response = await fetch(GAS_API_URL);
+                // ✨ 改變 1：讀檔時，告訴 GAS 我是誰 (帶上 userId 參數)
+                const fetchUrl = `${GAS_API_URL}?action=getUserData&userId=${myUserId}`;
+                const response = await fetch(fetchUrl);
                 const data = await response.json();
-                if(data && !data.status) {
+                
+                // 檢查是否成功且不是預設的錯誤格式
+                if(data && !data.error) {
                     userData = data;
                     showToast("☁️ 雲端資料同步更新成功！");
                 }
             } catch (err) {
+                console.error(err);
                 let local = localStorage.getItem('duo_cloud_data');
                 if(local) userData = JSON.parse(local);
                 showToast("雲端連線失敗，載入本機資料", true);
@@ -7146,13 +7217,23 @@
             icon.classList.add('animate-pulse');
 
             try {
+                // ✨ 改變 2：存檔時，把資料包裝起來，並附上專屬的 userId
+                const payload = {
+                    action: "saveUserData",
+                    userId: myUserId,
+                    userData: userData
+                };
+
                 await fetch(GAS_API_URL, {
                     method: 'POST',
-                    body: JSON.stringify(userData),
+                    mode: 'no-cors', // 避免瀏覽器 CORS 擋截
+                    body: JSON.stringify(payload),
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' }
                 });
+                
                 icon.classList.replace('text-blue-500', 'text-green-500');
             } catch(e) {
+                console.error(e);
                 icon.classList.replace('text-blue-500', 'text-red-500');
             }
             setTimeout(() => {
@@ -7162,10 +7243,7 @@
             updateUI();
         }
 
-        function forceSyncData() {
-            saveToCloud();
-            showToast("手動雲端進度存檔...");
-        }
+        function forceSyncData() { saveToCloud(); showToast("手動雲端進度存檔..."); }
 
         function checkDaily() {
             const today = new Date().toDateString();
@@ -7201,15 +7279,12 @@
             lBadge.querySelector('span').innerText = league;
 
             document.getElementById('dict-wrong-count').innerText = userData.wrongWords.length;
-
             renderAchievements();
         }
 
         function switchTab(tabId) {
             window.speechSynthesis.cancel();
-            if(isRecognitionActive && recognition) {
-                try { recognition.abort(); } catch(e){}
-            }
+            if(isRecognitionActive && recognition) { try { recognition.abort(); } catch(e){} }
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
             
@@ -7272,24 +7347,21 @@
             speak(w.word);
         }
 
-        // 🌟 定義 speakSystemWord 函數
         function speakSystemWord(isSlow = false) {
-            const w = sessionState.words[sessionState.currentIndex];
-            if(w) {
-                speak(w.word, 'en-US', isSlow);
-            }
+            const wordText = document.getElementById('lesson-word').innerText;
+            if(wordText) speak(wordText, 'en-US', isSlow);
         }
 
-        // 🌟 定義 speakCurrentTestWord 函數
         function speakCurrentTestWord(isSlow = false) {
             const w = sessionState.words[sessionState.currentIndex];
-            if(w) {
-                speak(w.word, 'en-US', isSlow);
-            }
+            if(w) speak(w.word, 'en-US', isSlow);
         }
 
         function playBilingualExplanation() {
-            const w = sessionState.words[sessionState.currentIndex];
+            // ✨ 修改：抓取當前畫面的單字，完美支援 AI 強制特訓
+            const wordText = document.getElementById('lesson-word').innerText;
+            const w = vocabularyDB.find(v => v.word === wordText) || sessionState.words[sessionState.currentIndex];
+            
             const textEl = document.getElementById('teacher-text');
             document.getElementById('btn-teach').classList.add('hidden');
             textEl.innerHTML = `<span class="animate-pulse text-secondary"><i class="fa-solid fa-comment-dots"></i> AI 老師正在雙語講解中...</span>`;
@@ -7309,7 +7381,7 @@
                         utter.onerror = resolve;
                     });
                 }
-                textEl.innerText = "講解完成！掌握了嗎？那就前進到下一個字吧！";
+                textEl.innerText = "講解完成！掌握了嗎？那就前進到下一步吧！";
                 document.getElementById('btn-next-lesson').classList.remove('hidden');
             };
             playChain();
@@ -7447,11 +7519,7 @@
 
         function startPronunciationTest(targetWord) {
             if(!recognition) return showToast("瀏覽器不支援語音辨識", true);
-            
-            // 🌟 預防機制：若語音辨識已處於開啟狀態，先進行安全中止
-            if (isRecognitionActive) {
-                try { recognition.abort(); } catch(e) {}
-            }
+            if (isRecognitionActive) { try { recognition.abort(); } catch(e) {} }
 
             const btn = document.getElementById('mic-btn');
             const status = document.getElementById('mic-status');
@@ -7480,6 +7548,7 @@
             recognition.start();
         }
 
+        // ✨ 核心大升級：4次/7次 Spaced Repetition 智慧判斷與 AI 導師強制介入
         function processAnswer(isCorrect, wordObj, isSpeakMode = false) {
             const fb = document.getElementById('test-feedback');
             const icon = document.getElementById('feedback-icon');
@@ -7490,27 +7559,58 @@
             
             fb.className = "fixed bottom-[80px] left-0 right-0 p-5 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border-t-4 transform transition-transform duration-300 z-50 shadow-[0_-15px_30px_rgba(0,0,0,0.15)] flex justify-between items-center translate-y-0";
 
+            // 初始化雲端記憶資料庫進度
+            if (!userData.wordMemoryProgress) userData.wordMemoryProgress = {};
+            if (!userData.wordMemoryProgress[wordObj.word]) {
+                userData.wordMemoryProgress[wordObj.word] = { count: 0, status: "learning", isUnfamiliar: false };
+            }
+            let progress = userData.wordMemoryProgress[wordObj.word];
+            
+            // 決定通關門檻 (不熟的字要 7 次，一般的字 4 次)
+            let threshold = progress.isUnfamiliar ? 7 : 4;
+
             if (isCorrect) {
                 playSFX('success');
                 userData.xp += 10;
+                progress.count += 1;
+                
                 fb.classList.add('border-primary');
                 fb.classList.remove('border-danger');
                 icon.className = "w-14 h-14 rounded-full flex items-center justify-center text-3xl font-black text-white shadow-md bg-primary";
                 icon.innerHTML = '<i class="fa-solid fa-check"></i>';
-                title.innerText = "非常好！";
+                
+                if (progress.count >= threshold) {
+                    progress.status = "mastered";
+                    title.innerText = "完全掌握！🎉";
+                    desc.innerText = `達標 ${threshold} 次，單字已從日常複習庫消失！`;
+                    
+                    let wIdx = userData.wrongWords.indexOf(wordObj.word);
+                    if(wIdx > -1) userData.wrongWords.splice(wIdx, 1);
+                    if(!userData.learnedWords.includes(wordObj.word)) userData.learnedWords.push(wordObj.word);
+                } else {
+                    title.innerText = "非常好！";
+                    desc.innerText = `目前記憶進度：${progress.count} / ${threshold} 次`;
+                    
+                    // 還沒完全掌握前，確保單字在錯題庫裡等待後續複習
+                    if(!userData.wrongWords.includes(wordObj.word)) userData.wrongWords.push(wordObj.word);
+                }
+                
                 title.className = "font-black text-2xl tracking-wide text-primaryDark dark:text-primary";
-                desc.innerText = "順利掌握這個單字了！";
                 btn.className = "btn-3d px-8 py-3 text-white text-xl tracking-widest bg-primary shadow-[0_5px_0_#46a302]";
                 btn.innerText = "前進";
-                
-                let wIdx = userData.wrongWords.indexOf(wordObj.word);
-                if(wIdx > -1) userData.wrongWords.splice(wIdx, 1);
-                if(!userData.learnedWords.includes(wordObj.word)) userData.learnedWords.push(wordObj.word);
+                btn.onclick = () => nextTestWord();
                 
                 sessionState.currentIndex++;
             } else {
                 playSFX('error');
                 userData.hearts = Math.max(0, userData.hearts - 1);
+                
+                // ❌ 答錯時：標記為完全不熟、計數歸零重來、門檻強制拉高為 7
+                progress.isUnfamiliar = true;
+                progress.count = 0; 
+                progress.status = "learning";
+                if(!userData.wrongWords.includes(wordObj.word)) userData.wrongWords.push(wordObj.word);
+
                 if(userData.hearts === 0) {
                     showToast("生命值扣完，自動返回地圖存檔...", true);
                     saveToCloud();
@@ -7522,11 +7622,13 @@
                 fb.classList.remove('border-primary');
                 icon.className = "w-14 h-14 rounded-full flex items-center justify-center text-3xl font-black text-white shadow-md bg-danger";
                 icon.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-                title.innerText = "再試一次";
+                title.innerText = "通關門檻提升至 7 次";
                 title.className = "font-black text-2xl tracking-wide text-dangerDark dark:text-danger";
-                desc.innerText = `正確中文為：${wordObj.meaning}`;
-                btn.className = "btn-3d px-8 py-3 text-white text-xl tracking-widest bg-danger shadow-[0_5px_0_#ea2b2b]";
-                btn.innerText = "了解";
+                desc.innerText = `正確為：${wordObj.meaning}`;
+                
+                // 改為強迫聽 AI 講解按鈕
+                btn.className = "btn-3d px-8 py-3 text-white text-xl tracking-widest bg-ai shadow-[0_5px_0_#7c3aed]";
+                btn.innerText = "進入 AI 特訓";
 
                 if(isSpeakMode) {
                     correctionBox.classList.remove('hidden');
@@ -7534,11 +7636,51 @@
                     document.getElementById('correction-target').innerText = wordObj.word;
                 }
 
-                sessionState.words.push(wordObj);
-                if(!userData.wrongWords.includes(wordObj.word)) userData.wrongWords.push(wordObj.word);
+                sessionState.words.push(wordObj); // 強制加入到本次試卷的結尾再度重考
                 sessionState.currentIndex++;
+                
+                // 點擊後啟動 AI 畫面
+                btn.onclick = () => {
+                    document.getElementById('test-feedback').classList.add('translate-y-full');
+                    triggerAILessonDeepDive(wordObj.word);
+                };
             }
             saveToCloud();
+        }
+
+        // 🌟 新增：觸發「試聽 + AI 雙語講解」的強制特訓流程
+        function triggerAILessonDeepDive(wordText) {
+            const targetWordObj = vocabularyDB.find(v => v.word === wordText);
+            if (!targetWordObj) { nextTestWord(); return; }
+            
+            switchTab('lesson'); // 切換到解說區
+            
+            document.getElementById('lesson-word').innerText = targetWordObj.word;
+            document.getElementById('lesson-meaning').innerText = targetWordObj.meaning;
+            document.getElementById('lesson-root').innerText = targetWordObj.root || "無";
+            document.getElementById('lesson-example').innerText = targetWordObj.example || "無";
+            
+            document.getElementById('teacher-text').innerHTML = `【特訓模式】「<span class="text-danger font-black">${wordText}</span>」已被貼上完全不熟標籤！<br>必須連續答對 7 次才會消失。<br>請點擊「雙語講解發音」強迫試聽一次！`;
+            document.getElementById('btn-teach').classList.remove('hidden');
+            
+            const nextBtn = document.getElementById('btn-next-lesson');
+            nextBtn.classList.add('hidden'); // 先隱藏，聽完 AI 講解才允許離開
+            nextBtn.innerText = "結束講解，返回測驗";
+            nextBtn.className = "btn-3d w-full mt-4 bg-ai text-white py-4 shadow-[0_4px_0_#7c3aed] text-lg font-bold tracking-widest";
+            
+            // 綁定結束返回測驗的邏輯
+            nextBtn.onclick = () => {
+                // 恢復為原本一般單元上課按鈕的樣子
+                nextBtn.innerText = "下一個單字";
+                nextBtn.className = "btn-3d w-full mt-4 bg-primary text-white py-4 shadow-[0_4px_0_#46a302] text-lg font-bold tracking-widest";
+                nextBtn.onclick = nextLessonWord;
+                // 返回測驗繼續
+                switchTab('test');
+                loadTestWord();
+            };
+
+            // 自動語音先行試聽該單字
+            setTimeout(() => { speak(targetWordObj.word); }, 300);
         }
 
         function nextTestWord() {
@@ -7705,8 +7847,7 @@
                 document.getElementById('ta-opts').appendChild(b);
             });
         }
-
-        function runMemoryMatch() {
+function runMemoryMatch() {
             const board = document.getElementById('arcade-board');
             let pairs = vocabularyDB.slice(0, 4);
             let deck = [];
@@ -7871,7 +8012,12 @@
         function resetData() {
             if(confirm("確定要刪除本地與雲端所有資料？此操作無法恢復。")) {
                 localStorage.removeItem('duo_cloud_data');
-                userData = { xp: 0, streak: 0, hearts: 5, unlockedUnit: 1, lastDate: '', gems: 50, maxStreak: 0, wrongWords: [], learnedWords: [], favWords: [], achievements: [] };
+                // ✨ 修正：確保重置後的初始資料包含全新的 wordMemoryProgress 結構，避免報錯
+                userData = { 
+                    xp: 0, streak: 0, hearts: 5, unlockedUnit: 1, lastDate: '', gems: 50, maxStreak: 0, 
+                    wrongWords: [], learnedWords: [], favWords: [], achievements: [], 
+                    wordMemoryProgress: {} // <--- 加入這個雲端記憶庫架構
+                };
                 saveToCloud();
                 window.location.reload();
             }
