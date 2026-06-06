@@ -7507,12 +7507,67 @@
             box.scrollTop = box.scrollHeight; 
         }
 
+        // ==========================================
+        // 🔊 智慧型語音發音最佳化模組
+        // ==========================================
         function speakText(text, rate = 1.0, lang = 'en-US') {
-            if(!window.speechSynthesis) return;
-            window.speechSynthesis.cancel(); 
-            const u = new SpeechSynthesisUtterance(text.replace(/<[^>]*>/g, ""));
-            u.lang = lang; u.rate = rate;
+            if (!window.speechSynthesis) return;
+            window.speechSynthesis.cancel(); // 砍掉排隊中的語音，避免卡頓
+
+            const cleanedText = text.replace(/<[^>]*>/g, ""); // 濾除 HTML 標籤
+            const u = new SpeechSynthesisUtterance(cleanedText);
+            u.rate = rate;
+            
+            // 標準化語言格式 (例如轉為 en-US 或 zh-TW)
+            const targetLang = lang.toLowerCase().replace('_', '-');
+            u.lang = targetLang;
+
+            // 獲取目前裝置所有可用的語音包
+            const voices = window.speechSynthesis.getVoices();
+            
+            if (voices.length > 0) {
+                // 🚀 第一優先：尋找同語系中，名稱含有 Google/Natural/Premium/Microsoft 的高音質真人語音
+                let bestVoice = voices.find(v => 
+                    v.lang.toLowerCase().replace('_', '-') === targetLang && 
+                    (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Premium') || v.name.includes('Microsoft'))
+                );
+
+                // 🥈 第二優先：如果找不到高階語音，只要語系對了就用
+                if (!bestVoice) {
+                    bestVoice = voices.find(v => v.lang.toLowerCase().replace('_', '-') === targetLang);
+                }
+
+                if (bestVoice) {
+                    u.voice = bestVoice;
+                }
+            }
+
             window.speechSynthesis.speak(u);
+        }
+
+        // 解決 Chrome 瀏覽器非同步載入語音包的 Bug
+        if (window.speechSynthesis && window.speechSynthesis.onvoiceschanged !== undefined) {
+            window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+        }
+        // ✨ 補回失蹤功能：口說跟讀模式
+        function startShadowing(word) {
+            if (!word) return;
+            showToast(`🎙️ 啟動跟讀：${word}`);
+            speakText(word, 0.9, 'en-US'); // 先播放標準發音
+            
+            // 1.2 秒後自動觸發麥克風辨識，讓使用者跟著唸
+            setTimeout(() => {
+                if (recognition) {
+                    try { 
+                        recognition.start(); 
+                        showToast("🎤 請開始跟讀...", false); 
+                    } catch(e) {
+                        // 防止重複啟動的異常
+                    }
+                } else {
+                    showToast("💡 瀏覽器不支援語音辨識，請手動朗讀！");
+                }
+            }, 1200);
         }
         function speakSystemWord(isSlow) { speakText(document.getElementById('lesson-word').innerText, isSlow ? 0.6 : 1.0); }
 
@@ -7631,8 +7686,15 @@
         function renderStoryTab() { const list = document.getElementById('story-list'); if(list) list.innerHTML = storiesDB.map(s => `<div class="bg-white dark:bg-slate-800 p-5 rounded-3xl mb-4 border"><h3 class="font-black dark:text-white"><i class="fa-solid fa-book"></i> ${s.title}</h3><p class="mt-2 font-bold dark:text-gray-300">${s.content}</p><details class="mt-2 text-xs text-gray-500"><summary>翻譯</summary><p>${s.translation}</p></details></div>`).join(''); }
         function renderDictionary(type) { const c = document.getElementById('dict-container'); if(c) { let l = type === 'wrong' ? vocabularyDB.filter(w=>userData.wrongWords.includes(w.word)) : vocabularyDB; c.innerHTML = l.slice(0,30).map(w => `<div class="bg-white dark:bg-slate-800 p-4 rounded-2xl flex justify-between items-center mb-2"><div><span class="text-xs bg-gray-100 px-2 rounded-md font-bold">Unit ${w.unit}</span><h4 class="text-lg font-black dark:text-white mt-1">${w.word}</h4><p class="text-sm font-bold text-secondary">${w.meaning}</p></div><button onclick="speakText('${w.word}')" class="w-10 h-10 rounded-xl bg-gray-100"><i class="fa-solid fa-volume-high"></i></button></div>`).join(''); } }
         function renderAchievements() { const c = document.getElementById('achievements-container'); if(c) { c.innerHTML = `<div class="p-4 rounded-2xl border-2 dark:bg-slate-800"><h4 class="font-black dark:text-white">初露鋒芒 ${userData.xp>=100?'✅':'🔒'}</h4></div>`; } }
-        function setupTheme() { if(localStorage.getItem('theme') === 'dark' || window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.classList.add('dark'); }
-        
+        function setupTheme() { 
+            // 預設為淺色模式。只有當使用者先前明確儲存為 'dark' 時才載入深色
+            if (localStorage.getItem('theme') === 'dark') { 
+                document.documentElement.classList.add('dark'); 
+            } else {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light'); // 強制初始化為淺色
+            }
+        }
         function openLoginModal() { document.getElementById('login-modal')?.classList.remove('hidden'); }
         function closeLoginModal() { document.getElementById('login-modal')?.classList.add('hidden'); }
         function handleAuthAction(type) { closeLoginModal(); showToast("🔑 已成功切換為雲端身分同步狀態！"); updateSyncStatus(true, "雲端已連線"); document.getElementById('btn-login-trigger')?.classList.add('hidden'); }
