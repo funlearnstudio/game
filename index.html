@@ -7921,9 +7921,11 @@ function setupLessonWord() {
                 }, 50);
             }
 
-            // 7. 📢 【AI 大聲混讀】：先大聲唸完美的英文出題，再無縫接台灣中文提示
+            // 🎯 請改成「只唸英文版」：
             if (typeof speakText === 'function') {
-                speakText(questionText);
+                // 我們另外組合一個「純英文」的句子傳給發音引擎
+                const pureEnglishQuestion = `Here is your challenge for ${currentLevelName}! Please make a sentence with the word: ${targetWord}.`;
+                speakText(pureEnglishQuestion); 
             }
         }
 
@@ -8027,9 +8029,14 @@ function setupLessonWord() {
                 chatMessages.innerHTML += tutorMsgHtml;
                 chatMessages.scrollTop = chatMessages.scrollHeight;
 
-                // 6. 📢 【AI 大聲雙語連續讲解】：先稱讚，再唸下一題，聲音流暢絕不斷音！
+                // 🎯 請改成「只唸英文版」：
                 if (typeof speakText === 'function') {
-                    speakText(tutorReplyFull);
+                    // 1. 抓取 feedbackText 的英文部分（問號或驚嘆號前半段）
+                    const engFeedback = feedbackText.split('（')[0]; 
+                    // 2. 組合純英文的連續出題下一題
+                    const pureEnglishReply = `${engFeedback} Next challenge! Please make a sentence with: ${nextWord}.`;
+                    
+                    speakText(pureEnglishReply); 
                 }
 
             }, 800);
