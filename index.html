@@ -9093,9 +9093,20 @@ function setupLessonWord() {
                 const currentUnit = localStorage.getItem(`duo_last_active_unit`) || 1;
                 const currentIndex = localStorage.getItem(`duo_last_active_index`) || 0;
 
+// ...（前面程式碼保持不變）
+
                 if (typeof userData !== 'undefined' && userData && typeof userData === 'object') {
                     userData.lastUnit = parseInt(currentUnit);
                     userData.lastIdx = parseInt(currentIndex);
+                }
+
+                // ==================================================================
+                // 🚀 【核心補丁：錯題本物理降維打平大腦】
+                // ==================================================================
+                let stringifiedWrongWords = "";
+                if (userData && userData.wrongWords) {
+                    // 將精密的 [{word:..., unit:..., meaning:...}] 物理壓制成純文字字串
+                    stringifiedWrongWords = JSON.stringify(userData.wrongWords);
                 }
 
                 const payload = {
@@ -9103,7 +9114,11 @@ function setupLessonWord() {
                     userId: window.myUserId,
                     userData: typeof userData !== 'undefined' ? userData : (window.userData || {}), 
                     lastUnit: parseInt(currentUnit),
-                    lastIdx: parseInt(currentIndex)
+                    lastIdx: parseInt(currentIndex),
+                    
+                    // 🔥 強行在外層多塞這兩個脫殼欄位，確保後端不管用哪種舊寫法都能 100% 抓到！
+                    wrongWords: stringifiedWrongWords, 
+                    wrongWordsRaw: stringifiedWrongWords
                 };
 
                 console.log("🚀 [雲端存檔] 正在發射資料到 Google Sheets：", payload);
