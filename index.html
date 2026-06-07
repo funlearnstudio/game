@@ -7794,67 +7794,85 @@ function setupLessonWord() {
             `;
         }
 
-       function practiceMissedWords() {
+       // ==========================================================================
+        // 📚 錯題本挑戰核心：循序漸進安全出題版（只考目前進度含以前的錯題）
+        // ==========================================================================
+        function practiceMissedWords() {
             if (!userData.wrongWords || userData.wrongWords.length === 0) { 
                 showToast("✨ 目前沒有任何錯題紀錄，太厲害了！"); 
                 return; 
             }
             
-            // ==================================================================
-            // 🧠 【智慧解包大腦】：先把錯題本裡面不管是物件還是字串，通通提取成「純英文單字陣列」
-            // ==================================================================
+            // 1. 抓出目前限制的最高單元上限（看玩家卡在第幾集）
+            const maxAllowedLevel = parseInt(userData.lastUnit || userData.level || 1);
+
+            // 2. 智慧解包：把錯題本裡的物件/字串提取出來
             const cleanWrongWordList = userData.wrongWords.map(item => {
                 if (item && typeof item === 'object' && item.word) {
-                    return item.word.toLowerCase().trim(); // 如果是精密物件，拆開拿單字
+                    // 🚨 加強限制：如果錯題本身的單元，已經大於玩家目前的最高解鎖單元，直接過濾掉（不考它）
+                    if (item.unit && parseInt(item.unit) > maxAllowedLevel) return null;
+                    return item.word.toLowerCase().trim();
                 }
                 if (typeof item === 'string') {
-                    return item.toLowerCase().trim(); // 如果是以前存的舊字串，直接拿
+                    return item.toLowerCase().trim();
                 }
-                return "";
-            }).filter(Boolean); // 去除無效的空值
+                return null;
+            }).filter(Boolean);
 
             if (cleanWrongWordList.length === 0) {
-                showToast("✨ 目前沒有任何有效錯題，太厲害了！");
+                showToast(`✨ 在第 ${maxAllowedLevel} 集（含以前），你目前沒有任何未複習的錯題喔！`);
                 return;
             }
 
-            // 🎯 用處理乾淨的單字清單去單字庫（vocabularyDB）裡完美比對，盲抽前 10 題
-            const words = vocabularyDB.filter(w => 
-                w && w.word && cleanWrongWordList.includes(w.word.toLowerCase().trim())
-            ).slice(0, 10);
+            // 3. 去單字庫精準過濾：只抓出「小於等於目前集數」且「在錯題清單中」的單字物件
+            const words = vocabularyDB.filter(w => {
+                if (!w || !w.word) return false;
+                let wordLevel = parseInt(w.level || w.stage || 1);
+                let isLearned = wordLevel <= maxAllowedLevel; // 必須是學過的單元
+                let isInWrongList = cleanWrongWordList.includes(w.word.toLowerCase().trim()); // 必須在錯題本裡
+                return isLearned && isInWrongList;
+            }).slice(0, 10);
 
-            // 防呆機制：萬一錯題本有字，但因為版本更迭在單字庫找不到，就原地幫他包裝出題，絕不卡死！
+            // 4. 防呆救援機制：萬一單字庫配對失敗，原地現造物件，同樣強制標上安全單元
             if (words.length === 0) {
-                console.warn("⚠️ 錯題本單字未在 vocabularyDB 中找到，啟動原地封裝救援機制...");
-                userData.wrongWords.slice(0, 10).forEach(item => {
-                    if (typeof item === 'object' && item !== null) {
-                        words.push({
-                            word: item.word,
-                            meaning: item.meaning || "錯題複習",
-                            ch: item.meaning || "錯題複習",
-                            level: item.unit || 1
-                        });
+                console.warn("⚠️ 啟動循序漸進原地封裝救援機制...");
+                userData.wrongWords.forEach(item => {
+                    if (words.length >= 10) return; // 滿 10 題就停
+                    
+                    if (typeof item === 'object' && item !== null && item.word) {
+                        let itemUnit = parseInt(item.unit || 1);
+                        if (itemUnit <= maxAllowedLevel) { // 物理安全鎖
+                            words.push({
+                                word: item.word,
+                                meaning: item.meaning || "錯題複習",
+                                ch: item.meaning || "錯題複習",
+                                level: itemUnit
+                            });
+                        }
                     } else if (typeof item === 'string') {
                         words.push({ word: item, meaning: "舊版錯題", ch: "舊版錯題", level: 1 });
                     }
                 });
             }
 
-            // 物理注入 sessionState 並啟動戰場！
+            if (words.length === 0) {
+                showToast(`✨ 目前沒有適合第 ${maxAllowedLevel} 集複習的錯題！`);
+                return;
+            }
+
+            // 5. 注入作答戰場，鎖死當前安全進度
             sessionState = { 
                 mode: 'test', 
                 currentWords: words, 
                 currentIndex: 0, 
                 wrongCount: 0, 
                 score: 0,
-                // 🔒 強行鎖定！錯題本模式下，進度絕對不能亂跳，鎖死在當前主線最高進度
-                currentUnit: userData.lastUnit || userData.level || 1 
+                currentUnit: maxAllowedLevel 
             };
             
             switchTab('test'); 
             setupTestQuestion();
         }
-
         // ==========================================
         // 💬 7. AI 語音與對話模組
         // ==========================================
@@ -8218,12 +8236,28 @@ function setupLessonWord() {
                     if (typeof saveToCloud === 'function') saveToCloud();
                 }
 
-                // 5. 🎲 【連續無限出題】：自動盲抽下一個全新單字
-                let userLevel = (typeof userData !== 'undefined' && userData.level) ? userData.level : 1;
-                let poolOfWords = [];
-                if (typeof vocabularyDB !== 'undefined' && Array.isArray(vocabularyDB)) {
-                    poolOfWords = vocabularyDB.filter(w => parseInt(w.level) === parseInt(userLevel) || parseInt(w.stage) === parseInt(userLevel));
+                // ==================================================================
+                // 🎲 5. 【連續無限出題】：智慧型循序漸進出題大腦（嚴禁超前出題）
+                // ==================================================================
+                // 精準抓出玩家目前學到的最高單元（例如玩到第 2 集，上限就是 2）
+                let maxAllowedLevel = 1;
+                if (typeof userData !== 'undefined' && userData) {
+                    maxAllowedLevel = parseInt(userData.level || userData.lastUnit || 1);
                 }
+                if (typeof sessionState !== 'undefined' && sessionState && (sessionState.unit || sessionState.currentUnit)) {
+                    maxAllowedLevel = parseInt(sessionState.unit || sessionState.currentUnit);
+                }
+
+                let poolOfWords = [];
+                // 🎯 核心過濾濾網：只撈出「小於或等於」當前等級的單字（例如當前第 2 集，就只考 1~2 集的字）
+                if (typeof vocabularyDB !== 'undefined' && Array.isArray(vocabularyDB)) {
+                    poolOfWords = vocabularyDB.filter(w => {
+                        let wordLevel = parseInt(w.level || w.stage || 1);
+                        return wordLevel <= maxAllowedLevel; // 🌟 關鍵：小於等於當前進度！
+                    });
+                }
+
+                // 防呆防火牆：萬一過濾出來是空的，才用當前 sessionState
                 if (poolOfWords.length === 0 && typeof sessionState !== 'undefined' && sessionState.currentWords) {
                     poolOfWords = sessionState.currentWords;
                 }
@@ -8231,6 +8265,7 @@ function setupLessonWord() {
                 let nextWord = "apple"; 
                 let nextMeaning = "蘋果";
                 if (poolOfWords && poolOfWords.length > 0) {
+                    // 排重：下一題不要跟剛剛這題一模一樣
                     let freshWords = poolOfWords.filter(w => (w.word || "").toLowerCase() !== targetWord);
                     let finalPool = freshWords.length > 0 ? freshWords : poolOfWords;
                     const randomObj = finalPool[Math.floor(Math.random() * finalPool.length)];
@@ -8239,7 +8274,7 @@ function setupLessonWord() {
                 }
 
                 const nextChineseHint = nextMeaning ? `（${nextMeaning}）` : "";
-
+                // ==================================================================
                 // 6. 💬 物理渲染：推送到豪華大對話框
                 const tutorMsgHtml = `
                     <div class="flex items-start gap-3 justify-start animate-fade-in mb-4">
