@@ -7722,7 +7722,7 @@ function setupLessonWord() {
         if (window.speechSynthesis && window.speechSynthesis.onvoiceschanged !== undefined) {
             window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
         }
-        // ✨ 補回失蹤功能：口說跟讀模式
+       // ✨ 補回失蹤功能：口說跟讀模式 (結合 XP獎勵 與 糾錯機制)
         function startShadowing(word) {
             if (!word) return;
             showToast(`🎙️ 啟動跟讀：${word}`);
@@ -7730,12 +7730,67 @@ function setupLessonWord() {
             
             // 1.2 秒後自動觸發麥克風辨識，讓使用者跟著唸
             setTimeout(() => {
-                if (recognition) {
+                // 確保你有宣告 recognition (如果原本有全域變數就用原本的，否則建立新的)
+                const SpeechRecog = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!window.recognition && SpeechRecog) {
+                    window.recognition = new SpeechRecog();
+                    window.recognition.lang = 'en-US';
+                }
+
+                if (window.recognition) {
+                    // ==========================================
+                    // 💡 【核心邏輯】：當麥克風聽到聲音，轉換成文字後要做什麼？
+                    // ==========================================
+                    window.recognition.onresult = function(event) {
+                        const userSaid = event.results[0][0].transcript.toLowerCase().trim();
+                        const target = word.toLowerCase().trim();
+                        
+                        // 去除標點符號，避免因為句號判斷錯誤
+                        const cleanUserSaid = userSaid.replace(/[.,!?]/g, '');
+                        const cleanTarget = target.replace(/[.,!?]/g, '');
+
+                        if (cleanUserSaid === cleanTarget || cleanUserSaid.includes(cleanTarget)) {
+                            // 🎉 講對了！給予獎勵
+                            const gainedXp = 15;
+                            const gainedGems = 2;
+                            
+                            if (typeof userData !== 'undefined') {
+                                userData.xp += gainedXp;
+                                userData.gems += gainedGems;
+                                
+                                // 更新畫面數字
+                                document.getElementById('ui-xp').innerText = userData.xp;
+                                document.getElementById('ui-gems').innerText = userData.gems;
+                                
+                                // 背景存檔
+                                localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
+                            }
+                            
+                            if (typeof playSound === 'function') playSound('success');
+                            showToast(`✅ 發音完美！ +${gainedXp} XP ⚡  +${gainedGems} 💎`);
+                            
+                        } else {
+                            // ❌ 講錯了！跳出殘酷的對比
+                            if (typeof playSound === 'function') playSound('error');
+                            // 用 \n 來換行，讓提示更清楚
+                            showToast(`❌ 發音有點偏差！\n🎯 正確：${word}\n🗣️ 聽到：${userSaid}`);
+                        }
+                    };
+
+                    // 錯誤處理
+                    window.recognition.onerror = function(event) {
+                        if (event.error !== 'aborted') { // 忽略使用者自己中斷的錯誤
+                            showToast("⚠️ 聽不清楚，請再按一次麥克風試試看！");
+                        }
+                    };
+
+                    // 正式啟動麥克風
                     try { 
-                        recognition.start(); 
+                        window.recognition.start(); 
                         showToast("🎤 請開始跟讀...", false); 
                     } catch(e) {
                         // 防止重複啟動的異常
+                        console.log("麥克風已在運作中");
                     }
                 } else {
                     showToast("💡 瀏覽器不支援語音辨識，請手動朗讀！");
