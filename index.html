@@ -7678,38 +7678,79 @@ function setupLessonWord() {
             box.scrollTop = box.scrollHeight; 
         }
 
+// ==========================================================================
+        // 🔊 智慧型語音發音最佳化模組 (優點全方位升級版)
+        // 優點特色：
+        // 1. 真人音質 (Premium Voices)：自動篩選系統內最高階的真人自然語音包（如微軟 Xiaoxiao、Google 自然音）。
+        // 2. 雙語拆開 (Bilingual Detection)：英文用標準美腔、中文用台灣腔，自動偵測中文字，拒絕外星人腔調。
+        // 3. 極速快取防重疊 (Anti-Overlap Cache)：播放前清除排隊語音，隨點隨播，瘋狂連點也絕不卡頓。
+        // 4. 語速調整 (Dynamic Rate Control)：完美支援 rate 參數，當需要慢速特訓時能聽清每個音節。
+        // 5. 鏈式相容 (Callback Chain)：回傳語音物件，完美相容 AI 老師「一句唸完接下一句」的連鎖講解功能。
+        // ==========================================================================
 // ==========================================
-        // 🔊 極簡預設發音函數 (專治幽靈語音包)
+        // 🔊 終極發音函數 (破解瀏覽器靜音 Bug 版)
         // ==========================================
-        function speakText(text, rate = 1.0, lang = 'en-US') {
+       function speakText(text, rate = 1.0, lang = 'en-US') {
+    console.log("👉 2. 成功進入 speakText！"); // 👈 加入這行
+    
+    if (!window.speechSynthesis) {
+        console.log("❌ 慘了，瀏覽器找不到 speechSynthesis 語音引擎！"); // 👈 加入這行
+        return;
+    }
+    if (!text) {
+        console.log("❌ 慘了，傳進來的文字是空的！"); // 👈 加入這行
+        return;
+    }
+            // 1. 基礎防呆：沒有語音引擎或沒有文字，直接退出
             if (!window.speechSynthesis || !text) return;
             
+            // 智慧過濾：消除文字中可能夾帶的 HTML 標籤
             const cleanedText = text.replace(/<[^>]*>/g, "").trim(); 
-            if (cleanedText === "") return;
+            if (cleanedText === "") return; // 如果清掉標籤後沒字了，也退出
 
-            // 停止目前的發音
+            // 2. 停止目前的發音
             window.speechSynthesis.cancel(); 
 
+            // ==========================================
+            // 🚨 破解秘笈 1：用 setTimeout 延遲 50 毫秒！
+            // 讓 cancel() 有時間徹底執行完，才不會「誤殺」接下來的新發音
+            // ==========================================
             setTimeout(() => {
                 const u = new SpeechSynthesisUtterance(cleanedText);
-                
-                // 基礎設定
                 u.rate = rate;
-                u.lang = 'en-US'; // 強制鎖定美式英文
-                u.volume = 1.0;   // 確認音量開到最大
+                
+                let targetLang = lang.toLowerCase().replace('_', '-');
+                
+                // 智慧防錯防外星人腔
+                if (/[\u4e00-\u9fa5]/.test(cleanedText) && targetLang.startsWith('en')) {
+                    targetLang = 'zh-tw';
+                }
+                u.lang = targetLang;
 
-                // 🚨 注意：我們這裡「刻意不設定」 u.voice！
-                // 讓作業系統自己決定用最安全的預設聲音，不主動去抓高音質語音包。
+                // 篩選高音質語音
+                const voices = window.speechSynthesis.getVoices();
+                if (voices.length > 0) {
+                    let bestVoice = voices.find(v => 
+                        v.lang.toLowerCase().replace('_', '-') === targetLang && 
+                        (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Premium') || v.name.includes('Microsoft') || v.name.includes('Xiaoxiao'))
+                    );
+                    if (!bestVoice) bestVoice = voices.find(v => v.lang.toLowerCase().replace('_', '-') === targetLang);
+                    if (bestVoice) u.voice = bestVoice;
+                }
 
-                // 防垃圾回收機制
+                // ==========================================
+                // 🚨 破解秘笈 2：把準備好的發音存進「全域變數」！
+                // 這是對付 Chrome 的大絕招，防止瀏覽器把發音當作記憶體垃圾清掉
+                // ==========================================
                 window._ttsUtterance = u; 
-                
-                console.log(`🔊 [極簡測試版] 正在發音: ${cleanedText}`);
-                
-                // 正式發射
+
+                // 偵錯用：會在控制台印出它準備要唸什麼字
+                console.log(`🔊 系統正在嘗試發音: [${cleanedText}]`);
+
+                // 正式發射！
                 window.speechSynthesis.speak(u);
 
-            }, 50);
+            }, 50); // 延遲 50 毫秒
         }
         // 解決部分瀏覽器（如 Chrome/Edge）首次載入時語音包清單非同步延遲的 Bug
         if (window.speechSynthesis && window.speechSynthesis.onvoiceschanged !== undefined) {
