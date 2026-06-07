@@ -9781,6 +9781,50 @@ function closeReport() {
                 initUltimateLoginBridge(); // 強制綁定按鈕
             }, 600);
         });
+        // ==========================================================================
+        // 🛡️ [定時存檔機防火牆] 徹底解決 sessionState 讀取 currentUnit 為 null 的崩潰問題
+        // ==========================================================================
+        (function() {
+            // 1. 強制確保全域環境中有一個不為 null 的安全 sessionState 分身
+            if (typeof window.sessionState === 'undefined' || window.sessionState === null) {
+                window.sessionState = {
+                    currentIndex: 0,
+                    currentUnit: 1,
+                    currentWords: []
+                };
+            }
+
+            // 2. 使用 JavaScript Proxy (代理守護盾)，全面監控並拦截對 sessionState 的錯誤讀取
+            // 就算舊的定時器程式碼在任何時間點抓取它，都絕對不會因為讀到 null 而當機
+            let rawSession = window.sessionState || {};
+            
+            // 如果原本是 null，強制重設為安全空物件
+            if (rawSession === null || typeof rawSession !== 'object') {
+                rawSession = { currentIndex: 0, currentUnit: 1, currentWords: [] };
+            }
+
+            window.sessionState = new Proxy(rawSession, {
+                get: function(target, prop) {
+                    // 如果其他程式碼（如定時存檔機）來要 currentUnit 或 currentIndex，但目前沒資料
+                    if (prop === 'currentUnit' && (target[prop] === undefined || target[prop] === null)) {
+                        return 1; // 預防性給予預設第 1 單元
+                    }
+                    if (prop === 'currentIndex' && (target[prop] === undefined || target[prop] === null)) {
+                        return 0; // 預防性給予預設第 0 個字
+                    }
+                    if (prop === 'currentWords' && !Array.isArray(target[prop])) {
+                        return []; // 預防性給予空陣列
+                    }
+                    return target[prop];
+                },
+                set: function(target, prop, value) {
+                    target[prop] = value;
+                    return true;
+                }
+            });
+
+            console.log("🛡️ [定時存檔防火牆] 已成功啟動！已自動阻斷 sessionState.currentUnit 的 null 讀取崩潰。");
+        })();
         // ⚠️ 💡 貼心提醒：
         // 請確保你的「雲端登入讀取成功」的那個 function (例如 handleLoginSubmit 或 fetch 完資料的地方)，
         // 成功載入資料後，有呼叫一次 `updateAccountUI();` ，畫面上的帳號就會瞬間變身！
