@@ -9432,7 +9432,49 @@ function closeReport() {
                 try { recog.stop(); } catch(err){}
                 setTimeout(() => { try { recog.start(); } catch(err){} }, 200);
             }
+                // ==========================================================================
+        // 📱 行動裝置（iOS/Android）專用：首次觸控強制破冰解鎖語音引擎
+        // ==========================================================================
+        let isMobileSpeechUnlocked = false;
+
+        function unlockMobileSpeech() {
+            if (isMobileSpeechUnlocked) return;
+            
+            if (window.speechSynthesis) {
+                // 秘密武器：發射一個「完全無聲、沒有字」的隱形語音
+                // 這會騙過 iOS Safari，讓它認為「使用者已經同意播放聲音了」，強行解鎖引擎！
+                const silentUtterance = new SpeechSynthesisUtterance('');
+                silentUtterance.volume = 0; 
+                silentUtterance.rate = 1;
+                silentUtterance.pitch = 1;
+                
+                // 確保發射後立刻標記為已解鎖
+                silentUtterance.onend = function() {
+                    console.log("🔓 [行動裝置防線] 語音引擎已成功透過首次觸控解鎖！");
+                };
+
+                window.speechSynthesis.speak(silentUtterance);
+                
+                // 同時喚醒 Web Audio API
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) {
+                    const ctx = new AudioContext();
+                    if (ctx.state === 'suspended') {
+                        ctx.resume();
+                    }
+                }
+            }
+            isMobileSpeechUnlocked = true;
+
+            // 解鎖成功後，功成身退，移除監聽器避免浪費效能
+            document.removeEventListener('touchstart', unlockMobileSpeech);
+            document.removeEventListener('click', unlockMobileSpeech);
         }
+
+        // 綁定在使用者的「第一次」點擊或觸控螢幕上
+        document.addEventListener('touchstart', unlockMobileSpeech, { once: true });
+        document.addEventListener('click', unlockMobileSpeech, { once: true });
+
         </script>                                    
     <div id="login-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] hidden items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-sm w-full mx-4 shadow-2xl border border-gray-100 dark:border-slate-700 space-y-4">
