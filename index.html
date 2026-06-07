@@ -8337,13 +8337,13 @@ function setupLessonWord() {
         window.activeSpeechUtterances = []; 
 
 // ==========================================================================
-        // 🔊 終極完全體：智慧排隊語音引擎 + 手機同步破冰解鎖
+        // 🔊 蘋果專用通馬桶版：智慧排隊語音引擎 (拔除空包彈，加入強制重置與防卡死)
         // ==========================================================================
         let speechQueue = [];
         let isSpeakingNow = false;
         let lastSpokenText = "";
         let lastSpokenTime = 0;
-        window.isMobileVoiceUnlocked = false; // 📱 新增：手機解鎖標記
+        let iosWatchdog = null; // 🐕 抓 iOS 卡死的看門狗
 
         function speakText(text) {
             if (!text || !text.trim()) return;
@@ -8353,19 +8353,9 @@ function setupLessonWord() {
             lastSpokenText = text;
             lastSpokenTime = currentTime;
 
-            // 🚨 【手機終極解鎖防線】：在玩家按下去的「第一瞬間」，立刻同步發送一個無聲語音！
-            // 這樣能完美滿足 iOS/Android 要求「手指點擊必須立刻發音」的安全限制。
-            if (!window.isMobileVoiceUnlocked && window.speechSynthesis) {
-                const unlockUtterance = new SpeechSynthesisUtterance('');
-                unlockUtterance.volume = 0; // 靜音
-                window.speechSynthesis.speak(unlockUtterance);
-                window.isMobileVoiceUnlocked = true;
-                console.log("🔓 [行動裝置] 語音引擎已同步強制解鎖！");
-            }
-
             console.log(`🔊 [AI 語音引擎] 準備進入排隊鏈: "${text}"`);
 
-            // 💡 智慧前置拆分：中英夾雜時，先拆成漂亮的短句陣列再排隊
+            // 💡 智慧前置拆分：中英夾雜時，先拆成短句再排隊
             const isPureEnglish = /^[a-zA-Z0-9\s.,!?'"-]+$/.test(text.trim());
             if (isPureEnglish) {
                 speechQueue.push({ text: text.trim(), isChinese: false });
@@ -8381,6 +8371,11 @@ function setupLessonWord() {
                 }
             }
 
+            // 🚨 【iPhone 通馬桶機制】：如果隊伍是空的，代表這是一個全新的點擊，直接暴力重置引擎！
+            if (!isSpeakingNow && window.speechSynthesis) {
+                window.speechSynthesis.cancel(); // 🚽 把之前卡在 iOS 喉嚨裡的幽靈語音全部沖掉
+            }
+
             if (!isSpeakingNow) {
                 processNextSpeechQueue();
             }
@@ -8391,6 +8386,7 @@ function setupLessonWord() {
 
             if (speechQueue.length === 0) {
                 isSpeakingNow = false;
+                clearTimeout(iosWatchdog); // 任務結束，收回看門狗
                 return;
             }
 
@@ -8398,11 +8394,8 @@ function setupLessonWord() {
             const currentChunk = speechQueue.shift();
 
             try {
-                window.speechSynthesis.resume();
+                // 🍎 拿掉 window.speechSynthesis.resume()，因為 iOS 有時候呼叫這個反而會報錯當機
                 const utterance = new SpeechSynthesisUtterance(currentChunk.text);
-
-                // 🚨 強制把這句話的音量開到最大 (預設有時會被手機設為很小聲)
-                utterance.volume = 1.0;
 
                 // 🎯 幫特定語系找出最頂級、最自然的真人聲優
                 const allVoices = window.speechSynthesis.getVoices() || [];
@@ -8430,7 +8423,9 @@ function setupLessonWord() {
                     const bestEngVoice = findBestVoice('en-US');
                     if (bestEngVoice) utterance.voice = bestEngVoice;
                 }
-                utterance.pitch = 1.0;
+                
+                // 🍎 iOS 的音調如果不是 1.0 非常容易整個壞掉
+                utterance.pitch = 1.0; 
 
                 if (!window.activeSpeechUtterances) window.activeSpeechUtterances = [];
                 window.activeSpeechUtterances.push(utterance);
@@ -8438,14 +8433,25 @@ function setupLessonWord() {
                 // 🌟 接力棒交接：當這一句話真正唸完的瞬間，才放行下一句！
                 utterance.onend = function() {
                     window.activeSpeechUtterances = window.activeSpeechUtterances.filter(u => u !== utterance);
-                    setTimeout(() => { processNextSpeechQueue(); }, 120); 
+                    clearTimeout(iosWatchdog); // 唸完就重置計時器
+                    setTimeout(() => { processNextSpeechQueue(); }, 50); // 縮短延遲，避免 iOS 取消許可
                 };
 
                 utterance.onerror = function(err) {
                     console.error("❌ [AI 語音引擎] 播放中途發生錯誤:", err);
                     window.activeSpeechUtterances = window.activeSpeechUtterances.filter(u => u !== utterance);
+                    clearTimeout(iosWatchdog);
                     processNextSpeechQueue();
                 };
+
+                // 🐕 【防卡死看門狗】：iOS 常常唸完了卻不觸發 onend，導致整個引擎永久罷工。
+                // 我們給它 8 秒的時間，如果 8 秒後還沒觸發 onend，我們就強行往下走！
+                clearTimeout(iosWatchdog);
+                iosWatchdog = setTimeout(() => {
+                    console.warn("⚠️ [行動裝置防線] 偵測到 iOS 語音假死，強行通關解鎖下一句！");
+                    window.speechSynthesis.cancel(); // 沖掉卡住的
+                    processNextSpeechQueue(); // 強行唸下一句
+                }, 8000);
 
                 window.speechSynthesis.speak(utterance);
 
@@ -8454,7 +8460,6 @@ function setupLessonWord() {
                 isSpeakingNow = false;
             }
         }
-
         function forceStopSpeech() {
             if (window.speechSynthesis) {
                 speechQueue = []; 
