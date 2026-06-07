@@ -7274,12 +7274,44 @@
         // ==========================================
         // 🧠 6. 單字學習與測驗模組（無彈窗設計）
         // ==========================================
-        function startUnitSession(unitId) {
+       function startUnitSession(unitId) {
             if(userData.hearts <= 0) { showToast("❤️ 生命值不足！請前往商店補充生命值。", true); return; }
             const words = vocabularyDB.filter(w => w.unit === unitId);
             if(words.length === 0) { showToast(`⚠️ 單元 ${unitId} 目前無單字資料`, true); return; }
 
-            sessionState = { mode: 'learn', currentWords: [...words], currentIndex: 0, wrongCount: 0, score: 0 };
+            // ==========================================
+            // 🛑 【關鍵修復】：去硬碟尋找歷史進度，不要再無腦歸零了！
+            // ==========================================
+            let targetIndex = 0; // 預設為第 1 個字 (index 0)
+            
+            let unitSave = localStorage.getItem(`mid_save_unit_${unitId}`);
+            let globalUnit = localStorage.getItem(`duo_last_active_unit`);
+            let globalIdx = localStorage.getItem(`duo_last_active_index`);
+
+            // 優先讀取這關的專屬進度，其次讀取全域進度
+            if (unitSave !== null) {
+                targetIndex = parseInt(unitSave);
+            } else if (globalUnit == unitId && globalIdx !== null) {
+                targetIndex = parseInt(globalIdx);
+            }
+
+            // 防呆機制：如果上次已經背完這關了，就自動從 0 重新開始
+            if (targetIndex >= words.length) {
+                targetIndex = 0;
+            }
+
+            // 💡 替換 sessionState：改用 targetIndex，並補上關卡編號讓存檔系統抓得到！
+            sessionState = { 
+                mode: 'learn', 
+                unit: unitId,           // 新增：讓存檔系統知道現在是哪關
+                currentUnit: unitId,    // 新增：雙重保險
+                currentWords: [...words], 
+                currentIndex: targetIndex, // 🟢 這裡換成智慧讀取的進度！
+                wrongCount: 0, 
+                score: 0 
+            };
+            
+            window.isLearningActive = true; // 🟢 解開存檔的安全鎖！
             switchTab('lesson');
             setupLessonWord();
         }
