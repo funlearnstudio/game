@@ -9270,34 +9270,38 @@ function setupLessonWord() {
                 lastSyncedIndex = currentIdx;
             }
         }, 60000);
-        // ==========================================
+       // ==========================================
         // 🚀 3. 開局強制存檔 (進網頁 3 秒後自動觸發一次)
         // ==========================================
         setTimeout(() => {
-            if (typeof userData !== 'undefined') {
-                console.log("🚀 [開局存檔] 玩家載入完成，執行第一次強制雲端同步！");
+            // 防禦: userData 必須存在且不為 null
+            if (typeof userData === 'undefined' || userData === null) return;
 
-                let currentIdx = 0;
-                let currentU = 1;
-                
-                if (typeof sessionState !== 'undefined' && sessionState.currentIndex !== undefined) {
-                    currentIdx = sessionState.currentIndex;
-                    currentU = sessionState.currentUnit || 1;
-                } else {
-                    currentIdx = parseInt(localStorage.getItem('duo_last_active_index')) || 0;
-                    currentU = parseInt(localStorage.getItem('duo_last_active_unit')) || 1;
-                }
+            console.log("🚀 [開局存檔] 玩家載入完成，執行第一次強制雲端同步！");
 
-                userData.lastUnit = currentU;
-                userData.lastIdx = currentIdx;
+            // 🛡️ 終極防禦：使用問號 (?.) 語法，就算 sessionState 是 null 也不會當機
+            let currentIdx = (typeof sessionState !== 'undefined' && sessionState?.currentIndex) 
+                             || userData?.lastIdx 
+                             || parseInt(localStorage.getItem('duo_last_active_index') || 0);
 
-                // 🎯 核心修正：精準呼叫對應的 saveToCloudNow() 函數
+            let currentU = (typeof sessionState !== 'undefined' && (sessionState?.currentUnit || sessionState?.unit)) 
+                           || userData?.lastUnit 
+                           || parseInt(localStorage.getItem('duo_last_active_unit') || 1);
+
+            userData.lastUnit = currentU;
+            userData.lastIdx = currentIdx;
+
+            // 🎯 核心修正：精準呼叫對應的 saveToCloudNow() 函數
+            if (typeof saveToCloudNow === 'function') {
                 saveToCloudNow();
-                
-                lastSyncedXp = userData.xp;
-                lastSyncedGems = userData.gems;
-                lastSyncedIndex = currentIdx;
+            } else if (typeof scheduleCloudSync === 'function') {
+                scheduleCloudSync(); // 備用方案
             }
+            
+            lastSyncedXp = userData.xp;
+            lastSyncedGems = userData.gems;
+            lastSyncedIndex = currentIdx;
+            
         }, 3000); // 延遲 3 秒
         // ==========================================================================
 // 📄 補上失蹤的按鈕函數：點擊「存檔並返回」時觸發 (自動晉級 Google 升級版)
