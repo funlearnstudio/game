@@ -9216,50 +9216,43 @@ function setupLessonWord() {
             }
         }
 
-        // ==========================================
+// ==========================================
         // ☁️ 2. 智慧定時存檔機 (每 60 秒檢查與同步)
         // ==========================================
-        let lastSyncedXp = -1; 
+        let lastSyncedXp = -1;
         let lastSyncedGems = -1;
         let lastSyncedIndex = -1;
 
         setInterval(() => {
-            if (typeof userData === 'undefined') return;
+            // 防禦 1: userData 不能是 undefined 且不能是 null
+            if (typeof userData === 'undefined' || !userData) return;
 
-            // 智慧定時存檔機內部抓取最新進度的方法：
             let currentIdx = 0;
             let currentU = 1;
-            
-            // 優先從全域的遊戲控制核心撈（最不容易出錯！）
-            if (typeof sessionState !== 'undefined' && sessionState.currentIndex !== undefined) {
-                currentIdx = sessionState.currentIndex;
-                currentU = sessionState.currentUnit || 1;
-            } else if (typeof userData !== 'undefined' && userData.lastIdx !== undefined) {
-                currentIdx = userData.lastIdx;
+
+            // 🎯 核心修復：強制加上 sessionState !== null 的過濾！
+            // 只要加上 sessionState !== null，就不會再發生 Cannot read properties of null 的慘劇了
+            if (typeof sessionState !== 'undefined' && sessionState !== null) {
+                currentIdx = sessionState.currentIndex || 0;
+                currentU = sessionState.currentUnit || sessionState.unit || 1;
+            } else if (typeof userData !== 'undefined' && userData !== null) {
+                currentIdx = userData.lastIdx || 0;
                 currentU = userData.lastUnit || 1;
             } else {
-                // 逼不得已才看硬碟
-                currentIdx = parseInt(localStorage.getItem('duo_last_active_index')) || 0;
-                currentU = parseInt(localStorage.getItem('duo_last_active_unit')) || 1;
+                currentIdx = parseInt(localStorage.getItem('duo_last_active_index') || 0);
+                currentU = parseInt(localStorage.getItem('duo_last_active_unit') || 1);
             }
-            userData.lastUnit = currentU;
-            userData.lastIdx = currentIdx;
 
-            // 智慧比對：有改變才上傳
-            if (userData.xp !== lastSyncedXp || 
-                userData.gems !== lastSyncedGems || 
-                currentIdx !== lastSyncedIndex) {
-                
-                console.log(`☁️ [60秒同步] 發現進度變更！準備上傳: ${currentU}關 - 第${currentIdx + 1}題`);
-                
-                // 🎯 核心修正：精準呼叫對應的 saveToCloudNow() 函數
-                saveToCloudNow();
-
+            // 如果經驗值、寶石、或進度有任何變動，才發起同步
+            if (userData.xp !== lastSyncedXp || userData.gems !== lastSyncedGems || currentIdx !== lastSyncedIndex) {
+                if (typeof scheduleCloudSync === 'function') {
+                    scheduleCloudSync();
+                }
                 lastSyncedXp = userData.xp;
                 lastSyncedGems = userData.gems;
                 lastSyncedIndex = currentIdx;
             }
-        }, 20000); // 每 60 秒
+        }, 30000); // 每 60 秒執行一次
 
         // ==========================================
         // 🚀 3. 開局強制存檔 (進網頁 3 秒後自動觸發一次)
