@@ -7338,7 +7338,7 @@ window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbyXmL3vHlSlqKRhKgz
       // ==========================================================================
         // 🧠 6. 單字學習與測驗模組（複習防火牆防倒退優化版）
         // ==========================================================================
-        function startUnitSession(unitId) {
+       function startUnitSession(unitId) {
             if(userData.hearts <= 0) { showToast("❤️ 生命值不足！請前往商店補充生命值。", true); return; }
             const words = vocabularyDB.filter(w => w.unit === unitId);
             if(words.length === 0) { showToast(`⚠️ 單元 ${unitId} 目前無單字資料`, true); return; }
@@ -7395,10 +7395,16 @@ window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbyXmL3vHlSlqKRhKgz
                 window.isLearningActive = true;  // 🔓 只有正常挑戰才開啟存檔鎖
             }
 
+            // 🎯 【全域錯題本初始化防呆】：確保 userData 裡一定有 wrongWords 陣列
+            if (typeof userData !== 'undefined' && userData) {
+                if (!userData.wrongWords) {
+                    userData.wrongWords = [];
+                }
+            }
+
             switchTab('lesson');
             setupLessonWord();
         }
-
         // ✨ 補回失蹤功能：街機無盡模式挑戰
         function startArcadeGame() {
             if(userData.hearts <= 0) { showToast("❤️ 生命值不足，無法開啟街機挑戰！", true); return; }
@@ -7616,6 +7622,9 @@ function setupLessonWord() {
             }
         }
 
+        // ==========================================================================
+        // ⚔️ 主線寫題判定核心：全面升級「關卡專屬、獨立物件錯題本」儲存機制！
+        // ==========================================================================
         function submitAnswer(isCorrect, correctRef) {
             const area = document.getElementById('dynamic-test-area');
             const blocker = document.createElement('div');
@@ -7635,7 +7644,54 @@ function setupLessonWord() {
             } else {
                 playSFX('error');
                 userData.hearts = Math.max(0, userData.hearts - 1); sessionState.wrongCount++;
-                if(!userData.wrongWords.includes(wordObj.word)) userData.wrongWords.push(wordObj.word);
+                
+                // ==================================================================
+                // 🎯 【第一點：精密錯題補丁物理降落點】
+                // ==================================================================
+                if (wordObj && wordObj.word) {
+                    let failedWord = wordObj.word.toLowerCase().trim();
+                    let currentUnitId = sessionState.unit || sessionState.currentUnit || 1;
+                    let currentMeaning = wordObj.meaning || wordObj.translation || wordObj.ch || "";
+
+                    if (typeof userData !== 'undefined' && userData) {
+                        // 防呆：如果 userData 裡本來沒有 wrongWords 陣列就幫它初始化
+                        if (!userData.wrongWords) userData.wrongWords = [];
+
+                        // 🚨 【精密排重檢查】：檢查錯題本中是否已有「同單元、且同單字」的紀錄
+                        // 這樣可確保同一個字如果出現在不同關卡錯了會分開存，但在同一關一直錯不會重複塞進去！
+                        const isAlreadyExist = userData.wrongWords.some(item => 
+                            (typeof item === 'object' && item !== null) && 
+                            item.word.toLowerCase().trim() === failedWord && 
+                            parseInt(item.unit) === parseInt(currentUnitId)
+                        );
+
+                        if (!isAlreadyExist) {
+                            // 📂 物理打包完整關卡情境物件
+                            const mistakeObject = {
+                                word: wordObj.word,       // 保留單字原本大小寫
+                                unit: currentUnitId,       // 牢牢綁定當前關卡 ID！
+                                meaning: currentMeaning    // 綁定當前關卡的意思
+                            };
+                            
+                            userData.wrongWords.push(mistakeObject);
+                            console.log(`📂 [主線精密紀錄] 成功封裝關卡專屬錯題：`, mistakeObject);
+
+                            // 💾 物理儲存到硬碟 (localStorage)
+                            localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
+                            
+                            // ☁️ 觸發雲端備份
+                            if (typeof scheduleCloudSync === 'function') {
+                                scheduleCloudSync();
+                            } else if (typeof saveToCloud === 'function') {
+                                saveToCloud();
+                            }
+                        }
+                    }
+                }
+                // ==================================================================
+                // 🎯 【補丁結束】
+                // ==================================================================
+
                 feedback.className += " bg-gradient-to-br from-red-400 to-danger";
                 feedback.innerHTML = `<div class="text-xl font-black"><i class="fa-solid fa-xmark"></i> 答錯了</div><p class="text-sm font-black bg-black/20 px-4 py-1.5 rounded-xl">正解：${correctRef}</p><button id="btn-next-q" class="btn-3d bg-white text-danger px-8 py-2.5 w-full mt-2 font-black">我知道了</button>`;
             }
@@ -7645,12 +7701,15 @@ function setupLessonWord() {
             
             feedback.querySelector('#btn-next-q').onclick = () => {
                 feedback.remove(); blocker.remove();
-                if(userData.hearts <= 0) { showToast("💔 生命值耗盡，已自動退回主畫面！", true); saveToCloud(); switchTab('map'); return; }
+                if(userData.hearts <= 0) { showToast("💔 生命值耗盡，已自動退回主畫面！", true); if (typeof saveToCloud === 'function') saveToCloud(); switchTab('map'); return; }
                 sessionState.currentIndex++;
+                
+                // 💡 為了保險起見，每次點擊下一題時都幫玩家做個本地存檔
+                localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
+                
                 setupTestQuestion();
             };
         }
-
         function abortSession() {
             const activeZone = document.getElementById('dynamic-test-area') || document.getElementById('lesson-word')?.parentElement;
             if(!activeZone) { sessionState.mode = ''; switchTab('map'); return; }
@@ -7994,18 +8053,55 @@ function setupLessonWord() {
                     feedbackText = `Excellent sentence! You used the word perfectly in a complete sentence. +10 XP!（太棒了！你的造句非常道地，單字用得很精準！加 10 經驗值！接下來，讓我們繼續挑戰下一題吧！）`;
                 }
 
-                // 4. 🔊 【聲效與血量處理】：只響提示音，絕對不扣血！
+               // ==================================================================
+                // 4. 🔊 【AI導師精密錯題本寫入】：連同關卡 UnitId 一起封裝
+                // ==================================================================
                 if (!isCorrect) {
-                    // 答錯：放錯題提示音（嗶嗶！），但絕對不扣愛心血量
                     if (typeof playAudioEffect === 'function') playAudioEffect('wrong');
-                } else {
-                    // 答對：放成功叮咚聲，加 10 XP
-                    if (typeof playAudioEffect === 'function') playAudioEffect('success');
-                    if (typeof userData !== 'undefined') {
-                        userData.xp += 10;
-                        if(document.getElementById('ui-xp')) document.getElementById('ui-xp').innerText = userData.xp;
-                        localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
+                    
+                    if (typeof userData !== 'undefined' && userData) {
+                        if (!userData.wrongWords) userData.wrongWords = [];
+                        
+                        // 智慧取得當前正在玩的單元 ID (如果玩家是直接開導師，就抓目前使用者最高進度)
+                        let currentUnitId = 1;
+                        if (typeof sessionState !== 'undefined' && sessionState && (sessionState.unit || sessionState.currentUnit)) {
+                            currentUnitId = sessionState.unit || sessionState.currentUnit;
+                        } else {
+                            currentUnitId = userData.level || userData.lastUnit || 1;
+                        }
+
+                        // 試著從當前物件抓中文意思
+                        let currentMeaning = "";
+                        if (typeof sessionState !== 'undefined' && sessionState && sessionState.currentWords) {
+                            const currentWordObj = sessionState.currentWords[sessionState.currentIndex];
+                            if (currentWordObj) {
+                                currentMeaning = currentWordObj.meaning || currentWordObj.translation || currentWordObj.ch || "";
+                            }
+                        }
+
+                        // 精密排重檢查
+                        const isAlreadyExist = userData.wrongWords.some(item => 
+                            (typeof item === 'object' && item !== null) && 
+                            item.word.toLowerCase().trim() === targetWord.toLowerCase().trim() && 
+                            parseInt(item.unit) === parseInt(currentUnitId)
+                        );
+
+                        if (targetWord && !isAlreadyExist) {
+                            // 物理封裝傳送
+                            const mistakeObject = {
+                                word: targetWord,
+                                unit: currentUnitId, // 牢牢記住是哪一個關卡的字！
+                                meaning: currentMeaning
+                            };
+                            
+                            userData.wrongWords.push(mistakeObject);
+                            console.log(`📂 [AI導師精密紀錄] 成功將關卡專屬錯題打入庫：`, mistakeObject);
+                            
+                            localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
+                        }
                     }
+                    
+                    if (typeof scheduleCloudSync === 'function') scheduleCloudSync();
                 }
 
                 // 5. 🎲 【連續無限出題】：自動盲抽下一個全新單字
