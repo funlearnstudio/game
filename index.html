@@ -8058,56 +8058,7 @@ function setupLessonWord() {
 
             }, 800);
         }
-                // 5. 🎲 【連續無限出題】：自動盲抽下一個全新單字
-                let userLevel = (typeof userData !== 'undefined' && userData.level) ? userData.level : 1;
-                let poolOfWords = [];
-                if (typeof vocabularyDB !== 'undefined' && Array.isArray(vocabularyDB)) {
-                    poolOfWords = vocabularyDB.filter(w => parseInt(w.level) === parseInt(userLevel) || parseInt(w.stage) === parseInt(userLevel));
-                }
-                if (poolOfWords.length === 0 && typeof sessionState !== 'undefined' && sessionState.currentWords) {
-                    poolOfWords = sessionState.currentWords;
-                }
-
-                let nextWord = "apple"; 
-                let nextMeaning = "蘋果";
-                if (poolOfWords && poolOfWords.length > 0) {
-                    let freshWords = poolOfWords.filter(w => w.word.toLowerCase() !== targetWord);
-                    let finalPool = freshWords.length > 0 ? freshWords : poolOfWords;
-                    const randomObj = finalPool[Math.floor(Math.random() * finalPool.length)];
-                    nextWord = randomObj.word;
-                    nextMeaning = randomObj.meaning || randomObj.translation || randomObj.ch || "";
-                }
-
-                const nextChineseHint = nextMeaning ? `（${nextMeaning}）` : "";
-
-                // 6. 💬 物理渲染：推送到大對話框
-                const tutorMsgHtml = `
-                    <div class="flex items-start gap-3 justify-start animate-fade-in mb-4">
-                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Aria" class="w-10 h-10 rounded-full border border-ai bg-purple-50 shrink-0">
-                        <div class="bg-purple-50 text-gray-800 p-4 rounded-2xl rounded-tl-none shadow-sm max-w-[85%] border border-purple-100">
-                            <p class="font-bold text-sm text-ai mb-1">🤖 Aria 導師：</p>
-                            <p class="text-lg leading-relaxed font-semibold">
-                                ${isCorrect ? '✅ ' : '⚠️ '}${feedbackText.split('（')[0]}<br>
-                                <span class="text-base text-gray-500 font-medium block mt-1 mb-3">（${feedbackText.split('（')[1]}</span>
-                                <hr class="border-purple-100 my-2">
-                                <span class="text-purple-600 font-black">🔥 Next Challenge:</span> Please make a sentence with <span class="text-xl text-purple-700 font-black underline decoration-wavy decoration-purple-400">"${nextWord}"</span>.<br>
-                                <span class="text-base text-gray-500 font-medium block mt-1">（連續挑戰下一題！請用這個等級的新單字：<strong class="text-gray-700">${nextWord}</strong> ${nextChineseHint}，造個句子回答我！）</span>
-                            </p>
-                        </div>
-                    </div>
-                `;
-                chatMessages.innerHTML += tutorMsgHtml;
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-
-                // 7. 📢 【純英文發音核心】：只唸英文，中文部分完全不發音！
-                if (typeof speakText === 'function') {
-                    const engFeedback = feedbackText.split('（')[0]; 
-                    const pureEnglishReply = `${engFeedback} Next challenge! Please make a sentence with the word: ${nextWord}.`;
-                    speakText(pureEnglishReply); 
-                }
-
-            }, 800);
-        }
+               
 
         function renderChatMessages() {
             const box = document.getElementById('chat-messages');
