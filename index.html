@@ -2,7 +2,7 @@
 <html lang="zh-TW" class="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0,maximum-scalable=no">
     <title>高中7000單字：終極雲端語音版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -7703,8 +7703,37 @@
                 }
             }, 1200);
         }
-        function speakSystemWord(isSlow) { speakText(document.getElementById('lesson-word').innerText, isSlow ? 0.6 : 1.0); }
+        // ==========================================
+        // 🔊 系統單字發音 (加入強制清空防卡死機制)
+        // ==========================================
+        function speakSystemWord(slow = false) {
+            const word = document.getElementById('lesson-word').innerText;
+            if(!word || word === 'word') {
+                console.log("⚠️ 尚未載入有效單字，無法發音");
+                return;
+            }
 
+            // 🛑 【終極關鍵】：每次發音前，強制清空卡住的「無聲」語音任務！
+            window.speechSynthesis.cancel();
+
+            const msg = new SpeechSynthesisUtterance(word);
+            msg.lang = 'en-US'; // 指定美式英文
+            msg.rate = slow ? 0.5 : 1.0; // 語速
+            msg.volume = 1.0;   // 強制音量開到最大 (0.0 到 1.0)
+            msg.pitch = 1.0;    // 正常語調
+
+            // 💡 加上偵錯回報，讓你在 F12 控制台能看到它到底有沒有唸
+            msg.onstart = function() { 
+                console.log("🔊 正在發音: " + word); 
+            };
+            msg.onerror = function(event) { 
+                console.error("❌ 發音系統發生錯誤:", event.error); 
+                showToast("語音系統暫時無回應，請重整網頁或檢查喇叭設定");
+            };
+
+            // 正式發射語音
+            window.speechSynthesis.speak(msg);
+        }
         function playSFX(type) {
             try {
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
