@@ -7702,17 +7702,104 @@ function setupLessonWord() {
         // ==========================================
         // 💬 7. AI 語音與對話模組
         // ==========================================
+        // ==========================================================================
+        // 🎙️ 語音辨識模組 (智慧辨識闖關/聊天雙模 + 佛心不扣心音效版)
+        // ==========================================================================
         function initSpeechRecognition() {
             const SpeechRequest = window.SpeechRecognition || window.webkitSpeechRecognition;
             if(!SpeechRequest) return;
+            
             recognition = new SpeechRequest();
-            recognition.continuous = false; recognition.lang = 'en-US'; 
+            recognition.continuous = false; 
+            recognition.lang = 'en-US'; 
+
             recognition.onresult = (e) => {
+                // 抓取瀏覽器真正聽到的英文句子/單字
+                const spokenText = e.results[0][0].transcript;
+                console.log(`🎙️ [語音辨識聽到了]: "${spokenText}"`);
+
+                // 💡 【核心判斷】：如果玩家目前正在「單字學習/測驗模式」中
+                if (typeof sessionState !== 'undefined' && sessionState && sessionState.currentWords) {
+                    
+                    // 抓出當前畫面上，要求玩家唸的那個正確英文單字
+                    const currentWordObj = sessionState.currentWords[sessionState.currentIndex];
+                    if (currentWordObj && currentWordObj.word) {
+                        
+                        const correctWord = currentWordObj.word;
+                        
+                        // 將聽到的跟標準答案都轉小寫、去空格，溫和比對
+                        const cleanSpoken = spokenText.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
+                        const cleanCorrect = correctWord.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
+
+                        if (cleanSpoken === cleanCorrect) {
+                            console.log("🎯 [發音正確]！");
+                            
+                            // 🔊 播放通關清脆「叮咚」聲！
+                            if (typeof playAudioEffect === 'function') playAudioEffect('success');
+                            
+                            showToast(`🎉 太棒了！發音完全正確："${correctWord}"`, false);
+                            
+                            // 點亮或啟用畫面上的「下一步/繼續」按鈕
+                            const nextBtn = document.getElementById('next-btn') || document.querySelector('.lesson-next-btn');
+                            if (nextBtn) nextBtn.disabled = false;
+
+                        } else {
+                            console.log(`❌ [發音不準/錯誤] 期待: "${cleanCorrect}"，你念: "${cleanSpoken}"`);
+                            
+                            // 🔊 播放提示「嗶嗶」聲（溫和答錯聲）
+                            if (typeof playAudioEffect === 'function') playAudioEffect('wrong');
+                            
+                            // 🚨 佛心設定：只提示再試一次，絕對不扣任何愛心（userData.hearts）！
+                            showToast(`💪 發音差一點點！你唸的是 "${spokenText}"，再試一次吧！`, false);
+                        }
+                        
+                        // 闖關模式下，處理完發音就 return 結束，不要讓它跑去聊天室
+                        return; 
+                    }
+                }
+
+                // 💬 【原本的聊天模式】：如果不在闖關背單字，就維持你原本的聊天室輸入
                 const input = document.getElementById('chat-input');
-                if(input) { input.value = e.results[0][0].transcript; sendChatMessage(); }
+                if(input) { 
+                    input.value = spokenText; 
+                    if (typeof sendChatMessage === 'function') {
+                        sendChatMessage(); 
+                    }
+                }
             };
         }
-
+// ==========================================================================
+        // 🎵 純程式碼物理音效合成器 (免下載 MP3，直接發出叮咚與嗶嗶聲)
+        // ==========================================================================
+        function playAudioEffect(type) {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                const ctx = new AudioContext();
+                
+                if (type === 'success') {
+                    const osc1 = ctx.createOscillator();
+                    const gain1 = ctx.createGain();
+                    osc1.type = 'sine';
+                    osc1.frequency.setValueAtTime(523.25, ctx.currentTime); 
+                    osc1.frequency.setValueAtTime(659.25, ctx.currentTime + 0.08); 
+                    gain1.gain.setValueAtTime(0.2, ctx.currentTime);
+                    gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+                    osc1.connect(gain1); gain1.connect(ctx.destination);
+                    osc1.start(); osc1.stop(ctx.currentTime + 0.35);
+                } else if (type === 'wrong') {
+                    const osc2 = ctx.createOscillator();
+                    const gain2 = ctx.createGain();
+                    osc2.type = 'sawtooth';
+                    osc2.frequency.setValueAtTime(140, ctx.currentTime); 
+                    osc2.frequency.linearRampToValueAtTime(90, ctx.currentTime + 0.18);
+                    gain2.gain.setValueAtTime(0.15, ctx.currentTime);
+                    gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+                    osc2.connect(gain2); gain2.connect(ctx.destination);
+                    osc2.start(); osc2.stop(ctx.currentTime + 0.2);
+                }
+            } catch (e) { console.warn(e); }
+        }
         function toggleChatMic() { if(recognition) try { recognition.start(); } catch(e){} }
 
         function startNewChatScenario() {
