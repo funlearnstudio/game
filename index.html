@@ -7702,130 +7702,136 @@ function setupLessonWord() {
         // ==========================================
         // 💬 7. AI 語音與對話模組
         // ==========================================
-        // ==========================================================================
-        // 🎙️ 語音辨識模組 (智慧辨識闖關/聊天雙模 + 佛心不扣心音效版)
+       // ==========================================================================
+        // 🎙️ 語音辨識模組 (智慧比對單字、判斷對錯、主動呼叫音效終極版)
         // ==========================================================================
         function initSpeechRecognition() {
             const SpeechRequest = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if(!SpeechRequest) return;
+            if(!SpeechRequest) {
+                console.log("❌ 您的瀏覽器不支援 SpeechRecognition 語音辨識。");
+                return;
+            }
             
             recognition = new SpeechRequest();
             recognition.continuous = false; 
-            recognition.lang = 'en-US'; 
+            recognition.lang = 'en-US'; // 鎖定英文辨識
 
             recognition.onresult = (e) => {
-                // 抓取瀏覽器真正聽到的英文句子/單字
+                // 1. 拿到語音辨識字串
                 const spokenText = e.results[0][0].transcript;
                 console.log(`🎙️ [語音辨識聽到了]: "${spokenText}"`);
 
-                // 💡 【核心判斷】：如果玩家目前正在「單字學習/測驗模式」中
+                // 2. 🚨 【核心判定機關】：檢查目前是不是在背單字/闖關模式中 (sessionState 存在)
                 if (typeof sessionState !== 'undefined' && sessionState && sessionState.currentWords) {
                     
-                    // 抓出當前畫面上，要求玩家唸的那個正確英文單字
+                    // 抓出當前畫面上正在挑戰的正確英文單字物件
                     const currentWordObj = sessionState.currentWords[sessionState.currentIndex];
+                    
                     if (currentWordObj && currentWordObj.word) {
-                        
                         const correctWord = currentWordObj.word;
                         
-                        // 將聽到的跟標準答案都轉小寫、去空格，溫和比對
+                        // 溫和清理文字（轉小寫、去空格、去標點符號）
                         const cleanSpoken = spokenText.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
                         const cleanCorrect = correctWord.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
 
+                        console.log(`🔍 [發音比對中] 期待: "${cleanCorrect}"  vs 你唸: "${cleanSpoken}"`);
+
                         if (cleanSpoken === cleanCorrect) {
-                            console.log("🎯 [發音正確]！");
+                            console.log("🎯 [發音結果]：完全正確！準備發射叮咚聲！");
                             
-                            // 🔊 播放通關清脆「叮咚」聲！
-                            if (typeof playAudioEffect === 'function') playAudioEffect('success');
+                            // 🔊 物理主動呼叫！強行亮起叮咚音效！
+                            if (typeof playAudioEffect === 'function') {
+                                playAudioEffect('success');
+                            } else {
+                                console.error("❌ 找不到 playAudioEffect 函數，無法播放聲音！");
+                            }
                             
                             showToast(`🎉 太棒了！發音完全正確："${correctWord}"`, false);
                             
-                            // 點亮或啟用畫面上的「下一步/繼續」按鈕
+                            // 點亮畫面上的下一步按鈕
                             const nextBtn = document.getElementById('next-btn') || document.querySelector('.lesson-next-btn');
                             if (nextBtn) nextBtn.disabled = false;
 
                         } else {
-                            console.log(`❌ [發音不準/錯誤] 期待: "${cleanCorrect}"，你念: "${cleanSpoken}"`);
+                            console.log("❌ [發音結果]：發音不準！準備發射嗶嗶聲！");
                             
-                            // 🔊 播放提示「嗶嗶」聲（溫和答錯聲）
-                            if (typeof playAudioEffect === 'function') playAudioEffect('wrong');
+                            // 🔊 物理主動呼叫！強行亮起答錯/提示嗶嗶音效！
+                            if (typeof playAudioEffect === 'function') {
+                                playAudioEffect('wrong');
+                            } else {
+                                console.error("❌ 找不到 playAudioEffect 函數，無法播放聲音！");
+                            }
                             
-                            // 🚨 佛心設定：只提示再試一次，絕對不扣任何愛心（userData.hearts）！
+                            // 佛心設定：絕對不扣 userData.hearts 愛心，只溫和提示再試一次
                             showToast(`💪 發音差一點點！你唸的是 "${spokenText}"，再試一次吧！`, false);
                         }
                         
-                        // 闖關模式下，處理完發音就 return 結束，不要讓它跑去聊天室
+                        // 🟢 闖關模式下處理完畢，立刻 return 攔截，絕對不要讓它跑去聊天室
                         return; 
                     }
                 }
 
-                // 💬 【原本的聊天模式】：如果不在闖關背單字，就維持你原本的聊天室輸入
+                // 💬 【一般模式】：如果不在闖關，才維持你原本的聊天室輸入功能
                 const input = document.getElementById('chat-input');
                 if(input) { 
                     input.value = spokenText; 
-                    if (typeof sendChatMessage === 'function') {
-                        sendChatMessage(); 
-                    }
+                    if (typeof sendChatMessage === 'function') sendChatMessage(); 
                 }
             };
+
+            recognition.onerror = (err) => {
+                console.error("🎙️ [語音辨識發生錯誤]:", err);
+            };
         }
-// ==========================================================================
-        // 🎵 純程式碼物理音效合成器 (免下載 MP3，直接發出叮咚與嗶嗶聲)
+        // ==========================================================================
+        // 🎵 純程式碼物理音效合成器 (強行喚醒解凍、免下載 MP3 版)
         // ==========================================================================
        // ==========================================================================
-        // 🎵 純程式碼物理音效合成器 (強行喚醒解凍、免下載 MP3 版)
+        // 🎵 純程式碼物理音效合成器 (強行喚醒、名稱精準對齊防錯版)
         // ==========================================================================
         function playAudioEffect(type) {
             try {
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 if (!AudioContext) return;
                 
-                // 建立音訊核心
                 const ctx = new AudioContext();
                 
-                // 🚨 【核心防禦補丁】：如果音響處於被瀏覽器「凍結/暫停」狀態，強制在點擊時喚醒它！
+                // 🚨 只要被觸發，立刻強行喚醒被瀏覽器暫停的音訊核心
                 if (ctx.state === 'suspended') {
                     ctx.resume();
                 }
                 
+                // 如果只是點擊按鈕來熱身解凍的，執行到這就收工
+                if (type === 'resume') return;
+                
                 if (type === 'success') {
-                    // 🌟 叮咚！雙音階清脆聲
+                    // 🌟 叮咚！
                     const osc1 = ctx.createOscillator();
                     const gain1 = ctx.createGain();
                     osc1.type = 'sine';
-                    
-                    // 點擊瞬間播放
-                    osc1.frequency.setValueAtTime(523.25, ctx.currentTime); // C5 (叮)
-                    osc1.frequency.setValueAtTime(659.25, ctx.currentTime + 0.08); // E5 (咚)
-                    
+                    osc1.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+                    osc1.frequency.setValueAtTime(659.25, ctx.currentTime + 0.08); // E5
                     gain1.gain.setValueAtTime(0.2, ctx.currentTime);
                     gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+                    osc1.connect(gain1); gain1.connect(ctx.destination);
+                    osc1.start(); osc1.stop(ctx.currentTime + 0.35);
+                    console.log("🔊 成功播放：叮咚通關音效！");
                     
-                    osc1.connect(gain1);
-                    gain1.connect(ctx.destination);
-                    osc1.start();
-                    osc1.stop(ctx.currentTime + 0.35);
-                    console.log("🔊 [音效系統] 成功播放答對叮咚聲！");
-                    
-                } else if (type === 'wrong') {
-                    // 💥 嗶嗶... 低沉提示聲
+                } else if (type === 'wrong' || type === 'error') {
+                    // 💥 嗶嗶...
                     const osc2 = ctx.createOscillator();
                     const gain2 = ctx.createGain();
-                    osc2.type = 'sawtooth'; // 鋸齒波，聽起來有警示感
-                    
+                    osc2.type = 'sawtooth';
                     osc2.frequency.setValueAtTime(140, ctx.currentTime); 
                     osc2.frequency.linearRampToValueAtTime(90, ctx.currentTime + 0.18);
-                    
                     gain2.gain.setValueAtTime(0.15, ctx.currentTime);
                     gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
-                    
-                    osc2.connect(gain2);
-                    gain2.connect(ctx.destination);
-                    osc2.start();
-                    osc2.stop(ctx.currentTime + 0.2);
-                    console.log("🔊 [音效系統] 成功播放答錯嗶嗶聲！");
+                    osc2.connect(gain2); gain2.connect(ctx.destination);
+                    osc2.start(); osc2.stop(ctx.currentTime + 0.2);
+                    console.log("🔊 成功播放：答錯提示音效！");
                 }
             } catch (e) { 
-                console.warn("⚠️ 音效系統發聲失敗，原因：", e); 
+                console.warn(e); 
             }
         }
         function toggleChatMic() { if(recognition) try { recognition.start(); } catch(e){} }
@@ -7858,97 +7864,78 @@ function setupLessonWord() {
             });
             box.scrollTop = box.scrollHeight; 
         }
+// 🛡️ 發音防連噴鎖：記錄上一次剛剛唸過的單字與時間
+        let lastSpokenText = "";
+        let lastSpokenTime = 0;
 
-// ==========================================================================
-        // 🔊 智慧型語音發音最佳化模組 (優點全方位升級版)
-        // 優點特色：
-        // 1. 真人音質 (Premium Voices)：自動篩選系統內最高階的真人自然語音包（如微軟 Xiaoxiao、Google 自然音）。
-        // 2. 雙語拆開 (Bilingual Detection)：英文用標準美腔、中文用台灣腔，自動偵測中文字，拒絕外星人腔調。
-        // 3. 極速快取防重疊 (Anti-Overlap Cache)：播放前清除排隊語音，隨點隨播，瘋狂連點也絕不卡頓。
-        // 4. 語速調整 (Dynamic Rate Control)：完美支援 rate 參數，當需要慢速特訓時能聽清每個音節。
-        // 5. 鏈式相容 (Callback Chain)：回傳語音物件，完美相容 AI 老師「一句唸完接下一句」的連鎖講解功能。
         // ==========================================================================
-// ==========================================
-        // 🔊 終極發音函數 (破解瀏覽器靜音 Bug 版)
-        // ==========================================
-       function speakText(text, rate = 1.0, lang = 'en-US') {
-    console.log("👉 2. 成功進入 speakText！"); // 👈 加入這行
-    
-    if (!window.speechSynthesis) {
-        console.log("❌ 慘了，瀏覽器找不到 speechSynthesis 語音引擎！"); // 👈 加入這行
-        return;
-    }
-    if (!text) {
-        console.log("❌ 慘了，傳進來的文字是空的！"); // 👈 加入這行
-        return;
-    }
-            // 1. 基礎防呆：沒有語音引擎或沒有文字，直接退出
-            if (!window.speechSynthesis || !text) return;
+        // 🔊 系統自動朗讀單字 (防重覆、防跳針結巴終極版)
+        // ==========================================================================
+        function speakText(text) {
+            if (!text) return;
             
-            // 智慧過濾：消除文字中可能夾帶的 HTML 標籤
-            const cleanedText = text.replace(/<[^>]*>/g, "").trim(); 
-            if (cleanedText === "") return; // 如果清掉標籤後沒字了，也退出
+            const currentTime = Date.now();
+            
+            // 🚨 【核心防洪攔截】：如果跟上一次唸的字一模一樣，且時間差小於 1.5 秒 (1500毫秒)
+            if (text === lastSpokenText && (currentTime - lastSpokenTime < 1500)) {
+                // console.log(`⏳ [發音防洪] 單字 "${text}" 正在連發中，已攔截跳針。`);
+                return;
+            }
+            
+            // 立即鎖定當前的字與時間
+            lastSpokenText = text;
+            lastSpokenTime = currentTime;
 
-            // 2. 停止目前的發音
-            window.speechSynthesis.cancel(); 
+            console.log(`👉 2. 成功進入 speakText！ 🔊 系統正在嘗試發音: [${text}]`);
 
-            // ==========================================
-            // 🚨 破解秘笈 1：用 setTimeout 延遲 50 毫秒！
-            // 讓 cancel() 有時間徹底執行完，才不會「誤殺」接下來的新發音
-            // ==========================================
-            setTimeout(() => {
-                const u = new SpeechSynthesisUtterance(cleanedText);
-                u.rate = rate;
-                
-                let targetLang = lang.toLowerCase().replace('_', '-');
-                
-                // 智慧防錯防外星人腔
-                if (/[\u4e00-\u9fa5]/.test(cleanedText) && targetLang.startsWith('en')) {
-                    targetLang = 'zh-tw';
-                }
-                u.lang = targetLang;
-
-                // 篩選高音質語音
-                const voices = window.speechSynthesis.getVoices();
-                if (voices.length > 0) {
-                    let bestVoice = voices.find(v => 
-                        v.lang.toLowerCase().replace('_', '-') === targetLang && 
-                        (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Premium') || v.name.includes('Microsoft') || v.name.includes('Xiaoxiao'))
-                    );
-                    if (!bestVoice) bestVoice = voices.find(v => v.lang.toLowerCase().replace('_', '-') === targetLang);
-                    if (bestVoice) u.voice = bestVoice;
+            try {
+                // 1. 雙重確保：先強行切斷瀏覽器目前正在「碎碎念」的其他聲音，防止重疊
+                if (window.speechSynthesis) {
+                    window.speechSynthesis.cancel();
                 }
 
-                // ==========================================
-                // 🚨 破解秘笈 2：把準備好的發音存進「全域變數」！
-                // 這是對付 Chrome 的大絕招，防止瀏覽器把發音當作記憶體垃圾清掉
-                // ==========================================
-                window._ttsUtterance = u; 
+                // 2. 建立發音請求
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'en-US';   // 英文美音
+                utterance.rate = 0.85;       // 稍微放慢速度 (0.85倍速聽得更清楚)
+                utterance.pitch = 1.0;       // 正常音調
 
-                // 偵錯用：會在控制台印出它準備要唸什麼字
-                console.log(`🔊 系統正在嘗試發音: [${cleanedText}]`);
+                // 3. 🚨 喚醒防靜音補丁：有些手機需要這行
+                const SpeechContext = window.AudioContext || window.webkitAudioContext;
+                if (SpeechContext) {
+                    const tCtx = new SpeechContext();
+                    if (tCtx.state === 'suspended') tCtx.resume();
+                }
 
-                // 正式發射！
-                window.speechSynthesis.speak(u);
+                // 4. 正式發聲
+                window.speechSynthesis.speak(utterance);
 
-            }, 50); // 延遲 50 毫秒
+            } catch (err) {
+                console.error("❌ [發音系統發生例外]:", err);
+            }
         }
         // 解決部分瀏覽器（如 Chrome/Edge）首次載入時語音包清單非同步延遲的 Bug
         if (window.speechSynthesis && window.speechSynthesis.onvoiceschanged !== undefined) {
             window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
         }
-       // ✨ 補回失蹤功能：口說跟讀模式 (結合 XP獎勵 與 糾錯機制)
+       // ==========================================================================
+        // ✨ 補回失蹤功能：口說跟讀模式 (強制解凍 + 音效名稱精準對齊版)
+        // ==========================================================================
         function startShadowing(word) {
             if (!word) return;
             showToast(`🎙️ 啟動跟讀：${word}`);
         
-            console.log("👉 1. 準備呼叫發音，目前的單字是：", word); // 👈 加入這行
+            console.log("👉 1. 準備呼叫發音，目前的單字是：", word);
+
+            // 🚨 【神級解凍補丁】：玩家用手指點擊麥克風按鈕的當下，立刻強行解凍 iOS/Safari 喇叭防線！
+            if (typeof playAudioEffect === 'function') {
+                playAudioEffect('resume'); 
+            }
 
             speakText(word, 0.9, 'en-US'); // 先播放標準發音
             
             // 1.2 秒後自動觸發麥克風辨識，讓使用者跟著唸
             setTimeout(() => {
-                // 確保你有宣告 recognition (如果原本有全域變數就用原本的，否則建立新的)
                 const SpeechRecog = window.SpeechRecognition || window.webkitSpeechRecognition;
                 if (!window.recognition && SpeechRecog) {
                     window.recognition = new SpeechRecog();
@@ -7957,7 +7944,7 @@ function setupLessonWord() {
 
                 if (window.recognition) {
                     // ==========================================
-                    // 💡 【核心邏輯】：當麥克風聽到聲音，轉換成文字後要做什麼？
+                    // 💡 【核心邏輯】：當麥克風聽到聲音，轉換成文字
                     // ==========================================
                     window.recognition.onresult = function(event) {
                         const userSaid = event.results[0][0].transcript.toLowerCase().trim();
@@ -7977,28 +7964,41 @@ function setupLessonWord() {
                                 userData.gems += gainedGems;
                                 
                                 // 更新畫面數字
-                                document.getElementById('ui-xp').innerText = userData.xp;
-                                document.getElementById('ui-gems').innerText = userData.gems;
+                                if(document.getElementById('ui-xp')) document.getElementById('ui-xp').innerText = userData.xp;
+                                if(document.getElementById('ui-gems')) document.getElementById('ui-gems').innerText = userData.gems;
                                 
                                 // 背景存檔
                                 localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
                             }
-                            // 👇 加上這一行！呼叫智慧排程，偷偷在背景把剛賺到的寶石送去雲端
+                            
                             if (typeof scheduleCloudSync === 'function') scheduleCloudSync();
-                            if (typeof playSound === 'function') playSound('success');
-                            showToast(`✅ 發音完美！ +${gainedXp} XP ⚡  +${gainedGems} 💎`);
+                            
+                            // 🎯 [音效修正]：精準對齊！改呼叫 playAudioEffect，發出清脆叮咚聲！
+                            if (typeof playAudioEffect === 'function') {
+                                playAudioEffect('success');
+                            } else if (typeof playSound === 'function') {
+                                playSound('success');
+                            }
+
+                            showToast(`✅ 發音完美！ +${gainedXp} XP ⚡   +${gainedGems} 💎`);
                             
                         } else {
                             // ❌ 講錯了！跳出殘酷的對比
-                            if (typeof playSound === 'function') playSound('error');
-                            // 用 \n 來換行，讓提示更清楚
+                            
+                            // 🎯 [音效修正]：精準對齊！改呼叫 playAudioEffect，發出低沉嗶嗶聲！
+                            if (typeof playAudioEffect === 'function') {
+                                playAudioEffect('wrong');
+                            } else if (typeof playSound === 'function') {
+                                playSound('error');
+                            }
+
                             showToast(`❌ 發音有點偏差！\n🎯 正確：${word}\n🗣️ 聽到：${userSaid}`);
                         }
                     };
 
                     // 錯誤處理
                     window.recognition.onerror = function(event) {
-                        if (event.error !== 'aborted') { // 忽略使用者自己中斷的錯誤
+                        if (event.error !== 'aborted') {
                             showToast("⚠️ 聽不清楚，請再按一次麥克風試試看！");
                         }
                     };
@@ -8008,7 +8008,6 @@ function setupLessonWord() {
                         window.recognition.start(); 
                         showToast("🎤 請開始跟讀...", false); 
                     } catch(e) {
-                        // 防止重複啟動的異常
                         console.log("麥克風已在運作中");
                     }
                 } else {
