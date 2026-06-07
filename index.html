@@ -8585,6 +8585,57 @@ function setupLessonWord() {
                 lastSyncedIndex = currentIdx;
             }
         }, 3000); // 延遲 3 秒
+        // ==========================================================================
+// 📄 補上失蹤的按鈕函數：點擊「存檔並返回」時觸發 (自動晉級 Google 升級版)
+// ==========================================================================
+function closeReport() {
+    console.log("📥 [存檔並返回] 按鈕被點擊！啟動晉級結算機制...");
+
+    // 1. 智慧判定：抓取目前的關卡與題號
+    let currentUnit = parseInt(localStorage.getItem('duo_last_active_unit')) || 1;
+    let currentIdx = parseInt(localStorage.getItem('duo_last_active_index')) || 0;
+
+    // 💡 核心晉級邏輯：如果他完成了當前關卡的最後一題（例如第 9 題，索引是 8）
+    // 這裡設想你一關有 9 個單字，所以索引 8 代表最後一題
+    if (currentIdx >= 8) { 
+        currentUnit = currentUnit + 1; // 關卡直接 +1 晉級！
+        currentIdx = 0;               // 新關卡從第 0 題（第一格）開始！
+        console.log(`🎉 偵測到通關！自動幫玩家晉級至：第 ${currentUnit} 關，第 1 個單字`);
+        
+        // 強制寫回本機硬碟，防死鎖
+        localStorage.setItem('duo_last_active_unit', currentUnit);
+        localStorage.setItem('duo_last_active_index', currentIdx);
+        
+        if (typeof sessionState !== 'undefined' && sessionState) {
+            sessionState.currentUnit = currentUnit;
+            sessionState.currentIndex = currentIdx;
+        }
+    }
+
+    // 2. 🚨 立刻強制發射！把這包已經「升級完畢」的最新檔案砸上 Google 試算表
+    if (typeof saveToCloudNow === 'function') {
+        saveToCloudNow();
+    } else {
+        console.error("❌ 找不到 saveToCloudNow 函數，無法同步至 Google Sheets！");
+    }
+
+    // 3. 🚨 順利切換回地圖畫面
+    if (typeof switchTab === 'function') {
+        console.log("🗺️ 正在返回蛇形地圖畫面...");
+        switchTab('map');
+        
+        // 💡 晉級大絕招：回到地圖後，強制叫地圖重新畫一次（renderMap）
+        // 這樣玩家一退回大廳，就會看到地圖神奇地解鎖到下一關了！
+        if (typeof renderMap === 'function') {
+            renderMap();
+        }
+        if (typeof updateUI === 'function') {
+            updateUI();
+        }
+    } else {
+        console.warn("⚠️ 找不到 switchTab 函數。");
+    }
+}
         </script>                                    
     <div id="login-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] hidden items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-sm w-full mx-4 shadow-2xl border border-gray-100 dark:border-slate-700 space-y-4">
