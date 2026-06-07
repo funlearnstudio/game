@@ -247,14 +247,19 @@
                     <p class="text-sm font-bold text-gray-400">點擊大頭貼可隨機更換造型</p>
                 </div>
             </div>
-            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800/40 dark:to-slate-700/40 rounded-3xl p-5 border-2 border-dashed border-blue-200 dark:border-slate-700 mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+           <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800/40 dark:to-slate-700/40 rounded-3xl p-5 border-2 border-dashed border-blue-200 dark:border-slate-700 mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div class="text-center sm:text-left">
-                    <h4 class="font-black text-gray-800 dark:text-white text-base"><i class="fa-solid fa-cloud-arrow-up text-secondary mr-1"></i> 多裝置進度同步</h4>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 font-bold mt-0.5">登入專屬帳密，即可跨手機、電腦同步所有單字卡與 XP 紀錄！</p>
+                    <h4 class="font-black text-gray-800 dark:text-white text-base" id="account-title"><i class="fa-solid fa-cloud-arrow-up text-secondary mr-1"></i> 多裝置進度同步</h4>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 font-bold mt-1" id="account-desc">登入專屬帳密，即可跨手機、電腦同步紀錄！</p>
                 </div>
-                <button id="btn-login-trigger" onclick="openLoginModal()" class="btn-3d bg-secondary text-white font-black px-5 py-2.5 shadow-[0_4px_0_#1899d6] text-sm shrink-0">
-                    <i class="fa-solid fa-key mr-1"></i> 帳密登入 / 註冊
-                </button>
+                <div class="flex flex-col gap-2 shrink-0 w-full sm:w-auto">
+                    <button id="btn-login-trigger" onclick="openLoginModal()" class="btn-3d bg-secondary text-white font-black px-5 py-2.5 shadow-[0_4px_0_#1899d6] text-sm w-full">
+                        <i class="fa-solid fa-key mr-1"></i> 帳密登入 / 註冊
+                    </button>
+                    <button id="btn-logout" onclick="handleLogout()" class="hidden btn-3d bg-gray-400 hover:bg-gray-500 text-white font-black px-5 py-2.5 shadow-[0_4px_0_#9ca3af] text-sm w-full">
+                        <i class="fa-solid fa-right-from-bracket mr-1"></i> 登出帳號
+                    </button>
+                </div>
             </div>
             <div class="glass-panel p-5 mb-6">
                 <h3 class="text-lg font-black mb-2 text-gray-800 dark:text-white"><i class="fa-solid fa-trophy text-gold"></i> 聯盟晉升進度 (XP)</h3>
@@ -9486,7 +9491,62 @@ function closeReport() {
         // 綁定在使用者的「第一次」點擊或觸控螢幕上
         document.addEventListener('touchstart', unlockMobileSpeech, { once: true });
         document.addEventListener('click', unlockMobileSpeech, { once: true });
+// ==========================================================================
+        // 🔑 帳號狀態與登入登出系統
+        // ==========================================================================
+        
+        // 1. 更新個人檔案的「帳號顯示」與「按鈕狀態」
+        function updateAccountUI() {
+            // 從 LocalStorage 抓取目前的帳號
+            const currentAccount = localStorage.getItem('duo_unique_user_id');
+            const loginBtn = document.getElementById('btn-login-trigger');
+            const logoutBtn = document.getElementById('btn-logout');
+            const accountTitle = document.getElementById('account-title');
+            const accountDesc = document.getElementById('account-desc');
 
+            // 判斷是否為玩家真實手動輸入的登入帳號 (自動產生的訪客通常叫 user_xxxx)
+            const isRealLogin = currentAccount && !currentAccount.startsWith('user_');
+
+            if (isRealLogin) {
+                // 如果已登入：隱藏登入按鈕，顯示登出按鈕，並顯示帳號名稱
+                if (loginBtn) loginBtn.classList.add('hidden');
+                if (logoutBtn) logoutBtn.classList.remove('hidden');
+                if (accountTitle) accountTitle.innerHTML = `<i class="fa-solid fa-user-check text-primary mr-1"></i> 帳號已綁定`;
+                if (accountDesc) accountDesc.innerHTML = `目前登入：<span class="text-primary font-black text-sm">${currentAccount}</span><br>您的進度已永久綁定至雲端`;
+            } else {
+                // 如果是訪客：顯示登入按鈕，隱藏登出按鈕
+                if (loginBtn) loginBtn.classList.remove('hidden');
+                if (logoutBtn) logoutBtn.classList.add('hidden');
+                if (accountTitle) accountTitle.innerHTML = `<i class="fa-solid fa-cloud-arrow-up text-secondary mr-1"></i> 多裝置進度同步`;
+                if (accountDesc) accountDesc.innerHTML = `登入專屬帳密，即可跨手機、電腦同步紀錄！`;
+            }
+        }
+
+        // 2. 完美登出機制
+        // (注意：如果你之前的程式碼裡已經有一個 function handleLogout()，請用這段覆蓋它！)
+        function handleLogout() {
+            if (confirm("⚠️ 確定要登出目前帳號嗎？\n\n(您的進度已安全保存在雲端。登出後將切換為全新的本地訪客狀態)")) {
+                // 徹底清除本地綁定帳號與快取進度
+                localStorage.removeItem('duo_unique_user_id');
+                localStorage.removeItem('duo_local_user_data');
+                localStorage.removeItem('duo_last_active_unit');
+                localStorage.removeItem('duo_last_active_index');
+                
+                // 強制重新整理，系統就會自動產生一個新的空白訪客 ID 給他
+                location.reload(); 
+            }
+        }
+
+        // 3. 確保每次開啟網頁時，都會檢查一次帳號並顯示在畫面上
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                updateAccountUI();
+            }, 500); // 延遲半秒確保其他資料已讀取完畢
+        });
+
+        // ⚠️ 💡 貼心提醒：
+        // 請確保你的「雲端登入讀取成功」的那個 function (例如 handleLoginSubmit 或 fetch 完資料的地方)，
+        // 成功載入資料後，有呼叫一次 `updateAccountUI();` ，畫面上的帳號就會瞬間變身！
         </script>                                    
     <div id="login-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] hidden items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-sm w-full mx-4 shadow-2xl border border-gray-100 dark:border-slate-700 space-y-4">
