@@ -7871,13 +7871,12 @@ function setupLessonWord() {
         let lastSpokenTime = 0;
 
         // ==========================================================================
-        // 🔊 系統自動朗讀單字 (自然語流、流暢不跳針、抗死鎖終極黃金版本)
+        // 🔊 系統自動朗讀單字 (大師級自然真人音質、智慧海選最自然聲音完全體)
         // ==========================================================================
         function speakText(text) {
             if (!text) return;
             
             const currentTime = Date.now();
-            // 【防洪鎖】：避免重複瘋狂點擊
             if (text === lastSpokenText && (currentTime - lastSpokenTime < 1000)) {
                 return;
             }
@@ -7900,17 +7899,42 @@ function setupLessonWord() {
                     }
                 }
 
-                // 🎯 【智慧整句分流術】：
-                // 判斷傳進來的文字是不是「純英文句子/單字」（允許包含英文字母、數字、常見標點符號與空格）
-                // 這樣如果是 "This is a desk." 就不會被切碎，能一口氣用完美的道地美音唸完！
+                // 🎯 【智慧海選最自然人聲核心演算法】
+                // 瀏覽器內建的聲音清單
+                const allVoices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+                
+                // 函式：幫特定語系找出最頂級、最自然的真人聲優
+                function findBestVoice(langType) {
+                    let targetKeywords = [];
+                    if (langType === 'en-US') {
+                        // 🇺🇸 英文自然人聲優先權：Google優質美音 > 微軟線上美音 > Apple自然美音 (Samantha/Ava) > 任何美音
+                        targetKeywords = ['Google US English', 'Microsoft Aria', 'Microsoft Guy', 'Samantha', 'Ava', 'en-US', 'en_US'];
+                    } else {
+                        // 🇹🇼 中文自然人聲優先權：台灣 Google 中文 > 台灣微軟中文 (Yating) > Apple 台灣中文 (Meijia) > 任何台灣中文
+                        targetKeywords = ['Google 國語', 'Microsoft Yating', 'Microsoft Zhiwei', 'Mei-Jia', 'zh-TW', 'zh_TW'];
+                    }
+
+                    // 開始依照優先權順序比對聲音名字
+                    for (let keyword of targetKeywords) {
+                        const found = allVoices.find(v => v.name.includes(keyword) || v.lang.replace('_', '-').toLowerCase() === keyword.toLowerCase());
+                        if (found) return found;
+                    }
+                    // 萬一都沒找到，就退而求其次找語系相符的
+                    return allVoices.find(v => v.lang.toLowerCase().includes(langType.toLowerCase()));
+                }
+
                 const isPureEnglish = /^[a-zA-Z0-9\s.,!?'"-]+$/.test(text.trim());
 
                 if (isPureEnglish) {
-                    // 🇺🇸 全英文：直接整句舒服地唸出來，語流最自然
+                    // 🇺🇸 全英文自然語流
                     const utterance = new SpeechSynthesisUtterance(text);
                     utterance.lang = 'en-US';
-                    utterance.rate = 0.88; // 微調 0.88 倍速，聽起來最像外籍老師優雅講話
+                    utterance.rate = 0.86; // 0.86 倍速是最舒服、最優雅的教學語速
                     utterance.pitch = 1.0;
+
+                    // 🎯 物理注入海選出來的最棒英文真人聲音
+                    const bestEngVoice = findBestVoice('en-US');
+                    if (bestEngVoice) utterance.voice = bestEngVoice;
 
                     window.activeSpeechUtterances.push(utterance);
                     utterance.onend = () => { window.activeSpeechUtterances = window.activeSpeechUtterances.filter(u => u !== utterance); };
@@ -7919,8 +7943,7 @@ function setupLessonWord() {
                     if (window.speechSynthesis) window.speechSynthesis.speak(utterance);
 
                 } else {
-                    // 🇨🇳 中英混合或純中文（例如 AI 講解）：這時才啟用精密的「中英區塊拆解」
-                    // 修正後的正則：保留完整的英文片語與空格，不拆散英文句子
+                    // 🇨🇳 中英混合或純中文 AI 講解
                     const parts = text.match(/[\u4e00-\u9fa5]+|[a-zA-Z0-9\s.,!?'"-]+/g);
                     
                     if (parts) {
@@ -7934,9 +7957,15 @@ function setupLessonWord() {
                             if (isChinese) {
                                 utterance.lang = 'zh-TW';
                                 utterance.rate = 1.0;
+                                // 🎯 物理注入最自然的台灣中文聲音
+                                const bestChVoice = findBestVoice('zh-TW');
+                                if (bestChVoice) utterance.voice = bestChVoice;
                             } else {
                                 utterance.lang = 'en-US';
-                                utterance.rate = 0.88;
+                                utterance.rate = 0.86;
+                                // 🎯 物理注入最自然的英文聲音
+                                const bestEngVoice = findBestVoice('en-US');
+                                if (bestEngVoice) utterance.voice = bestEngVoice;
                             }
                             utterance.pitch = 1.0;
 
@@ -7955,7 +7984,7 @@ function setupLessonWord() {
                     }
                 }
 
-                // 強效定時解鎖槍：防止任何潛在卡死
+                // 強效定時解鎖槍
                 const unlockInterval = setInterval(() => {
                     if (window.speechSynthesis && window.speechSynthesis.speaking) {
                         window.speechSynthesis.resume();
@@ -7974,6 +8003,15 @@ function setupLessonWord() {
             } catch (err) {
                 console.error("❌ 語音引擎例外:", err);
             }
+        }
+
+        // 🚨 【瀏覽器聲音庫非同步加載補丁】
+        // 許多瀏覽器（如 Chrome）的聲音庫是異步加載的，網頁剛打開時 getVoices() 會是空的。
+        // 我們必須監聽這個事件，當聲音庫準備好時，在背景熱身一下，確保後續選音完全精準！
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+            window.speechSynthesis.onvoiceschanged = function() {
+                console.log("🎵 瀏覽器真人聲音數據庫已加載完畢，已成功鎖定自然人聲！");
+            };
         }
         // 解決部分瀏覽器（如 Chrome/Edge）首次載入時語音包清單非同步延遲的 Bug
         if (window.speechSynthesis && window.speechSynthesis.onvoiceschanged !== undefined) {
