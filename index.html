@@ -7335,47 +7335,66 @@ window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbyXmL3vHlSlqKRhKgz
                 }, 400);
             }
         }
-        // ==========================================
-        // 🧠 6. 單字學習與測驗模組（無彈窗設計）
-        // ==========================================
-       function startUnitSession(unitId) {
+      // ==========================================================================
+        // 🧠 6. 單字學習與測驗模組（複習防火牆防倒退優化版）
+        // ==========================================================================
+        function startUnitSession(unitId) {
             if(userData.hearts <= 0) { showToast("❤️ 生命值不足！請前往商店補充生命值。", true); return; }
             const words = vocabularyDB.filter(w => w.unit === unitId);
             if(words.length === 0) { showToast(`⚠️ 單元 ${unitId} 目前無單字資料`, true); return; }
 
-            // ==========================================
-            // 🛑 【關鍵修復】：去硬碟尋找歷史進度，不要再無腦歸零了！
-            // ==========================================
-            let targetIndex = 0; // 預設為第 1 個字 (index 0)
+            // 🎯 抓取雲端與硬碟目前真正的「最高歷史通關關卡」
+            let highestUnit = parseInt(localStorage.getItem('duo_last_active_unit')) || 
+                               (typeof userData !== 'undefined' ? (userData.lastUnit || userData.unlockedUnit) : 1) || 1;
+
+            let targetIndex = 0; 
             
             let unitSave = localStorage.getItem(`mid_save_unit_${unitId}`);
             let globalUnit = localStorage.getItem(`duo_last_active_unit`);
             let globalIdx = localStorage.getItem(`duo_last_active_index`);
 
-            // 優先讀取這關的專屬進度，其次讀取全域進度
-            if (unitSave !== null) {
-                targetIndex = parseInt(unitSave);
-            } else if (globalUnit == unitId && globalIdx !== null) {
-                targetIndex = parseInt(globalIdx);
+            // 🚨 [核心防火牆 1]：判定目前是「正常挑戰最新關卡」還是「點回舊關卡複習」
+            if (unitId < highestUnit) {
+                console.log(`👀 [唯讀複習模式] 玩家點回舊單元 ${unitId}（目前最高單元 ${highestUnit}）。啟動保護鎖！`);
+                window.isReviewingOldUnit = true; // 🔒 鎖定！不准上傳、不准改寫最高紀錄
+                
+                // 複習模式一律從第 1 個單字 (index 0) 開始重看，不認之前的專屬殘留進度
+                targetIndex = 0; 
+            } else {
+                console.log(`⚔️ [挑戰模式] 玩家進入當前最新單元 ${unitId}。`);
+                window.isReviewingOldUnit = false; // 🔓 解鎖正常挑戰
+
+                // 只有在挑戰最新進度時，才讀取歷史紀錄
+                if (unitSave !== null) {
+                    targetIndex = parseInt(unitSave);
+                } else if (globalUnit == unitId && globalIdx !== null) {
+                    targetIndex = parseInt(globalIdx);
+                }
+
+                // 防呆機制
+                if (targetIndex >= words.length) {
+                    targetIndex = 0;
+                }
             }
 
-            // 防呆機制：如果上次已經背完這關了，就自動從 0 重新開始
-            if (targetIndex >= words.length) {
-                targetIndex = 0;
-            }
-
-            // 💡 替換 sessionState：改用 targetIndex，並補上關卡編號讓存檔系統抓得到！
+            // 💡 寫入遊戲運行核心
             sessionState = { 
                 mode: 'learn', 
-                unit: unitId,           // 新增：讓存檔系統知道現在是哪關
-                currentUnit: unitId,    // 新增：雙重保險
+                unit: unitId,           
+                currentUnit: unitId,    
                 currentWords: [...words], 
-                currentIndex: targetIndex, // 🟢 這裡換成智慧讀取的進度！
+                currentIndex: targetIndex, 
                 wrongCount: 0, 
                 score: 0 
             };
             
-            window.isLearningActive = true; // 🟢 解開存檔的安全鎖！
+            // 🚨 [核心防火牆 2]：如果是複習舊關卡，不要開啟存檔鎖，防止定時器亂存！
+            if (window.isReviewingOldUnit === true) {
+                window.isLearningActive = false; // 🔒 關閉存檔安全鎖
+            } else {
+                window.isLearningActive = true;  // 🔓 只有正常挑戰才開啟存檔鎖
+            }
+
             switchTab('lesson');
             setupLessonWord();
         }
