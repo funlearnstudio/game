@@ -7105,21 +7105,21 @@ window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbyXmL3vHlSlqKRhKgz
       // ==========================================================================
         // ☁️ 雲端資料讀取器 (進網頁時強行從 Google Sheets 撈回進度 - 融入 init 優化版)
         // ==========================================================================
+        // ==========================================================================
+        // ☁️ 雲端資料讀取器 (物理斷後、防鬼打牆覆蓋版)
+        // ==========================================================================
         async function loadFromCloudNow() {
-            // 💡 [強力補丁 1] 確保網址絕對正確
             if (!window.GAS_API_URL || window.GAS_API_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
                 window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbyXmL3vHlSlqKRhKgzCCShpAVKceCwDSzH3yORQjkEgoXvKcW6eDoCoHJvt_6LWRvHA/exec";
             }
 
-            // 💡 [強力補丁 2] 雙重對齊相容：同時撈取全域 myUserId 與 window.myUserId
             const currentId = window.myUserId || (typeof myUserId !== 'undefined' ? myUserId : null) || localStorage.getItem('duo_username');
             
             if (!currentId) {
-                console.log("ℹ️ [雲端讀取] 找不到任何使用者 ID，判定為全新剛註冊玩家，跳過雲端載入。");
+                console.log("ℹ️ [雲端讀取] 找不到使用者 ID，跳過雲端載入。");
                 return;
             }
 
-            // 把挖出來的正確 ID 強制塞回全域，確保接下來整個網頁都認識
             window.myUserId = currentId;
             if (typeof myUserId !== 'undefined') myUserId = currentId;
 
@@ -7132,39 +7132,50 @@ window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbyXmL3vHlSlqKRhKgz
 
                 const cloudData = await response.json();
                 
-                // 🚨 核心關鍵：如果雲端有這張試算表資料
                 if (cloudData && cloudData.status !== "not_found" && !cloudData.status?.includes("error")) {
-                    console.log("📦 [雲端讀取] 成功拿到雲端行李箱資料：", cloudData);
+                    console.log("📦 [雲端讀取] 成功拿到雲端原始行李箱：", cloudData);
 
-                    // 1. 強制將整包雲端 JSON 物件，完全塞進網頁現有的全域 userData 裡面！
-                    if (typeof userData !== 'undefined' && userData) {
-                        // 物理強力覆蓋，這會直接改變記憶體中的資料
-                        Object.assign(userData, cloudData); 
+                    // 🚨 核心保險：如果雲端拿回來的資料是包在某個屬性裡，或者是整包，我們做個防呆
+                    let targetData = cloudData;
+                    
+                    // 1. 物理強制覆蓋全域的 userData 變數！
+                    if (typeof userData !== 'undefined') {
+                        // 先把原本的舊東西清空，防止舊的垃圾殘留
+                        for (let key in userData) { delete userData[key]; }
+                        // 把雲端的最新資料完整注入進去
+                        Object.assign(userData, targetData); 
                     } else {
-                        userData = cloudData;
+                        userData = targetData;
                     }
+                    window.userData = userData; // 雙重全域綁定
 
-                    // 2. 解析進度題號與關卡，並強制寫入 LocalStorage
-                    const cloudUnit = cloudData.lastUnit || (cloudData.currentProgress ? Object.keys(cloudData.currentProgress).length : 1);
-                    const cloudIdx = cloudData.lastIdx !== undefined ? cloudData.lastIdx : 0;
+                    // 2. 解析最新進度
+                    const cloudUnit = parseInt(targetData.lastUnit) || (targetData.currentProgress ? Object.keys(targetData.currentProgress).length : 1);
+                    const cloudIdx = targetData.lastIdx !== undefined ? parseInt(targetData.lastIdx) : 0;
 
-                    console.log(`🎯 [雲端同步成功] 正在將網站強制恢復至：第 ${cloudUnit} 關，第 ${cloudIdx + 1} 個單字！`);
+                    console.log(`🎯 [雲端同步成功] 強制刷新網頁核心記憶至：第 ${cloudUnit} 關，第 ${cloudIdx + 1} 個單字！`);
 
+                    // 3. 🚨 物理切斷舊快取！立刻更新所有可能被「存檔定時器」讀取的本機快取
                     localStorage.setItem('duo_last_active_unit', cloudUnit);
                     localStorage.setItem('duo_last_active_index', cloudIdx);
-                    
-                    // 同步寫入當前的 localUserData 本機快取，雙重保險
-                    localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
+                    localStorage.setItem('duo_local_user_data', JSON.stringify(userData)); // 🔥 這行最重要！防止別的函數去讀舊的 local 快取
 
-                    // 3. 物理修改遊戲當前執行中的 session 狀態（如果有這個變數的話）
+                    // 4. 對齊遊戲當前執行中的 session 狀態與定時器的基準點
                     if (typeof sessionState !== 'undefined' && sessionState) {
-                        sessionState.currentUnit = parseInt(cloudUnit);
-                        sessionState.currentIndex = parseInt(cloudIdx);
+                        sessionState.currentUnit = cloudUnit;
+                        sessionState.currentIndex = cloudIdx;
+                    }
+                    
+                    // 💡 同步更新定時器的「上一次同步基準點」，防止它一進網頁就誤判有變動而亂存檔！
+                    if (typeof lastSyncedIndex !== 'undefined') {
+                        lastSyncedIndex = cloudIdx;
+                        lastSyncedXp = userData.xp || 0;
+                        lastSyncedGems = userData.gems || 0;
                     }
 
-                    console.log("✅ [雲端同步成功] 記憶體與本機緩存已全部覆寫為雲端最新狀態！");
+                    console.log("✅ [雲端同步成功] 本機所有地雷快取已清理完畢，核心已完全對齊雲端！");
                 } else {
-                    console.log("ℹ️ [雲端讀取] 雲端目前無此玩家紀錄，將採用本機全新資料開始遊戲。");
+                    console.log("ℹ️ [雲端讀取] 雲端無此玩家紀錄，使用本機初始狀態。");
                 }
             } catch (err) {
                 console.error("❌ [雲端讀取] 讀取失敗，原因：", err);
@@ -8510,17 +8521,22 @@ function setupLessonWord() {
         setInterval(() => {
             if (typeof userData === 'undefined') return;
 
+            // 智慧定時存檔機內部抓取最新進度的方法：
             let currentIdx = 0;
             let currentU = 1;
             
+            // 優先從全域的遊戲控制核心撈（最不容易出錯！）
             if (typeof sessionState !== 'undefined' && sessionState.currentIndex !== undefined) {
                 currentIdx = sessionState.currentIndex;
                 currentU = sessionState.currentUnit || 1;
+            } else if (typeof userData !== 'undefined' && userData.lastIdx !== undefined) {
+                currentIdx = userData.lastIdx;
+                currentU = userData.lastUnit || 1;
             } else {
+                // 逼不得已才看硬碟
                 currentIdx = parseInt(localStorage.getItem('duo_last_active_index')) || 0;
                 currentU = parseInt(localStorage.getItem('duo_last_active_unit')) || 1;
             }
-
             userData.lastUnit = currentU;
             userData.lastIdx = currentIdx;
 
