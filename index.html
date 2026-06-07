@@ -8024,7 +8024,36 @@ function setupLessonWord() {
         }
 
         function handleStoryWord(el, en, zh) { speakText(en, 1.0); showToast(`${en} : ${zh}`); }
-        function buyItem(type, cost) { if(userData.gems >= cost) { userData.gems -= cost; if(type==='heart')userData.hearts=5; showToast("🛒 購買成功！生命值已補滿。"); saveToCloud(); updateUI(); } else showToast("❌ 身上寶石數量不夠喔！", true); }
+      function buyItem(type, cost) { 
+    if(userData.gems >= cost) { 
+        userData.gems -= cost; 
+
+        if(type === 'heart') {
+            userData.hearts = 5; 
+            showToast("🛒 滿血復活！繼續挑戰！");
+        } else {
+            showToast("🛒 購買成功！");
+        }
+        
+        saveToCloud(); 
+        updateUI(); 
+
+        // ==========================================
+        // 🚨 復活神蹟：買完愛心後，強制在原地重畫當前的題目！
+        // ==========================================
+        if (type === 'heart' && typeof sessionState !== 'undefined' && sessionState.currentIndex !== undefined) {
+            console.log(`🔄 觸發原地復活，強制停留在第 ${sessionState.currentIndex + 1} 題！`);
+            
+            // 呼叫你的出題函數，把剛剛的畫面重新叫出來
+            if (typeof setupLessonWord === 'function') {
+                setupLessonWord();
+            }
+        }
+
+    } else {
+        showToast("❌ 身上寶石數量不夠喔！", true); 
+    }
+}
         function renderStoryTab() { const list = document.getElementById('story-list'); if(list) list.innerHTML = storiesDB.map(s => `<div class="bg-white dark:bg-slate-800 p-5 rounded-3xl mb-4 border"><h3 class="font-black dark:text-white"><i class="fa-solid fa-book"></i> ${s.title}</h3><p class="mt-2 font-bold dark:text-gray-300">${s.content}</p><details class="mt-2 text-xs text-gray-500"><summary>翻譯</summary><p>${s.translation}</p></details></div>`).join(''); }
         function renderDictionary(type) { const c = document.getElementById('dict-container'); if(c) { let l = type === 'wrong' ? vocabularyDB.filter(w=>userData.wrongWords.includes(w.word)) : vocabularyDB; c.innerHTML = l.slice(0,30).map(w => `<div class="bg-white dark:bg-slate-800 p-4 rounded-2xl flex justify-between items-center mb-2"><div><span class="text-xs bg-gray-100 px-2 rounded-md font-bold">Unit ${w.unit}</span><h4 class="text-lg font-black dark:text-white mt-1">${w.word}</h4><p class="text-sm font-bold text-secondary">${w.meaning}</p></div><button onclick="speakText('${w.word}')" class="w-10 h-10 rounded-xl bg-gray-100"><i class="fa-solid fa-volume-high"></i></button></div>`).join(''); } }
         function renderAchievements() { const c = document.getElementById('achievements-container'); if(c) { c.innerHTML = `<div class="p-4 rounded-2xl border-2 dark:bg-slate-800"><h4 class="font-black dark:text-white">初露鋒芒 ${userData.xp>=100?'✅':'🔒'}</h4></div>`; } }
