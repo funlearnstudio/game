@@ -7099,37 +7099,77 @@ window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbyXmL3vHlSlqKRhKgz
             await saveToCloudNow();
         }
 
-       async function loadFromCloudNow() {
-            if (!GAS_API_URL || GAS_API_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
-                updateSyncStatus(false, "僅本機"); return;
+      // ==========================================================================
+        // ☁️ 雲端資料讀取器 (進網頁時強行從 Google Sheets 撈回進度)
+        // ==========================================================================
+      // ==========================================================================
+        // ☁️ 雲端資料讀取器 (進網頁時強行從 Google Sheets 撈回進度 - 融入 init 優化版)
+        // ==========================================================================
+        async function loadFromCloudNow() {
+            // 💡 [強力補丁 1] 確保網址絕對正確
+            if (!window.GAS_API_URL || window.GAS_API_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
+                window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbyXmL3vHlSlqKRhKgzCCShpAVKceCwDSzH3yORQjkEgoXvKcW6eDoCoHJvt_6LWRvHA/exec";
             }
+
+            // 💡 [強力補丁 2] 雙重對齊相容：同時撈取全域 myUserId 與 window.myUserId
+            const currentId = window.myUserId || (typeof myUserId !== 'undefined' ? myUserId : null) || localStorage.getItem('duo_username');
+            
+            if (!currentId) {
+                console.log("ℹ️ [雲端讀取] 找不到任何使用者 ID，判定為全新剛註冊玩家，跳過雲端載入。");
+                return;
+            }
+
+            // 把挖出來的正確 ID 強制塞回全域，確保接下來整個網頁都認識
+            window.myUserId = currentId;
+            if (typeof myUserId !== 'undefined') myUserId = currentId;
+
+            const requestUrl = `${window.GAS_API_URL}?action=getUserData&userId=${encodeURIComponent(currentId)}&_ts=${Date.now()}`;
+            console.log(`🔍 [雲端讀取] 正在從 Google Sheets 撈取 [${currentId}] 的雲端備份...`);
+
             try {
-                document.getElementById('loading-overlay')?.classList.remove('hidden');
+                const response = await fetch(requestUrl, { method: "GET" });
+                if (!response.ok) throw new Error("網路請求失敗");
+
+                const cloudData = await response.json();
                 
-                // 加上隨機時間參數，防止瀏覽器快取舊資料
-                const url = `${GAS_API_URL}?action=getUserData&userId=${encodeURIComponent(myUserId)}&_ts=${Date.now()}`;
-                
-                const res = await fetch(url, { 
-                    method: "GET",
-                    // 移除 mode: "cors"，讓瀏覽器改用最寬鬆的預設相容模式讀取 Google 資料
-                });
-                
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data && !data.status) { 
-                        userData = data;
-                        localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
-                        updateSyncStatus(true, "已連線");
+                // 🚨 核心關鍵：如果雲端有這張試算表資料
+                if (cloudData && cloudData.status !== "not_found" && !cloudData.status?.includes("error")) {
+                    console.log("📦 [雲端讀取] 成功拿到雲端行李箱資料：", cloudData);
+
+                    // 1. 強制將整包雲端 JSON 物件，完全塞進網頁現有的全域 userData 裡面！
+                    if (typeof userData !== 'undefined' && userData) {
+                        // 物理強力覆蓋，這會直接改變記憶體中的資料
+                        Object.assign(userData, cloudData); 
+                    } else {
+                        userData = cloudData;
                     }
+
+                    // 2. 解析進度題號與關卡，並強制寫入 LocalStorage
+                    const cloudUnit = cloudData.lastUnit || (cloudData.currentProgress ? Object.keys(cloudData.currentProgress).length : 1);
+                    const cloudIdx = cloudData.lastIdx !== undefined ? cloudData.lastIdx : 0;
+
+                    console.log(`🎯 [雲端同步成功] 正在將網站強制恢復至：第 ${cloudUnit} 關，第 ${cloudIdx + 1} 個單字！`);
+
+                    localStorage.setItem('duo_last_active_unit', cloudUnit);
+                    localStorage.setItem('duo_last_active_index', cloudIdx);
+                    
+                    // 同步寫入當前的 localUserData 本機快取，雙重保險
+                    localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
+
+                    // 3. 物理修改遊戲當前執行中的 session 狀態（如果有這個變數的話）
+                    if (typeof sessionState !== 'undefined' && sessionState) {
+                        sessionState.currentUnit = parseInt(cloudUnit);
+                        sessionState.currentIndex = parseInt(cloudIdx);
+                    }
+
+                    console.log("✅ [雲端同步成功] 記憶體與本機緩存已全部覆寫為雲端最新狀態！");
+                } else {
+                    console.log("ℹ️ [雲端讀取] 雲端目前無此玩家紀錄，將採用本機全新資料開始遊戲。");
                 }
-            } catch (e) {
-                console.error("雲端讀取失敗:", e);
-                updateSyncStatus(false, "離線模式");
-            } finally {
-                document.getElementById('loading-overlay')?.classList.add('hidden');
+            } catch (err) {
+                console.error("❌ [雲端讀取] 讀取失敗，原因：", err);
             }
         }
-
         function saveToCloud() {
             localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
             updateSyncStatus(false, "同步中...");
