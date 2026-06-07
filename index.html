@@ -7248,6 +7248,22 @@ window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbyXmL3vHlSlqKRhKgz
             if (!container) return;
             container.innerHTML = '';
 
+            // ==========================================================================
+            // 🚨 [強力地圖指針補丁]：強制將地圖認的UnlockedUnit與雲端同步的lastUnit對齊！
+            // ==========================================================================
+            // 優先看雲端撈回來/硬碟存的最新 lastUnit，如果都沒有才認原本的 unlockedUnit 
+            let currentActiveUnit = parseInt(localStorage.getItem('duo_last_active_unit')) || 
+                                    (typeof userData !== 'undefined' ? (userData.lastUnit || userData.unlockedUnit) : 1) || 1;
+            
+            // 雙重防呆：把最新的關卡數據，同步寫回 userData 的所有分身欄位，防止其他地方漏接
+            if (typeof userData !== 'undefined' && userData) {
+                userData.lastUnit = currentActiveUnit;
+                userData.unlockedUnit = currentActiveUnit; // 🔥 順便把原本的變數也填滿！
+            }
+
+            console.log(`🎨 [地圖重新渲染] 正在依據雲端指標繪製地圖：當前處於第 ${currentActiveUnit} 單元`);
+            // ==========================================================================
+
             const mapWrapper = document.createElement('div');
             mapWrapper.className = "relative flex flex-col items-center w-full py-12 max-w-md mx-auto min-h-screen select-none pb-32";
             
@@ -7275,7 +7291,9 @@ window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbyXmL3vHlSlqKRhKgz
                 nodeRow.className = "w-full flex justify-center my-5 z-10 relative h-16";
                 
                 const node = document.createElement('div');
-                let statusClass = i < userData.unlockedUnit ? 'completed' : (i === userData.unlockedUnit ? 'current' : 'locked');
+                
+                // 🎯 [核心修正]：判斷狀態時，改用我們剛剛對齊完畢的 currentActiveUnit！
+                let statusClass = i < currentActiveUnit ? 'completed' : (i === currentActiveUnit ? 'current' : 'locked');
                 
                 let waveX = Math.sin(i * 0.9) * 55; 
                 node.style.transform = `translateX(${waveX}px)`;
@@ -7299,6 +7317,7 @@ window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbyXmL3vHlSlqKRhKgz
                 }
 
                 if (statusClass !== 'locked') {
+                    // 🎯 這裡點擊進去時，帶入的 i 就會是正確的最新關卡（例如 2）了！
                     node.onclick = () => startUnitSession(i);
                 } else {
                     node.onclick = () => showToast(`🔒 單元 ${i} 尚未開放，請先挑戰前方關卡！`, false);
@@ -7316,7 +7335,6 @@ window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbyXmL3vHlSlqKRhKgz
                 }, 400);
             }
         }
-
         // ==========================================
         // 🧠 6. 單字學習與測驗模組（無彈窗設計）
         // ==========================================
@@ -8619,21 +8637,21 @@ function closeReport() {
         console.error("❌ 找不到 saveToCloudNow 函數，無法同步至 Google Sheets！");
     }
 
-    // 3. 🚨 順利切換回地圖畫面
+   // 3. 🚨 順利切換回地圖畫面 (強力洗牌更新版)
     if (typeof switchTab === 'function') {
-        console.log("🗺️ 正在返回蛇形地圖畫面...");
-        switchTab('map');
+        console.log("🗺️ 正在返回蛇形地圖畫面並強力重新渲染關卡...");
         
-        // 💡 晉級大絕招：回到地圖後，強制叫地圖重新畫一次（renderMap）
-        // 這樣玩家一退回大廳，就會看到地圖神奇地解鎖到下一關了！
+        // 💡 物理強制清空本機快取地圖的殘留，讓它一定要重新讀取新變數
         if (typeof renderMap === 'function') {
-            renderMap();
+            // 在畫地圖前，雙重確保全域的 userData 或是本機 LocalStorage 是最新晉級後的狀態
+            renderMap(); 
         }
+        
+        switchTab('map'); // 切換回地圖
+
         if (typeof updateUI === 'function') {
             updateUI();
         }
-    } else {
-        console.warn("⚠️ 找不到 switchTab 函數。");
     }
 }
         </script>                                    
