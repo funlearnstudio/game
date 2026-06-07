@@ -7136,28 +7136,6 @@
             clearTimeout(saveToCloudTimer);
             saveToCloudTimer = setTimeout(saveToCloudNow, 1500);
         }
-
-       async function saveToCloudNow() {
-            if (!GAS_API_URL || GAS_API_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
-                updateSyncStatus(false, "僅本機"); return;
-            }
-            try {
-                // 🚀 關鍵修改：使用 no-cors 與 text/plain 繞過瀏覽器的 CORS 預檢攔截
-                const res = await fetch(GAS_API_URL, {
-                    method: "POST", 
-                    mode: "no-cors", // 👈 強制設定為 no-cors
-                    headers: { "Content-Type": "text/plain;charset=utf-8" },
-                    body: JSON.stringify({ action: "saveUserData", userId: myUserId, userData: userData })
-                });
-
-                // 💡 注意：在 no-cors 模式下，res.status 會回傳 0，res.ok 會是 false，這代表進度「已經成功強行送出」！
-                updateSyncStatus(true, "已同步");
-                
-            } catch (e) {
-                console.error("同步上傳失敗:", e);
-                updateSyncStatus(false, "連線失敗");
-            }
-        }
         // ==========================================
         // ⏳ 智慧存檔排程器 (防止短時間內瘋狂傳送給 Google)
         // ==========================================
@@ -8212,35 +8190,7 @@ function setupLessonWord() {
             }
         }
 
-        // ☁️ 雲端同步發射器 (相容新版 GAS，每看一字自動背景靜音發送，不卡網頁)
-        async function saveToCloudNow() {
-            if (!window.GAS_API_URL || window.GAS_API_URL.includes("YOUR_GOOGLE_APPS_SCRIPT") || !window.myUserId) return;
-
-            try {
-                const currentUnit = localStorage.getItem(`duo_last_active_unit`) || 1;
-                const currentIndex = localStorage.getItem(`duo_last_active_index`) || 0;
-
-                const payload = {
-                    action: "saveUserData",
-                    userId: window.myUserId,
-                    userData: window.userData || {}, 
-                    lastUnit: parseInt(currentUnit),
-                    lastIdx: parseInt(currentIndex)
-                };
-
-                fetch(window.GAS_API_URL, {
-                    method: "POST",
-                    mode: "cors",
-                    headers: { "Content-Type": "text/plain;charset=utf-8" },
-                    body: JSON.stringify(payload)
-                }).then(res => {
-                    if(res.ok) console.log("☁️ [雲端存檔] 進度已成功同步至 GAS 試算表中心！");
-                });
-            } catch (e) {
-                console.error("雲端同步失敗:", e);
-            }
-        }
-
+     
         // 🤖 【雲端級別·終極開機還原機器人】
         // 說明：每 0.1 秒死纏爛打檢查一次，只要開機完成，立刻強制還原至上次「關閉網頁前」的最新雲端/本地單字畫面！
         (function() {
@@ -8441,18 +8391,67 @@ function setupLessonWord() {
                 }
             }, 100);
         })();
-// ==========================================
-        // ☁️ 智慧定時存檔機 (每 60 秒檢查與同步)
+        // ==========================================
+        // ☁️ 1. 雲端同步發射器 (精準修正 CORS 穿透版)
+        // ==========================================
+        async function saveToCloudNow() {
+            if (!window.GAS_API_URL || window.GAS_API_URL.includes("YOUR_GOOGLE_APPS_SCRIPT") || !window.myUserId) {
+                console.warn("⚠️ [雲端存檔] 偵測到 API 網址尚未設定，或使用者 ID 缺失，跳過同步。");
+                return;
+            }
+
+            try {
+                const currentUnit = localStorage.getItem(`duo_last_active_unit`) || 1;
+                const currentIndex = localStorage.getItem(`duo_last_active_index`) || 0;
+
+                // 💡 雙重確保：把目前的最新進度，也塞進 window.userData 物件裡打包
+                if (typeof userData !== 'undefined' && userData && typeof userData === 'object') {
+                    userData.lastUnit = parseInt(currentUnit);
+                    userData.lastIdx = parseInt(currentIndex);
+                } else if (window.userData && typeof window.userData === 'object') {
+                    window.userData.lastUnit = parseInt(currentUnit);
+                    window.userData.lastIdx = parseInt(currentIndex);
+                }
+
+                const payload = {
+                    action: "saveUserData",
+                    userId: window.myUserId,
+                    userData: typeof userData !== 'undefined' ? userData : (window.userData || {}), 
+                    lastUnit: parseInt(currentUnit),
+                    lastIdx: parseInt(currentIndex)
+                };
+
+                console.log("🚀 [雲端存檔] 正在強制發射資料到 GAS...", payload);
+
+                // 🎯 核心修正：將 mode 改為 'no-cors'，這是穿透 GAS 限制的唯一解法！
+                fetch(window.GAS_API_URL, {
+                    method: "POST",
+                    mode: "no-cors", 
+                    headers: { 
+                        "Content-Type": "text/plain;charset=utf-8" 
+                    },
+                    body: JSON.stringify(payload)
+                }).then(() => {
+                    console.log("✅ [雲端存檔] 訊號已成功射出！請查看試算表 [工作表1] 是否有更新！");
+                }).catch(fetchErr => {
+                    console.error("❌ [雲端存檔] Fetch 發送過程被瀏覽器阻擋:", fetchErr);
+                });
+
+            } catch (e) {
+                console.error("❌ [雲端存檔] 執行發生例外錯誤:", e);
+            }
+        }
+
+        // ==========================================
+        // ☁️ 2. 智慧定時存檔機 (每 60 秒檢查與同步)
         // ==========================================
         let lastSyncedXp = -1; 
         let lastSyncedGems = -1;
         let lastSyncedIndex = -1;
 
         setInterval(() => {
-            // 防呆：確保玩家基本資料存在
             if (typeof userData === 'undefined') return;
 
-            // 1. 抓取目前的題號與關卡 (如果不在遊戲中，就從本機硬碟抓)
             let currentIdx = 0;
             let currentU = 1;
             
@@ -8464,45 +8463,32 @@ function setupLessonWord() {
                 currentU = parseInt(localStorage.getItem('duo_last_active_unit')) || 1;
             }
 
-            // 🚨 核心修復：強制把目前的關卡和題號，綁定到 userData 上！
-            // 這樣傳送到 Google 時，進度才會跟著飛上去！
             userData.lastUnit = currentU;
             userData.lastIdx = currentIdx;
 
-            // 2. 智慧比對：有改變才上傳
+            // 智慧比對：有改變才上傳
             if (userData.xp !== lastSyncedXp || 
                 userData.gems !== lastSyncedGems || 
                 currentIdx !== lastSyncedIndex) {
                 
                 console.log(`☁️ [60秒同步] 發現進度變更！準備上傳: ${currentU}關 - 第${currentIdx + 1}題`);
                 
-                // 3. 呼叫你的存檔函數 (支援兩種常見命名)
-                if (typeof saveToCloud === 'function') {
-                    saveToCloud();
-                } else if (typeof scheduleCloudSync === 'function') {
-                    scheduleCloudSync();
-                } else {
-                    console.log("❌ 找不到存檔函數，請確認你的上傳函數名稱是否叫 saveToCloud！");
-                }
+                // 🎯 核心修正：精準呼叫對應的 saveToCloudNow() 函數
+                saveToCloudNow();
 
-                // 4. 更新紀錄點
                 lastSyncedXp = userData.xp;
                 lastSyncedGems = userData.gems;
                 lastSyncedIndex = currentIdx;
-            } else {
-                // 沒改變時，印出這行方便你確認定時器活著
-                // console.log("☁️ [60秒同步] 狀態無變更，跳過上傳。"); 
             }
-        }, 60000); // 60000 毫秒 = 60 秒
+        }, 60000); // 每 60 秒
+
         // ==========================================
-        // 🚀 開局強制存檔 (進網頁 3 秒後自動觸發一次)
+        // 🚀 3. 開局強制存檔 (進網頁 3 秒後自動觸發一次)
         // ==========================================
         setTimeout(() => {
-            // 防呆：確認玩家資料已經順利載入，不是空殼
             if (typeof userData !== 'undefined') {
                 console.log("🚀 [開局存檔] 玩家載入完成，執行第一次強制雲端同步！");
 
-                // 1. 抓取目前的進度 (優先看目前狀態，沒有就去硬碟撈)
                 let currentIdx = 0;
                 let currentU = 1;
                 
@@ -8514,25 +8500,17 @@ function setupLessonWord() {
                     currentU = parseInt(localStorage.getItem('duo_last_active_unit')) || 1;
                 }
 
-                // 2. 把進度死死綁在行李箱 (userData) 上
                 userData.lastUnit = currentU;
                 userData.lastIdx = currentIdx;
 
-                // 3. 呼叫存檔發射！
-                if (typeof saveToCloud === 'function') {
-                    saveToCloud();
-                } else if (typeof scheduleCloudSync === 'function') {
-                    scheduleCloudSync();
-                }
+                // 🎯 核心修正：精準呼叫對應的 saveToCloudNow() 函數
+                saveToCloudNow();
                 
-                // 順便把 60 秒定時器的比對基準更新，避免下一秒又重複傳
-                if (typeof lastSyncedXp !== 'undefined') {
-                    lastSyncedXp = userData.xp;
-                    lastSyncedGems = userData.gems;
-                    lastSyncedIndex = currentIdx;
-                }
+                lastSyncedXp = userData.xp;
+                lastSyncedGems = userData.gems;
+                lastSyncedIndex = currentIdx;
             }
-        }, 3000); // 延遲 3000 毫秒 (3 秒)，確保資料庫載入完畢才執行
+        }, 3000); // 延遲 3 秒
         </script>                                    
     <div id="login-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] hidden items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-sm w-full mx-4 shadow-2xl border border-gray-100 dark:border-slate-700 space-y-4">
