@@ -7690,7 +7690,17 @@ function setupLessonWord() {
 // ==========================================
         // 🔊 終極發音函數 (破解瀏覽器靜音 Bug 版)
         // ==========================================
-        function speakText(text, rate = 1.0, lang = 'en-US') {
+       function speakText(text, rate = 1.0, lang = 'en-US') {
+    console.log("👉 2. 成功進入 speakText！"); // 👈 加入這行
+    
+    if (!window.speechSynthesis) {
+        console.log("❌ 慘了，瀏覽器找不到 speechSynthesis 語音引擎！"); // 👈 加入這行
+        return;
+    }
+    if (!text) {
+        console.log("❌ 慘了，傳進來的文字是空的！"); // 👈 加入這行
+        return;
+    }
             // 1. 基礎防呆：沒有語音引擎或沒有文字，直接退出
             if (!window.speechSynthesis || !text) return;
             
@@ -7750,6 +7760,9 @@ function setupLessonWord() {
         function startShadowing(word) {
             if (!word) return;
             showToast(`🎙️ 啟動跟讀：${word}`);
+        
+            console.log("👉 1. 準備呼叫發音，目前的單字是：", word); // 👈 加入這行
+
             speakText(word, 0.9, 'en-US'); // 先播放標準發音
             
             // 1.2 秒後自動觸發麥克風辨識，讓使用者跟著唸
