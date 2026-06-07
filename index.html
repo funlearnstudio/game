@@ -7930,7 +7930,7 @@ function setupLessonWord() {
         }
 
      // ==========================================================================
-        // 💬 玩家發送回答核心：智慧雙語批改 + 自動派發「下一題連續挑戰」
+        // 💬 玩家發送回答核心：智慧文法大師審查版（只提示音、不扣血、純英文發音）
         // ==========================================================================
         function sendChatMessage() {
             const chatInput = document.getElementById('chat-input');
@@ -7942,10 +7942,10 @@ function setupLessonWord() {
             const userText = chatInput.value.trim();
             chatInput.value = ""; 
 
-            // 2. 物理渲染：把玩家的話推到對話框右邊 (綠色/藍色泡泡)
+            // 2. 物理渲染：把玩家的話推到對話框右邊
             const userMsgHtml = `
                 <div class="flex items-start gap-3 justify-end animate-fade-in mb-4">
-                    <div class="bg-ai text-white p-4 rounded-2xl rounded-tr-none shadow-sm max-w-[85%] font-semibold text-lg">
+                    <div class="bg-ai text-white p-4 rounded-2xl rounded-tl-none shadow-sm max-w-[85%] font-semibold text-lg">
                         ${userText}
                     </div>
                 </div>
@@ -7953,39 +7953,60 @@ function setupLessonWord() {
             chatMessages.innerHTML += userMsgHtml;
             chatMessages.scrollTop = chatMessages.scrollHeight;
 
-            // 3. 🧠 【AI 導師即時雙語審查】：
-            // 檢查上一題我們考玩家的「核心單字」是什麼 (這裡從 lastSpokenText 或是從全域變數取，防呆預設為目前考題)
-            // 為了簡化，我們可以直接檢查玩家剛剛說的話裡面，有沒有包含剛才被抽中的單字
-            let cleanedUserText = userText.toLowerCase();
-            let lastKeyword = (window.lastSpokenText || "").match(/"([^"]+)"/); // 去抓出題句子中引號裡的單字
+            // 3. 🧠 【AI 導師文法大師即時審查機制】
+            let lastKeyword = (window.lastSpokenText || "").match(/"([^"]+)"/); 
             let targetWord = lastKeyword ? lastKeyword[1].toLowerCase().trim() : "";
 
-            // 延遲 800 毫秒，等玩家講完的話沉澱一下，Aria 導師優雅地跳出來批改與連續出題
             setTimeout(() => {
                 let feedbackText = "";
                 let isCorrect = true;
 
-                if (targetWord && !cleanedUserText.includes(targetWord)) {
-                    // ❌ 答錯了：句子裡竟然沒有包含這次考的單字！
+                // 💡 【文法核心過濾演算法】：
+                const cleanedText = userText.toLowerCase().trim();
+                const wordCount = cleanedText.split(/\s+/).length; // 計算總單字量
+
+                // 檢查是否包含基本主詞 (I, you, he, she, it, we, they, this, that, there, my, the...)
+                const hasSubject = /\b(i|you|he|she|it|we|they|this|that|these|those|there|my|the|a|an)\b/i.test(cleanedText);
+                
+                // 檢查是否包含常見動詞或 be 動詞 (is, am, are, was, were, have, has, like, see, go, run...)
+                const hasVerb = /\b(is|am|are|was|were|have|has|had|do|does|did|like|likes|liked|love|go|goes|went|want|wants|see|sees|saw|run|eat|play|can|will|should|make|makes|made)\b/i.test(cleanedText);
+
+                // 🚨 檢查獨立單字邊界 (防止 cat 被 catch 矇混過關)
+                const strictRegex = new RegExp(`\\b${targetWord}\\b`, 'i');
+                const hasTargetWordStrictly = strictRegex.test(userText);
+
+                // 🎯 開始多重交叉嚴格比對
+                if (!hasTargetWordStrictly) {
+                    // ❌ 狀況 A：根本沒有包含這次考的目標單字
                     isCorrect = false;
-                    feedbackText = `Oops! I didn't hear the word "${targetWord}" in your sentence. Try to use it next time!（哎呀！我沒在你的句子裡聽到 "${targetWord}" 這個字。沒關係，我們繼續挑戰下一個字！）`;
-                    
+                    feedbackText = `Oops! I didn't hear the exact word "${targetWord}" in your sentence. Make sure to use the correct word!（哎呀！我沒在你的句子裡聽到精準的 "${targetWord}" 這個字。請注意拼字或發音，繼續挑戰下一題吧！）`;
+                } 
+                else if (wordCount < 3 || !hasSubject || !hasVerb) {
+                    // ❌ 狀況 B：雖然有單字，但字數太少，或者缺少主詞/動詞，根本不是一個完整的英文句子
+                    isCorrect = false;
+                    feedbackText = `That's not a complete sentence! Please try to make a full sentence with a subject and a verb next time.（這不是一個完整的句子喔！一個正確的句子必須包含主詞和動詞。沒關係，我們繼續挑戰下一題！）`;
+                } 
+                else {
+                    // 🎉 狀況 C：完全通過！是一句有品質的完整造句！
+                    isCorrect = true;
+                    feedbackText = `Excellent sentence! You used the word perfectly in a complete sentence. +10 XP!（太棒了！你的造句非常道地，單字用得很精準！加 10 經驗值！接下來，讓我們繼續挑戰下一題吧！）`;
+                }
+
+                // 4. 🔊 【聲效與血量處理】：只響提示音，絕對不扣血！
+                if (!isCorrect) {
+                    // 答錯：放錯題提示音，但「不執行」任何扣減生命的程式碼（保護愛心）
                     if (typeof playAudioEffect === 'function') playAudioEffect('wrong');
                 } else {
-                    // 🎉 答對了：有成功使用單字造句！
-                    feedbackText = `Excellent sentence! You used the word perfectly. +10 XP!（太棒了！你的造句非常道地，單字用得很精準！加 10 經驗值！接下來，讓我們繼續挑戰下一題吧！）`;
-                    
-                    // 給予實質獎勵！
+                    // 答對：放成功音效，加 10 XP 獎勵
+                    if (typeof playAudioEffect === 'function') playAudioEffect('success');
                     if (typeof userData !== 'undefined') {
                         userData.xp += 10;
                         if(document.getElementById('ui-xp')) document.getElementById('ui-xp').innerText = userData.xp;
                         localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
                     }
-                    if (typeof playAudioEffect === 'function') playAudioEffect('success');
                 }
 
-                // 4. 🔮 【神級無限流連續出題】：
-                // 翻閱玩家目前的等級字池，自動盲抽下一個「全新的字」，強迫大家欲罷不能繼續挑戰！
+                // 5. 🎲 【連續無限出題】：自動盲抽下一個全新單字
                 let userLevel = (typeof userData !== 'undefined' && userData.level) ? userData.level : 1;
                 let poolOfWords = [];
                 if (typeof vocabularyDB !== 'undefined' && Array.isArray(vocabularyDB)) {
@@ -7998,7 +8019,6 @@ function setupLessonWord() {
                 let nextWord = "apple"; 
                 let nextMeaning = "蘋果";
                 if (poolOfWords && poolOfWords.length > 0) {
-                    // 排除掉剛剛考過的字，避免連續重複
                     let freshWords = poolOfWords.filter(w => w.word.toLowerCase() !== targetWord);
                     let finalPool = freshWords.length > 0 ? freshWords : poolOfWords;
                     const randomObj = finalPool[Math.floor(Math.random() * finalPool.length)];
@@ -8006,11 +8026,9 @@ function setupLessonWord() {
                     nextMeaning = randomObj.meaning || randomObj.translation || randomObj.ch || "";
                 }
 
-                // 組合完整的對話：【批改評語】 ＋ 【下一題連續出題劇本】
                 const nextChineseHint = nextMeaning ? `（${nextMeaning}）` : "";
-                const tutorReplyFull = `${feedbackText} \n\nNext challenge! Please make a sentence with: "${nextWord}".（連續挑戰下一題！請用這個等級的新單字： "${nextWord}" ${nextChineseHint}，造個句子回答我！）`;
 
-                // 5. 💬 物理渲染：把 Aria 導師的長對話泡泡推到畫面上
+                // 6. 💬 物理渲染：推送到大對話框
                 const tutorMsgHtml = `
                     <div class="flex items-start gap-3 justify-start animate-fade-in mb-4">
                         <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Aria" class="w-10 h-10 rounded-full border border-ai bg-purple-50 shrink-0">
@@ -8029,13 +8047,10 @@ function setupLessonWord() {
                 chatMessages.innerHTML += tutorMsgHtml;
                 chatMessages.scrollTop = chatMessages.scrollHeight;
 
-                // 🎯 請改成「只唸英文版」：
+                // 7. 📢 【純英文發音核心】：只唸英文，中文部分完全不發音！
                 if (typeof speakText === 'function') {
-                    // 1. 抓取 feedbackText 的英文部分（問號或驚嘆號前半段）
                     const engFeedback = feedbackText.split('（')[0]; 
-                    // 2. 組合純英文的連續出題下一題
-                    const pureEnglishReply = `${engFeedback} Next challenge! Please make a sentence with: ${nextWord}.`;
-                    
+                    const pureEnglishReply = `${engFeedback} Next challenge! Please make a sentence with the word: ${nextWord}.`;
                     speakText(pureEnglishReply); 
                 }
 
