@@ -7066,13 +7066,16 @@ window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbyXmL3vHlSlqKRhKgz
                 try { userData = JSON.parse(localData); } catch(e) {}
             }
             
+            // 1. 先安全讀取雲端並改寫 LocalStorage 和記憶體變數
             await loadFromCloudNow(); 
             checkDaily();
             
+            // 2. 讓主流程順著走下去畫圖，這樣就不會發生衝突！
             switchTab('map');
             updateUI();
             renderMap(); 
             renderStoryTab();
+            // ... 底下維持原樣
             renderAchievements();
             initSpeechRecognition();
             
@@ -7108,77 +7111,74 @@ window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbyXmL3vHlSlqKRhKgz
         // ==========================================================================
         // ☁️ 雲端資料讀取器 (物理斷後、防鬼打牆覆蓋版)
         // ==========================================================================
+       // ==========================================================================
+        // ☁️ 雲端資料讀取器 (安全記憶體、防死迴圈最終版)
+        // ==========================================================================
         async function loadFromCloudNow() {
             if (!window.GAS_API_URL || window.GAS_API_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
                 window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbyXmL3vHlSlqKRhKgzCCShpAVKceCwDSzH3yORQjkEgoXvKcW6eDoCoHJvt_6LWRvHA/exec";
             }
 
             const currentId = window.myUserId || (typeof myUserId !== 'undefined' ? myUserId : null) || localStorage.getItem('duo_username');
-            
-            if (!currentId) {
-                console.log("ℹ️ [雲端讀取] 找不到使用者 ID，跳過雲端載入。");
-                return;
-            }
+            if (!currentId) return;
 
             window.myUserId = currentId;
             if (typeof myUserId !== 'undefined') myUserId = currentId;
 
+            // 加上 _ts 防止 iOS 瀏覽器惡意快取舊資料
             const requestUrl = `${window.GAS_API_URL}?action=getUserData&userId=${encodeURIComponent(currentId)}&_ts=${Date.now()}`;
-            console.log(`🔍 [雲端讀取] 正在從 Google Sheets 撈取 [${currentId}] 的雲端備份...`);
+            console.log(`🔍 [雲端讀取] 安全撈取中...`);
 
             try {
                 const response = await fetch(requestUrl, { method: "GET" });
-                if (!response.ok) throw new Error("網路請求失敗");
+                if (!response.ok) return;
 
                 const cloudData = await response.json();
                 
                 if (cloudData && cloudData.status !== "not_found" && !cloudData.status?.includes("error")) {
-                    console.log("📦 [雲端讀取] 成功拿到雲端原始行李箱：", cloudData);
+                    console.log("📦 [雲端讀取] 拿到資料，開始安全注入...");
 
-                    // 🚨 核心保險：如果雲端拿回來的資料是包在某個屬性裡，或者是整包，我們做個防呆
-                    let targetData = cloudData;
-                    
-                    // 1. 物理強制覆蓋全域的 userData 變數！
-                    if (typeof userData !== 'undefined') {
-                        // 先把原本的舊東西清空，防止舊的垃圾殘留
-                        for (let key in userData) { delete userData[key]; }
-                        // 把雲端的最新資料完整注入進去
-                        Object.assign(userData, targetData); 
+                    // 🚨 [安全修正 1]：絕對不要用 delete 清空，直接溫和地把欄位覆蓋進去
+                    if (typeof userData !== 'undefined' && userData) {
+                        // 只覆蓋必要的遊戲進度資料，不摧毀物件本身
+                        userData.xp = cloudData.xp !== undefined ? cloudData.xp : userData.xp;
+                        userData.gems = cloudData.gems !== undefined ? cloudData.gems : userData.gems;
+                        userData.streak = cloudData.streak !== undefined ? cloudData.streak : userData.streak;
+                        userData.hearts = cloudData.hearts !== undefined ? cloudData.hearts : userData.hearts;
+                        userData.currentProgress = cloudData.currentProgress || userData.currentProgress;
+                        userData.lastUnit = cloudData.lastUnit || 1;
+                        userData.lastIdx = cloudData.lastIdx !== undefined ? cloudData.lastIdx : 0;
                     } else {
-                        userData = targetData;
+                        userData = cloudData;
                     }
-                    window.userData = userData; // 雙重全域綁定
+                    window.userData = userData; 
 
-                    // 2. 解析最新進度
-                    const cloudUnit = parseInt(targetData.lastUnit) || (targetData.currentProgress ? Object.keys(targetData.currentProgress).length : 1);
-                    const cloudIdx = targetData.lastIdx !== undefined ? parseInt(targetData.lastIdx) : 0;
+                    // 2. 解析進度
+                    const cloudUnit = parseInt(cloudData.lastUnit) || 1;
+                    const cloudIdx = cloudData.lastIdx !== undefined ? parseInt(cloudData.lastIdx) : 0;
 
-                    console.log(`🎯 [雲端同步成功] 強制刷新網頁核心記憶至：第 ${cloudUnit} 關，第 ${cloudIdx + 1} 個單字！`);
-
-                    // 3. 🚨 物理切斷舊快取！立刻更新所有可能被「存檔定時器」讀取的本機快取
+                    // 3. 🚨 [安全修正 2]：同步寫入硬碟，但先不要手動去呼叫 renderMap()，讓網頁原本的 init 流程自己去畫地圖！
                     localStorage.setItem('duo_last_active_unit', cloudUnit);
                     localStorage.setItem('duo_last_active_index', cloudIdx);
-                    localStorage.setItem('duo_local_user_data', JSON.stringify(userData)); // 🔥 這行最重要！防止別的函數去讀舊的 local 快取
+                    localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
 
-                    // 4. 對齊遊戲當前執行中的 session 狀態與定時器的基準點
+                    // 4. 更新執行狀態
                     if (typeof sessionState !== 'undefined' && sessionState) {
                         sessionState.currentUnit = cloudUnit;
                         sessionState.currentIndex = cloudIdx;
                     }
                     
-                    // 💡 同步更新定時器的「上一次同步基準點」，防止它一進網頁就誤判有變動而亂存檔！
+                    // 5. 阻斷 60 秒定時器的變更判定，防止剛進來就判定不同而又送出存檔
                     if (typeof lastSyncedIndex !== 'undefined') {
                         lastSyncedIndex = cloudIdx;
-                        lastSyncedXp = userData.xp || 0;
-                        lastSyncedGems = userData.gems || 0;
+                        if (typeof lastSyncedXp !== 'undefined') lastSyncedXp = userData.xp;
+                        if (typeof lastSyncedGems !== 'undefined') lastSyncedGems = userData.gems;
                     }
 
-                    console.log("✅ [雲端同步成功] 本機所有地雷快取已清理完畢，核心已完全對齊雲端！");
-                } else {
-                    console.log("ℹ️ [雲端讀取] 雲端無此玩家紀錄，使用本機初始狀態。");
+                    console.log("✅ [雲端同步成功] 數據對齊完畢，交回主流程渲染畫面！");
                 }
             } catch (err) {
-                console.error("❌ [雲端讀取] 讀取失敗，原因：", err);
+                console.error("❌ [雲端讀取例外]:", err);
             }
         }
         function saveToCloud() {
