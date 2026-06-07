@@ -7159,6 +7159,23 @@
             }
         }
         // ==========================================
+        // ⏳ 智慧存檔排程器 (防止短時間內瘋狂傳送給 Google)
+        // ==========================================
+        let cloudSyncTimer = null;
+
+        function scheduleCloudSync() {
+            // 如果之前已經有在倒數了，就先取消它
+            if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
+            
+            // 重新設定倒數 3 秒。如果玩家連續得分，就會一直重新算 3 秒，
+            // 直到他停下來休息超過 3 秒，才會真正「打包一次」送給雲端！
+            cloudSyncTimer = setTimeout(() => {
+                if (typeof saveToCloudNow === 'function') {
+                    saveToCloudNow();
+                }
+            }, 3000); 
+        }
+        // ==========================================
         // 🎨 5. 核心 UI 與「400關豪華蛇形垂直地圖」模組
         // ==========================================
         function updateUI() {
@@ -7765,7 +7782,8 @@ function setupLessonWord() {
                                 // 背景存檔
                                 localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
                             }
-                            
+                            // 👇 加上這一行！呼叫智慧排程，偷偷在背景把剛賺到的寶石送去雲端
+                            if (typeof scheduleCloudSync === 'function') scheduleCloudSync();
                             if (typeof playSound === 'function') playSound('success');
                             showToast(`✅ 發音完美！ +${gainedXp} XP ⚡  +${gainedGems} 💎`);
                             
@@ -7921,6 +7939,11 @@ function setupLessonWord() {
                 window.isLearningActive = true;
             } else {
                 window.isLearningActive = false;
+                // 👇 加上這段！當玩家離開上課畫面 (回首頁、看商店時)，強制儲存一次進度！
+                if (typeof saveToCloudNow === 'function') {
+                    saveToCloudNow(); // 玩家離開畫面了，不用等3秒，直接存！
+                }
+            }
             }
 
             // 下面是你原本切換畫面的程式碼，完全不用動
