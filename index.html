@@ -7641,57 +7641,83 @@ function setupLessonWord() {
                 if(!userData.learnedWords.includes(wordObj.word)) userData.learnedWords.push(wordObj.word);
                 feedback.className += " bg-gradient-to-br from-green-400 to-primary";
                 feedback.innerHTML = `<div class="text-xl font-black"><i class="fa-solid fa-check"></i> 答對了！</div><button id="btn-next-q" class="btn-3d bg-white text-primary px-8 py-2.5 w-full mt-2 font-black">繼續</button>`;
-            } else {
+           } else {
                 playSFX('error');
                 userData.hearts = Math.max(0, userData.hearts - 1); sessionState.wrongCount++;
                 
                 // ==================================================================
-                // 🎯 【第一點：精密錯題補丁物理降落點】
+                // 🎯 【鋼鐵雙重保險：錯題精密補丁 V2 版本】
                 // ==================================================================
-                if (wordObj && wordObj.word) {
-                    let failedWord = wordObj.word.toLowerCase().trim();
-                    let currentUnitId = sessionState.unit || sessionState.currentUnit || 1;
-                    let currentMeaning = wordObj.meaning || wordObj.translation || wordObj.ch || "";
+                // 管道 A：嘗試從當前索引撈出單字物件
+                let currentWordObj = null;
+                if (typeof sessionState !== 'undefined' && sessionState && sessionState.currentWords) {
+                    currentWordObj = sessionState.currentWords[sessionState.currentIndex];
+                }
 
+                // 管道 B 防火牆：萬一 currentIndex 已經被偷偷被加 1 了，我們往前退一格抓真正的錯字
+                if (!currentWordObj && sessionState && sessionState.currentIndex > 0) {
+                    currentWordObj = sessionState.currentWords[sessionState.currentIndex - 1];
+                }
+
+                // 準備寫入的變數
+                let failedWord = "";
+                let currentUnitId = (sessionState && (sessionState.unit || sessionState.currentUnit)) || 1;
+                let currentMeaning = "";
+
+                if (currentWordObj) {
+                    failedWord = (currentWordObj.word || "").toLowerCase().trim();
+                    currentMeaning = currentWordObj.meaning || currentWordObj.translation || currentWordObj.ch || "";
+                } else {
+                    // 管道 C 終極防線：如果記憶體抓不到，直接從網頁畫面上抓（看你的 HTML 顯示單字的地方叫什麼，例如 'lesson-word'）
+                    const htmlWordEl = document.getElementById('lesson-word') || document.getElementById('test-word');
+                    if (htmlWordEl && htmlWordEl.innerText) {
+                        failedWord = htmlWordEl.innerText.toLowerCase().trim();
+                    }
+                }
+
+                // 🔥 【強制實體寫入】：只要抓得到字，立刻開火存入資料庫
+                if (failedWord && failedWord !== "") {
                     if (typeof userData !== 'undefined' && userData) {
-                        // 防呆：如果 userData 裡本來沒有 wrongWords 陣列就幫它初始化
                         if (!userData.wrongWords) userData.wrongWords = [];
 
-                        // 🚨 【精密排重檢查】：檢查錯題本中是否已有「同單元、且同單字」的紀錄
-                        // 這樣可確保同一個字如果出現在不同關卡錯了會分開存，但在同一關一直錯不會重複塞進去！
+                        // 精密排重檢查（同單元、同單字不重複塞）
                         const isAlreadyExist = userData.wrongWords.some(item => 
                             (typeof item === 'object' && item !== null) && 
-                            item.word.toLowerCase().trim() === failedWord && 
+                            (item.word || "").toLowerCase().trim() === failedWord && 
                             parseInt(item.unit) === parseInt(currentUnitId)
                         );
 
                         if (!isAlreadyExist) {
-                            // 📂 物理打包完整關卡情境物件
                             const mistakeObject = {
-                                word: wordObj.word,       // 保留單字原本大小寫
-                                unit: currentUnitId,       // 牢牢綁定當前關卡 ID！
-                                meaning: currentMeaning    // 綁定當前關卡的意思
+                                word: failedWord,          // 寫入單字
+                                unit: parseInt(currentUnitId), // 寫入當前讀取的關卡單元
+                                meaning: currentMeaning     // 寫入中文意思
                             };
                             
                             userData.wrongWords.push(mistakeObject);
-                            console.log(`📂 [主線精密紀錄] 成功封裝關卡專屬錯題：`, mistakeObject);
+                            console.log(`🚀 [V2 精密補丁] 成功實體封裝錯題並寫入庫！`, mistakeObject);
 
-                            // 💾 物理儲存到硬碟 (localStorage)
+                            // 💾 物理存檔
                             localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
                             
-                            // ☁️ 觸發雲端備份
-                            if (typeof scheduleCloudSync === 'function') {
-                                scheduleCloudSync();
-                            } else if (typeof saveToCloud === 'function') {
-                                saveToCloud();
-                            }
+                            // ☁️ 雲端強力同步
+                            if (typeof saveToCloud === 'function') saveToCloud();
+                            if (typeof scheduleCloudSync === 'function') scheduleCloudSync();
+                        } else {
+                            console.log(`ℹ️ [V2 精密補丁] 錯題本已存在同關卡的 "${failedWord}"，跳過排重。`);
                         }
                     }
+                } else {
+                    // 🚨 超強除錯訊息：萬一還是沒存進去，讓它在網頁主控台彈出原因
+                    console.error("❌ [V2 精密補丁報錯] 系統在答錯時完全找不到當前單字！請檢查 sessionState 是否正常。");
                 }
                 // ==================================================================
-                // 🎯 【補丁結束】
+                // 🎯 【V2 補丁結束】
                 // ==================================================================
 
+                feedback.className += " bg-gradient-to-br from-red-400 to-danger";
+                feedback.innerHTML = `<div class="text-xl font-black"><i class="fa-solid fa-xmark"></i> 答錯了</div><p class="text-sm font-black bg-black/20 px-4 py-1.5 rounded-xl">正解：${correctRef}</p><button id="btn-next-q" class="btn-3d bg-white text-danger px-8 py-2.5 w-full mt-2 font-black">我知道了</button>`;
+            }
                 feedback.className += " bg-gradient-to-br from-red-400 to-danger";
                 feedback.innerHTML = `<div class="text-xl font-black"><i class="fa-solid fa-xmark"></i> 答錯了</div><p class="text-sm font-black bg-black/20 px-4 py-1.5 rounded-xl">正解：${correctRef}</p><button id="btn-next-q" class="btn-3d bg-white text-danger px-8 py-2.5 w-full mt-2 font-black">我知道了</button>`;
             }
@@ -7988,8 +8014,8 @@ function setupLessonWord() {
             }
         }
 
-     // ==========================================================================
-        // 💬 玩家發送回答核心：智慧文法大師審查版（只提示音、不扣血、純英文發音）
+   // ==========================================================================
+        // 💬 玩家發送回答核心：智慧文法大師審查版（強力修復：錯題 100% 寫入版）
         // ==========================================================================
         function sendChatMessage() {
             const chatInput = document.getElementById('chat-input');
@@ -8012,9 +8038,26 @@ function setupLessonWord() {
             chatMessages.innerHTML += userMsgHtml;
             chatMessages.scrollTop = chatMessages.scrollHeight;
 
-           // 3. 🧠 【AI 導師文法大師即時審查機制】：一絲不苟、絕不放水版
-            let lastKeyword = (window.lastSpokenText || "").match(/"([^"]+)"/); 
-            let targetWord = lastKeyword ? lastKeyword[1].toLowerCase().trim() : "";
+            // ==================================================================
+            // 🧠 3. 【AI 導師智慧型單字搜捕演算法】：多重保險防漏接
+            // ==================================================================
+            let rawQuestion = window.lastSpokenText || "";
+            let targetWord = "";
+
+            // 🔍 管道 A & B：相容雙引號 "desk" 或單引號 'desk'
+            let matchQuote = rawQuestion.match(/["']([^"']+)["']/);
+            if (matchQuote) {
+                targetWord = matchQuote[1].toLowerCase().trim();
+            }
+
+            // 🔍 管道 C（防守兜底）：如果引號沒抓到，直接調用當前主線寫題的單字物件
+            let memoryWordObj = null;
+            if (typeof sessionState !== 'undefined' && sessionState && sessionState.currentWords) {
+                memoryWordObj = sessionState.currentWords[sessionState.currentIndex];
+                if (!targetWord && memoryWordObj && memoryWordObj.word) {
+                    targetWord = memoryWordObj.word.toLowerCase().trim();
+                }
+            }
 
             setTimeout(() => {
                 let feedbackText = "";
@@ -8025,44 +8068,43 @@ function setupLessonWord() {
 
                 // 🔍 嚴格的獨立單字邊界限制正則
                 const strictRegex = new RegExp(`\\b${targetWord}\\b`, 'i');
-                const hasTargetWordStrictly = strictRegex.test(userText);
+                const hasTargetWordStrictly = targetWord ? strictRegex.test(userText) : false;
 
                 // 🔍 文法結構基礎正則
                 const hasSubject = /\b(i|you|he|she|it|we|they|this|that|these|those|there|my|the|a|an)\b/i.test(cleanedText);
                 const hasVerb = /\b(is|am|are|was|were|have|has|had|do|does|did|like|likes|liked|love|go|goes|went|want|wants|see|sees|saw|run|eat|play|can|will|should|make|makes|made)\b/i.test(cleanedText);
 
                 // ==================================================================
-                // 🚨 【絕對防線 A】：不管三七二十一，先看句子裡有沒有這個字！沒這個字直接算錯！
+                // 🚨 【絕對防線】：判定邏輯
                 // ==================================================================
-                if (!hasTargetWordStrictly) {
+                if (!targetWord) {
+                    // 極端防呆
+                    isCorrect = false;
+                    feedbackText = `Sorry, I lost track of the word. Let's move on!（抱歉，系統漏接了挑戰單字。沒關係，我們直接挑戰下一題吧！）`;
+                }
+                else if (!hasTargetWordStrictly) {
                     isCorrect = false;
                     feedbackText = `Oops! I didn't hear the exact word "${targetWord}" in your sentence. Make sure to use the correct word!（哎呀！我沒在你的句子裡聽到精準的 "${targetWord}" 這個字。請注意發音或單字，我們繼續挑戰下一題吧！）`;
                 } 
-                // ==================================================================
-                // 🚨 【絕對防線 B】：有這個字了，接下來嚴格審查它到底是不是一個「完整的句子」
-                // ==================================================================
                 else if (wordCount < 3 || !hasSubject || !hasVerb) {
                     isCorrect = false;
-                    feedbackText = `That's not a complete sentence! Please try to make a full sentence with a subject and a verb next time.（雖然你用了單字，但這不是一個完整的句子喔！句子必須包含主詞和動詞。沒關係，我們繼續挑戰下一題！）`;
+                    feedbackText = `That's not a complete sentence! Please try to make a full sentence with a subject and a verb next time.（雖然你用了單字，但這不是一個完整的句子喔！句子必須包含主詞 and 動詞。沒關係，我們繼續挑戰下一題！）`;
                 } 
-                // ==================================================================
-                // 🎉 【絕對防線 C】：同時通過前兩關，才賞你 10 XP！
-                // ==================================================================
                 else {
                     isCorrect = true;
                     feedbackText = `Excellent sentence! You used the word perfectly in a complete sentence. +10 XP!（太棒了！你的造句非常道地，單字用得很精準！加 10 經驗值！接下來，讓我們繼續挑戰下一題吧！）`;
                 }
 
-               // ==================================================================
-                // 4. 🔊 【AI導師精密錯題本寫入】：連同關卡 UnitId 一起封裝
                 // ==================================================================
-                if (!isCorrect) {
+                // 4. 🔊 【AI導師精密錯題本寫入】核心修復區
+                // ==================================================================
+                if (!isCorrect && targetWord) {
                     if (typeof playAudioEffect === 'function') playAudioEffect('wrong');
                     
                     if (typeof userData !== 'undefined' && userData) {
                         if (!userData.wrongWords) userData.wrongWords = [];
                         
-                        // 智慧取得當前正在玩的單元 ID (如果玩家是直接開導師，就抓目前使用者最高進度)
+                        // 智慧取得當前正在玩的單元 ID
                         let currentUnitId = 1;
                         if (typeof sessionState !== 'undefined' && sessionState && (sessionState.unit || sessionState.currentUnit)) {
                             currentUnitId = sessionState.unit || sessionState.currentUnit;
@@ -8070,38 +8112,39 @@ function setupLessonWord() {
                             currentUnitId = userData.level || userData.lastUnit || 1;
                         }
 
-                        // 試著從當前物件抓中文意思
+                        // 試著從當前物件抓中文意思（如果記憶體裡的字對得上就用它，對不上就留空或抓現有的）
                         let currentMeaning = "";
-                        if (typeof sessionState !== 'undefined' && sessionState && sessionState.currentWords) {
-                            const currentWordObj = sessionState.currentWords[sessionState.currentIndex];
-                            if (currentWordObj) {
-                                currentMeaning = currentWordObj.meaning || currentWordObj.translation || currentWordObj.ch || "";
-                            }
+                        if (memoryWordObj && memoryWordObj.word && memoryWordObj.word.toLowerCase().trim() === targetWord) {
+                            currentMeaning = memoryWordObj.meaning || memoryWordObj.translation || memoryWordObj.ch || "";
                         }
 
-                        // 精密排重檢查
+                        // 精密排重檢查（同單元、同單字不重複塞）
                         const isAlreadyExist = userData.wrongWords.some(item => 
                             (typeof item === 'object' && item !== null) && 
-                            item.word.toLowerCase().trim() === targetWord.toLowerCase().trim() && 
+                            (item.word || "").toLowerCase().trim() === targetWord && 
                             parseInt(item.unit) === parseInt(currentUnitId)
                         );
 
-                        if (targetWord && !isAlreadyExist) {
+                        if (!isAlreadyExist) {
                             // 物理封裝傳送
                             const mistakeObject = {
                                 word: targetWord,
-                                unit: currentUnitId, // 牢牢記住是哪一個關卡的字！
+                                unit: parseInt(currentUnitId), // 牢牢記住是哪一個關卡的字！
                                 meaning: currentMeaning
                             };
                             
                             userData.wrongWords.push(mistakeObject);
                             console.log(`📂 [AI導師精密紀錄] 成功將關卡專屬錯題打入庫：`, mistakeObject);
                             
+                            // 實體寫入硬碟
                             localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
+                        } else {
+                            console.log(`ℹ️ [AI導師] 錯題本已存在同關卡的 "${targetWord}"，跳過重複寫入。`);
                         }
                     }
                     
                     if (typeof scheduleCloudSync === 'function') scheduleCloudSync();
+                    if (typeof saveToCloud === 'function') saveToCloud();
                 }
 
                 // 5. 🎲 【連續無限出題】：自動盲抽下一個全新單字
@@ -8117,7 +8160,7 @@ function setupLessonWord() {
                 let nextWord = "apple"; 
                 let nextMeaning = "蘋果";
                 if (poolOfWords && poolOfWords.length > 0) {
-                    let freshWords = poolOfWords.filter(w => w.word.toLowerCase() !== targetWord);
+                    let freshWords = poolOfWords.filter(w => (w.word || "").toLowerCase() !== targetWord);
                     let finalPool = freshWords.length > 0 ? freshWords : poolOfWords;
                     const randomObj = finalPool[Math.floor(Math.random() * finalPool.length)];
                     nextWord = randomObj.word;
@@ -8134,7 +8177,7 @@ function setupLessonWord() {
                             <p class="font-bold text-sm text-ai mb-1">🤖 Aria 導師：</p>
                             <p class="text-lg leading-relaxed font-semibold">
                                 ${isCorrect ? '✅ ' : '⚠️ '}${feedbackText.split('（')[0]}<br>
-                                <span class="text-base text-gray-500 font-medium block mt-1 mb-3">（${feedbackText.split('（')[1]}</span>
+                                <span class="text-base text-gray-500 font-medium block mt-1 mb-3">（${feedbackText.split('（')[1] || ''}</span>
                                 <hr class="border-purple-100 my-2">
                                 <span class="text-purple-600 font-black">🔥 Next Challenge:</span> Please make a sentence with <span class="text-xl text-purple-700 font-black underline decoration-wavy decoration-purple-400">"${nextWord}"</span>.<br>
                                 <span class="text-base text-gray-500 font-medium block mt-1">（連續挑戰下一題！請用這個等級的新單字：<strong class="text-gray-700">${nextWord}</strong> ${nextChineseHint}，造個句子回答我！）</span>
@@ -8153,8 +8196,7 @@ function setupLessonWord() {
                 }
 
             }, 800);
-        }
-               
+        }    
 
         function renderChatMessages() {
             const box = document.getElementById('chat-messages');
