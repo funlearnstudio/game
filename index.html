@@ -8335,17 +8335,17 @@ function setupLessonWord() {
         // 🚨 【全域防垃圾車防火牆】：強行留住發音物件，防止中/英文唸到一半被瀏覽器銷毀
         // ========================================================================
         window.activeSpeechUtterances = []; 
-        
-        let lastSpokenText = "";
-        let lastSpokenTime = 0;
+// ==========================================================================
+        // 🔊 智慧排隊語音引擎（完美解決連續呼叫被 cancel 斷頭的 Bug）
+        // ==========================================================================
+        let speechQueue = [];
+        let isSpeakingNow = false;
 
-        // ==========================================================================
-        // 🔊 系統自動朗讀單字 (大師級自然真人音質、智慧海選最自然聲音完全體)
-        // ==========================================================================
         function speakText(text) {
-            if (!text) return;
+            if (!text || !text.trim()) return;
             
             const currentTime = Date.now();
+            // 阻擋 1 秒內完全一模一樣的鬼畜重複點擊
             if (text === lastSpokenText && (currentTime - lastSpokenTime < 1000)) {
                 return;
             }
@@ -8355,18 +8355,77 @@ function setupLessonWord() {
 
             console.log(`🔊 [AI 語音引擎] 準備朗讀: "${text}"`);
 
+            // 🎯 核心改變：我們不直接用 Web Speech API 噴發，而是先把字塞進我們自己的排隊陣列
+            speechQueue.push(text.trim());
+
+            // 如果目前發音大腦沒人在說話，立刻啟動排隊發車！
+            if (!isSpeakingNow) {
+                processNextSpeechQueue();
+            }
+        }
+
+        // 🧠 負責處理排隊一條龍朗讀的秘密大腦
+        function processNextSpeechQueue() {
+            if (!window.speechSynthesis) return;
+
+            // 如果隊伍空了，代表這串話全部唸完了！功成身退
+            if (speechQueue.length === 0) {
+                isSpeakingNow = false;
+                return;
+            }
+
+            isSpeakingNow = true;
+            // 取出目前排在最前面的那句話
+            const nextText = speechQueue.shift();
+
             try {
-                if (window.speechSynthesis) {
-                    window.speechSynthesis.resume();
-                    window.speechSynthesis.cancel();
-                    
-                    if (window.speechSynthesis.speaking) {
-                        setTimeout(() => {
-                            window.speechSynthesis.resume();
-                            window.speechSynthesis.cancel();
-                        }, 50);
-                    }
+                // 讓瀏覽器發音引擎保持清醒
+                window.speechSynthesis.resume();
+
+                const utterance = new SpeechSynthesisUtterance(nextText);
+                
+                // 智慧判斷語言：如果是純英文單字或例句用英文，有中文就用中文
+                if (/[a-zA-Z]/.test(nextText) && !/[\u4e00-\u9fa5]/.test(nextText)) {
+                    utterance.lang = 'en-US';
+                } else {
+                    utterance.lang = 'zh-TW';
                 }
+
+                // 設定稍微自然的語速與音調
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+
+                // 🌟 最關鍵的鋼鐵防線：當這「一句話真正唸完」的瞬間，才放行下一句！
+                utterance.onend = function() {
+                    setTimeout(() => {
+                        processNextSpeechQueue(); // 遞迴呼叫，唸下一句
+                    }, 100); // 句與句之間自然停頓 0.1 秒
+                };
+
+                // 萬一不幸卡住發生錯誤，也要強行解鎖往下走，否則整個語音會永久卡死
+                utterance.onerror = function(err) {
+                    console.error("❌ [AI 語音引擎] 播放中途發生錯誤:", err);
+                    processNextSpeechQueue();
+                };
+
+                // 物理發射這一句！
+                window.speechSynthesis.speak(utterance);
+
+            } catch (e) {
+                console.error("❌ [AI 語音引擎] 執行異常:", e);
+                isSpeakingNow = false;
+            }
+        }
+
+        // 💡 另外貼心附贈一個強行中斷函數：如果玩家點了「下一題」或「跳過」，可以用這個清除殘留語音
+        function forceStopSpeech() {
+            if (window.speechSynthesis) {
+                speechQueue = []; // 清空我們自己的隊伍
+                window.speechSynthesis.cancel(); // 掐斷瀏覽器正在發的音
+                isSpeakingNow = false;
+                console.log("🛑 [AI 語音引擎] 已被手動強制完全中斷。");
+            }
+        }
 
                 // 🎯 【智慧海選最自然人聲核心演算法】
                 // 瀏覽器內建的聲音清單
@@ -9213,27 +9272,26 @@ function setupLessonWord() {
             try {
                 // 🎯 關鍵：在準備發射的瞬間，立刻更新時間戳記，把門關上！
                 lastCloudSyncTime = currentTime;
-
-               // ==================================================================
-                // 🔒 【鋼鐵進度防線】：全面攔截並上鎖當前正在玩的關卡進度
+// ==================================================================
+                // 🔒 【鋼鐵進度防線：100% 絕對防空安全版】
                 // ==================================================================
-                // 1. 先抓取當前的快照作為備用
+                // 1. 先安全讀取本地硬碟的備用進度快照
                 let backupUnit = localStorage.getItem(`duo_last_active_unit`);
                 let backupIndex = localStorage.getItem(`duo_last_active_index`);
-                if (backupUnit === null) backupUnit = 1;
-                if (backupIndex === null) backupIndex = 0;
+                
+                let realUnit = backupUnit !== null ? parseInt(backupUnit) : 1;
+                let realIndex = backupIndex !== null ? parseInt(backupIndex) : 0;
 
-                // 2. 🚨【核心修正邏輯】：
-                // 如果玩家目前正在上課、寫題目（sessionState還活著），那進度就絕對只能是這關！
-                // 即使外部暫存被亂改成 3 或 4，我們也強行用 sessionState 把進度拉回真正的當前關卡！
-                let realUnit = parseInt(backupUnit);
-                let realIndex = parseInt(backupIndex);
-
-                if (typeof sessionState !== 'undefined' && sessionState) {
-                    if (sessionState.currentUnit || sessionState.unit) {
-                        realUnit = parseInt(sessionState.currentUnit || sessionState.unit);
+                // 2. 🚨【終極三層防禦】：只有當 sessionState 不是 undefined、不是 null、且真的是物件時才讀取
+                if (typeof sessionState !== 'undefined' && sessionState !== null && typeof sessionState === 'object') {
+                    // 安全提取 currentUnit 或 unit
+                    let targetUnit = sessionState.currentUnit || sessionState.unit;
+                    if (targetUnit !== undefined && targetUnit !== null) {
+                        realUnit = parseInt(targetUnit);
                     }
-                    if (typeof sessionState.currentIndex !== 'undefined' && sessionState.currentIndex !== null) {
+                    
+                    // 安全提取 currentIndex
+                    if (sessionState.currentIndex !== undefined && sessionState.currentIndex !== null) {
                         realIndex = parseInt(sessionState.currentIndex);
                     }
                 }
@@ -9249,22 +9307,20 @@ function setupLessonWord() {
                 // ==================================================================
                 let stringifiedWrongWords = "";
                 if (userData && userData.wrongWords) {
-                    // 將精密的 [{word:..., unit:..., meaning:...}] 物理壓制成純文字字串
                     stringifiedWrongWords = JSON.stringify(userData.wrongWords);
                 }
 
-                // 4. 打包最終安全的發射酬載 (Payload)，不論玩家答錯還是答對，進度都絕對正確！
+                // 4. 打包最終安全的發射酬載
                 const payload = {
                     action: "saveUserData",
                     userId: window.myUserId,
                     userData: typeof userData !== 'undefined' ? userData : (window.userData || {}), 
-                    lastUnit: realUnit,  // 🎯 物理鎖定！絕不暴跳
-                    lastIdx: realIndex,   // 🎯 物理鎖定！位置精準
-                    
-                    // 🔥 強行在外層多塞這兩個脫殼欄位，確保後端 GS 100% 抓到
+                    lastUnit: realUnit,  
+                    lastIdx: realIndex,   
                     wrongWords: stringifiedWrongWords, 
                     wrongWordsRaw: stringifiedWrongWords
                 };
+                // ==================================================================
                 // ==================================================================
                 console.log("🚀 [雲端存檔] 正在發射資料到 Google Sheets：", payload);
 
