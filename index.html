@@ -7687,7 +7687,7 @@ function setupLessonWord() {
         // 4. 語速調整 (Dynamic Rate Control)：完美支援 rate 參數，當需要慢速特訓時能聽清每個音節。
         // 5. 鏈式相容 (Callback Chain)：回傳語音物件，完美相容 AI 老師「一句唸完接下一句」的連鎖講解功能。
         // ==========================================================================
-        function speakText(text, rate = 1.0, lang = 'en-US') {
+function speakText(text, rate = 1.0, lang = 'en-US') {
             if (!window.speechSynthesis) return null;
             
             // 3. 極速快取防重疊：立即中斷上一句正在播放的聲音，做到隨點隨播
@@ -7728,11 +7728,10 @@ function setupLessonWord() {
                 }
             }
 
-            // 執行播放
+            // ==========================================
+            // 🚨 關鍵修復：把準備好的聲音播出來！
+            // ==========================================
             window.speechSynthesis.speak(u);
-            
-            // 5. 鏈式相容：必須 return u 物件，這樣 AI 老師的 u.onend = resolve 才能正常排隊播放！
-            return u; 
         }
 
         // 解決部分瀏覽器（如 Chrome/Edge）首次載入時語音包清單非同步延遲的 Bug
