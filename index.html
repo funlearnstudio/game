@@ -9547,7 +9547,240 @@ function closeReport() {
                 updateAccountUI();
             }, 500); // 延遲半秒確保其他資料已讀取完畢
         });
+// ==========================================================================
+        // 🔑 終極解決方案：全域帳號守護與強效登入登出系統 (強制覆蓋舊代碼)
+        // ==========================================================================
 
+        // 🛡️ 【核心守護盾】：防止網頁剛載入時，舊的訪客機制把「玩家真正想要的帳號」沖掉
+        (function() {
+            const savedAccount = localStorage.getItem('duo_unique_user_id');
+            // 如果本地本來就記著一個「真實帳號」（不是自動生成的 user_ 開頭，也不是空的）
+            if (savedAccount && !savedAccount.startsWith('user_') && savedAccount !== 'null' && savedAccount !== 'undefined') {
+                console.log("🛡️ [帳號守護者] 偵測到真實帳號：" + savedAccount + "，已鎖定防止被舊訪客機制覆蓋。");
+                
+                // 連續監控 3 秒（每 0.1 秒檢查一次），只要發現有舊程式碼想把它改成訪客或刪除，就立刻強行改回來！
+                let protectCount = 0;
+                const protector = setInterval(() => {
+                    const current = localStorage.getItem('duo_unique_user_id');
+                    if (!current || current.startsWith('user_') || current === 'null' || current === 'undefined') {
+                        localStorage.setItem('duo_unique_user_id', savedAccount);
+                        console.log("⚡ [帳號守護者] 攔截到 legacy 代碼的惡意重置！已強制恢復正確帳號：" + savedAccount);
+                        if (typeof window.updateAccountUI === 'function') window.updateAccountUI();
+                    }
+                    protectCount++;
+                    if (protectCount > 30) clearInterval(protector); // 3秒後遊戲穩定，功成身退
+                }, 100);
+            }
+        })();
+
+        // 1. 全域更新個人檔案介面 (掛在 window 上，確保 100% 呼叫到這一個)
+        window.updateAccountUI = function() {
+            const currentAccount = localStorage.getItem('duo_unique_user_id');
+            const loginBtn = document.getElementById('btn-login-trigger');
+            const logoutBtn = document.getElementById('btn-logout');
+            const accountTitle = document.getElementById('account-title');
+            const accountDesc = document.getElementById('account-desc');
+
+            // 嚴格判斷是否為真實手動登入的帳號
+            const isRealLogin = currentAccount && 
+                                currentAccount !== 'null' && 
+                                currentAccount !== 'undefined' && 
+                                !currentAccount.startsWith('user_');
+
+            if (isRealLogin) {
+                if (loginBtn) loginBtn.classList.add('hidden');
+                if (logoutBtn) logoutBtn.classList.remove('hidden');
+                if (accountTitle) accountTitle.innerHTML = `<i class="fa-solid fa-user-check text-primary mr-1"></i> 帳號已綁定`;
+                if (accountDesc) accountDesc.innerHTML = `目前登入：<span class="text-primary font-black text-sm">${currentAccount}</span><br>您的進度已永久儲存至雲端`;
+            } else {
+                if (loginBtn) loginBtn.classList.remove('hidden');
+                if (logoutBtn) logoutBtn.classList.add('hidden');
+                if (accountTitle) accountTitle.innerHTML = `<i class="fa-solid fa-cloud-arrow-up text-secondary mr-1"></i> 多裝置進度同步`;
+                if (accountDesc) accountDesc.innerHTML = `登入專屬帳密，即可跨手機、電腦同步紀錄！`;
+            }
+        };
+
+        // 2. 全域強效登出 (清空一切，並配置乾淨的新訪客 ID，防止無限載入舊快取)
+        window.handleLogout = function() {
+            if (confirm("⚠️ 確定要登出目前帳號嗎？\n\n(您的進度已安全保存在雲端。登出後將切換回全新的本地訪客狀態)")) {
+                // 徹底清除所有潛在的舊帳號紀錄
+                localStorage.removeItem('duo_unique_user_id');
+                localStorage.removeItem('duo_local_user_data');
+                localStorage.removeItem('userData');
+                localStorage.removeItem('duo_last_active_unit');
+                localStorage.removeItem('duo_last_active_index');
+                
+                // 為了防止重整後舊系統又亂抓，我們直接在登出時塞給他一個乾淨的訪客 ID
+                const newVisitorId = 'user_' + Math.floor(100000 + Math.random() * 900000);
+                localStorage.setItem('duo_unique_user_id', newVisitorId);
+
+                alert("✅ 已成功登出！頁面即將重新整理。");
+                location.reload(); 
+            }
+        };
+
+        // 3. 提供給你的「登入成功事件」呼叫的標準接口
+        window.handleLoginSuccess = function(accountName, cloudData) {
+            if (!accountName) return;
+            
+            // 寫入最高永久記憶體
+            localStorage.setItem('duo_unique_user_id', accountName);
+            
+            // 如果雲端有帶回該帳號的進度，立刻覆蓋本地
+            if (cloudData) {
+                localStorage.setItem('userData', JSON.stringify(cloudData));
+                if (typeof userData !== 'undefined') userData = cloudData;
+            }
+            
+            window.updateAccountUI();
+            alert("🎉 歡迎回來，" + accountName + "！登入成功！");
+            location.reload(); // 重新整理讓整款遊戲載入該帳號的單字進度
+        };
+
+        // 4. 網頁開啟時，確保執行一次
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => { window.updateAccountUI(); }, 300);
+        });
+        // ==========================================================================
+        // 🔑 終極帳號登入/登出/永久記憶接管系統 (直接放這裡，不用找舊代碼！)
+        // ==========================================================================
+
+        // 1. 強制接管登入彈窗的「確認登入」按鈕事件
+        function initUltimateLoginBridge() {
+            // 嘗試尋找你登入彈窗裡的「確認」按鈕（通常是用戶名/密碼輸入框附近的 button）
+            // 這裡自動適應多種常見的按鈕選擇器
+            const loginModal = document.getElementById('login-modal');
+            if (!loginModal) return;
+
+            // 尋找彈窗內的輸入框
+            const usernameInput = loginModal.querySelector('input[type="text"]') || document.getElementById('login-username');
+            // 尋找彈窗內的「確認登入」或「送出」按鈕
+            const submitBtn = loginModal.querySelector('button.bg-primary') || loginModal.querySelector('button[onclick*="Login"]') || loginModal.querySelector('button:not([onclick*="close"])');
+
+            if (submitBtn && usernameInput) {
+                console.log("🎯 [帳號系統] 已成功強制接管登入確認按鈕！");
+                
+                // 拔掉舊的 onclick（如果有的話），改用我們全新的最高權限監聽器
+                submitBtn.removeAttribute('onclick'); 
+                
+                submitBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const inputUsername = usernameInput.value.trim();
+
+                    if (!inputUsername) {
+                        alert("❌ 請輸入帳號名稱！");
+                        return;
+                    }
+
+                    console.log("💾 [帳號系統] 準備永久記憶帳號:", inputUsername);
+
+                    // 【核心永久記憶步驟】
+                    localStorage.setItem('duo_unique_user_id', inputUsername);
+
+                    // 檢查如果本地有舊的 visitor 資料，我們把它繼承過去
+                    let currentLocalData = null;
+                    try {
+                        currentLocalData = JSON.parse(localStorage.getItem('userData') || localStorage.getItem('duo_local_user_data'));
+                    } catch(err) {}
+
+                    // 如果本地有進度，幫他打包；如果沒有，生一個乾淨的
+                    if (!currentLocalData) {
+                        currentLocalData = { xp: 0, gems: 0, level: 1, lastUnit: 1, lastIdx: 0, unlockedUnits: [1] };
+                    }
+
+                    // 強制綁定雲端識別碼並寫入
+                    localStorage.setItem('userData', JSON.stringify(currentLocalData));
+                    if (typeof userData !== 'undefined') userData = currentLocalData;
+
+                    // 關閉登入彈窗
+                    loginModal.classList.add('hidden');
+                    loginModal.classList.remove('flex');
+
+                    // 呼叫 UI 更新
+                    if (typeof window.updateAccountUI === 'function') {
+                        window.updateAccountUI();
+                    }
+
+                    alert("🎉 歡迎回來，" + inputUsername + "！帳號已永久記住！");
+                    
+                    // 強制重整網頁，刷新所有遊戲狀態與記憶體
+                    location.reload();
+                });
+            }
+        }
+
+        // 2. 最高全域權限：個人檔案介面顯示目前的帳號
+        window.updateAccountUI = function() {
+            const currentAccount = localStorage.getItem('duo_unique_user_id');
+            const loginBtn = document.getElementById('btn-login-trigger');
+            const logoutBtn = document.getElementById('btn-logout');
+            const accountTitle = document.getElementById('account-title');
+            const accountDesc = document.getElementById('account-desc');
+
+            // 嚴格檢查：只要不是空的，且不是 user_ 開頭的隨機號碼，就是玩家想要的真實帳號
+            const isRealLogin = currentAccount && 
+                                currentAccount !== 'null' && 
+                                currentAccount !== 'undefined' && 
+                                !currentAccount.startsWith('user_');
+
+            if (isRealLogin) {
+                if (loginBtn) loginBtn.classList.add('hidden');
+                if (logoutBtn) logoutBtn.classList.remove('hidden');
+                if (accountTitle) accountTitle.innerHTML = `<i class="fa-solid fa-user-check text-primary mr-1"></i> 帳號已綁定`;
+                if (accountDesc) accountDesc.innerHTML = `目前登入：<span class="text-primary font-black text-sm">${currentAccount}</span><br>您的進度已永久儲存至此設備`;
+            } else {
+                if (loginBtn) loginBtn.classList.remove('hidden');
+                if (logoutBtn) logoutBtn.classList.add('hidden');
+                if (accountTitle) accountTitle.innerHTML = `<i class="fa-solid fa-cloud-arrow-up text-secondary mr-1"></i> 多裝置進度同步`;
+                if (accountDesc) accountDesc.innerHTML = `登入專屬帳密，即可跨手機、電腦同步紀錄！`;
+            }
+        };
+
+        // 3. 最高全域權限：永久登出（100% 解決登出無效）
+        window.handleLogout = function() {
+            if (confirm("⚠️ 確定要登出目前帳號嗎？\n\n登出後將切換回全新的本地訪客狀態。")) {
+                // 徹底拔除舊帳號的所有殘留
+                localStorage.removeItem('duo_unique_user_id');
+                localStorage.removeItem('duo_local_user_data');
+                localStorage.removeItem('userData');
+                localStorage.removeItem('duo_last_active_unit');
+                localStorage.removeItem('duo_last_active_index');
+                
+                // 給他一個全新乾淨的訪客 ID，避免舊系統開局重整時又亂抓
+                const newVisitorId = 'user_' + Math.floor(100000 + Math.random() * 900000);
+                localStorage.setItem('duo_unique_user_id', newVisitorId);
+
+                alert("✅ 已成功登出！頁面即將重新整理。");
+                location.reload(); 
+            }
+        };
+
+        // 4. 【防覆蓋守護盾】：開局 3 秒內鎖死帳號，不讓舊系統自作主張
+        (function() {
+            const savedAccount = localStorage.getItem('duo_unique_user_id');
+            if (savedAccount && !savedAccount.startsWith('user_') && savedAccount !== 'null' && savedAccount !== 'undefined') {
+                let protectCount = 0;
+                const protector = setInterval(() => {
+                    const current = localStorage.getItem('duo_unique_user_id');
+                    if (!current || current.startsWith('user_') || current === 'null' || current === 'undefined') {
+                        localStorage.setItem('duo_unique_user_id', savedAccount);
+                        if (typeof window.updateAccountUI === 'function') window.updateAccountUI();
+                    }
+                    protectCount++;
+                    if (protectCount > 30) clearInterval(protector);
+                }, 100);
+            }
+        })();
+
+        // 5. 網頁載入完成後，自動啟動接管機制
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => { 
+                window.updateAccountUI(); 
+                initUltimateLoginBridge(); // 強制綁定按鈕
+            }, 600);
+        });
         // ⚠️ 💡 貼心提醒：
         // 請確保你的「雲端登入讀取成功」的那個 function (例如 handleLoginSubmit 或 fetch 完資料的地方)，
         // 成功載入資料後，有呼叫一次 `updateAccountUI();` ，畫面上的帳號就會瞬間變身！
