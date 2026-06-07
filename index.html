@@ -8975,6 +8975,105 @@ function closeReport() {
         }
     }
 }
+        // ==========================================================================
+        // 🎤 語音導師專用：麥克風開關切換與文字自動輸入機關
+        // ==========================================================================
+        window.isChatListening = false; // 記錄目前對話麥克風是不是開著
+
+        function toggleChatMic() {
+            // 1. 🚨 解凍手機/瀏覽器音訊核心
+            if (typeof playAudioEffect === 'function') {
+                playAudioEffect('resume');
+            }
+
+            const micBtn = document.getElementById('chat-mic-btn');
+            const chatInput = document.getElementById('chat-input');
+            const SpeechRecog = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+            if (!SpeechRecog) {
+                showToast("💡 您的瀏覽器不支援語音輸入，請用打字的！");
+                return;
+            }
+
+            // 2. 📴 如果目前正在聽，點一下就關閉
+            if (window.isChatListening) {
+                if (window.chatRecognition) {
+                    window.chatRecognition.stop();
+                }
+                return;
+            }
+
+            // 3. 🧠 初始化「對話專用」的語音辨識大腦
+            if (!window.chatRecognition) {
+                window.chatRecognition = new SpeechRecog();
+                window.chatRecognition.lang = 'en-US';        // 預設聽英文造句
+                window.chatRecognition.continuous = false;     // 講完一句就自動結束
+                window.chatRecognition.interimResults = false; // 只拿最後確定的結果
+            }
+
+            const recog = window.chatRecognition;
+
+            // 🟢 當麥克風成功打開
+            recog.onstart = function() {
+                window.isChatListening = true;
+                if (micBtn) {
+                    // 變成亮紅色，並讓它有呼吸燈動效（代表正在錄音）
+                    micBtn.classList.remove('bg-gray-200', 'text-gray-500');
+                    micBtn.classList.add('bg-red-500', 'text-white', 'animate-pulse');
+                }
+                showToast("🎤 導師正在聽...請說出您的英文回答！", false);
+            };
+
+            // 🎯 【關鍵核心】：當成功聽到你講的話，把文字物理塞進輸入框！
+            recog.onresult = function(event) {
+                if (!event.results || !event.results[0]) return;
+                
+                // 拿到聽到的英文句子
+                const textResult = event.results[0][0].transcript;
+                console.log("🎤 [導師麥克風聽到]:", textResult);
+
+                if (chatInput) {
+                    // 1. 把字打進輸入框
+                    chatInput.value = textResult;
+                    // 2. 讓輸入框閃爍一下綠色，提示玩家字輸入成功了
+                    chatInput.classList.add('border-green-400');
+                    setTimeout(() => chatInput.classList.remove('border-green-400'), 800);
+                }
+                
+                showToast("✅ 語音輸入成功！");
+            };
+
+            // 🔴 當錄音結束（不管是因為講完、還是太久沒講話自動斷開）
+            recog.onend = function() {
+                window.isChatListening = false;
+                if (micBtn) {
+                    // 把按鈕顏色變回原本的灰色
+                    micBtn.classList.remove('bg-red-500', 'text-white', 'animate-pulse');
+                    micBtn.classList.add('bg-gray-200', 'text-gray-500');
+                }
+                console.log("🎤 導師麥克風已關閉。");
+            };
+
+            // ⚠️ 錯誤處理（例如拒絕權限、沒聽到聲音）
+            recog.onerror = function(event) {
+                console.error("❌ 麥克風出錯:", event.error);
+                if (event.error === 'not-allowed') {
+                    showToast("🔒 請允許網頁啟用麥克風權限！");
+                } else if (event.error !== 'aborted') {
+                    showToast("⚠️ 沒聽清楚，請再按一次麥克風並大聲說話！");
+                }
+                if (window.speechSynthesis) window.speechSynthesis.resume();
+            };
+
+            // 🚀 正式啟動錄音
+            try {
+                recog.start();
+            } catch (e) {
+                console.log("麥克風重置中...");
+                try { recog.stop(); } catch(err){}
+                setTimeout(() => { try { recog.start(); } catch(err){} }, 200);
+            }
+        }
         </script>                                    
     <div id="login-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] hidden items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-sm w-full mx-4 shadow-2xl border border-gray-100 dark:border-slate-700 space-y-4">
