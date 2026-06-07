@@ -7834,9 +7834,80 @@ function setupLessonWord() {
         }
         function toggleChatMic() { if(recognition) try { recognition.start(); } catch(e){} }
 
+        // ==========================================================================
+        // 🔮 AI 導師智慧出題：自動根據當前等級單字出「造句挑戰題」
+        // ==========================================================================
         function startNewChatScenario() {
-            chatHistory = [{ role: 'aria', text: "Hi! I'm Aria. Let's practice making some sentence." }];
-            renderChatMessages(); speakText(chatHistory[0].text, 1.0, 'en-US');
+            // 1. 🚨 解凍手機/瀏覽器喇叭防線
+            if (typeof playAudioEffect === 'function') {
+                playAudioEffect('resume');
+            }
+
+            let targetWord = "desk"; // 預設安全牌單字
+            let currentLevelName = "初級";
+
+            // 2. 🎯 【智慧連動層】：自動去抓你目前玩到哪一關、現在的單字是什麼
+            if (typeof sessionState !== 'undefined' && sessionState && sessionState.currentWords) {
+                // 優先抓目前關卡正在挑戰的單字
+                const currentWordObj = sessionState.currentWords[sessionState.currentIndex];
+                if (currentWordObj && currentWordObj.word) {
+                    targetWord = currentWordObj.word;
+                }
+            } else if (typeof vocabularyDB !== 'undefined' && vocabularyDB && vocabularyDB.length > 0) {
+                // 如果沒在關卡中，就隨機從符合玩家當前等級的單字庫裡抽一個字
+                let userLevel = 1;
+                if (typeof userData !== 'undefined' && userData.level) {
+                    userLevel = userData.level;
+                }
+                currentLevelName = `Level ${userLevel}`;
+                
+                // 篩選出符合當前 Level 的單字
+                const levelWords = vocabularyDB.filter(w => w.level === userLevel || w.stage === userLevel);
+                if (levelWords.length > 0) {
+                    const randomObj = levelWords[Math.floor(Math.random() * levelWords.length)];
+                    targetWord = randomObj.word;
+                } else {
+                    // 萬一沒分 level，就隨機抽資料庫任何一個字
+                    const randomObj = vocabularyDB[Math.floor(Math.random() * vocabularyDB.length)];
+                    targetWord = randomObj.word;
+                }
+            }
+
+            // 3. 📝 【AI 導師出題劇本】：包裝成高質感的雙語造句題目
+            // 這樣能強迫 speakText 同時發出好聽的英文與中文
+            const questionText = `Here is your challenge for ${currentLevelName}! Please make a sentence with the word: "${targetWord}".（請用當前等級的單字： ${targetWord} ，來造一個英文句子回答我吧！）`;
+
+            console.log(`🤖 [Aria 出題] 成功生成當前等級題目，核心單字: ${targetWord}`);
+
+            // 4. 💬 【物理渲染】：把導師的話塞進你剛剛加高的 chat-messages 對話框裡
+            const chatMessages = document.getElementById('chat-messages');
+            if (chatMessages) {
+                // 先清空之前的舊對話（或者保留，看你的習慣。這裡選擇保留並追加）
+                // 建立 Aria 的對話泡泡
+                const msgHtml = `
+                    <div class="flex items-start gap-3 justify-start animate-fade-in">
+                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Aria" class="w-10 h-10 rounded-full border border-ai bg-purple-50 shrink-0">
+                        <div class="bg-purple-50 text-gray-800 p-4 rounded-2xl rounded-tl-none shadow-sm max-w-[85%] border border-purple-100">
+                            <p class="font-bold text-sm text-ai mb-1">🤖 Aria 導師：</p>
+                            <p class="text-lg leading-relaxed font-semibold">${questionText.replace('（', '<br><span class="text-base text-gray-500 font-medium">（').replace('）', '）</span>')}</p>
+                        </div>
+                    </div>
+                `;
+                chatMessages.innerHTML += msgHtml;
+                
+                // 自動滾動到最底部
+                setTimeout(() => {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }, 50);
+            }
+
+            // 5. 📢 【大聲朗讀】：呼叫我們寫好、絕不卡死、超流暢的中英雙語混讀引擎！
+            // 它會先流暢地唸出英文指令，再溫柔地用台灣中文提示你造句！
+            if (typeof speakText === 'function') {
+                speakText(questionText);
+            } else {
+                showToast("🔊 發音模組載入中...");
+            }
         }
 
         function sendChatMessage() {
