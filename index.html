@@ -8336,23 +8336,32 @@ function setupLessonWord() {
         // ========================================================================
         window.activeSpeechUtterances = []; 
 
-        // ==========================================================================
-        // 🔊 終極完全體：智慧排隊語音引擎 + 頂級聲優海選 + 中英拆分接力賽
+// ==========================================================================
+        // 🔊 終極完全體：智慧排隊語音引擎 + 手機同步破冰解鎖
         // ==========================================================================
         let speechQueue = [];
         let isSpeakingNow = false;
         let lastSpokenText = "";
         let lastSpokenTime = 0;
+        window.isMobileVoiceUnlocked = false; // 📱 新增：手機解鎖標記
 
         function speakText(text) {
             if (!text || !text.trim()) return;
             
             const currentTime = Date.now();
-            if (text === lastSpokenText && (currentTime - lastSpokenTime < 1000)) {
-                return;
-            }
+            if (text === lastSpokenText && (currentTime - lastSpokenTime < 1000)) return;
             lastSpokenText = text;
             lastSpokenTime = currentTime;
+
+            // 🚨 【手機終極解鎖防線】：在玩家按下去的「第一瞬間」，立刻同步發送一個無聲語音！
+            // 這樣能完美滿足 iOS/Android 要求「手指點擊必須立刻發音」的安全限制。
+            if (!window.isMobileVoiceUnlocked && window.speechSynthesis) {
+                const unlockUtterance = new SpeechSynthesisUtterance('');
+                unlockUtterance.volume = 0; // 靜音
+                window.speechSynthesis.speak(unlockUtterance);
+                window.isMobileVoiceUnlocked = true;
+                console.log("🔓 [行動裝置] 語音引擎已同步強制解鎖！");
+            }
 
             console.log(`🔊 [AI 語音引擎] 準備進入排隊鏈: "${text}"`);
 
@@ -8392,6 +8401,9 @@ function setupLessonWord() {
                 window.speechSynthesis.resume();
                 const utterance = new SpeechSynthesisUtterance(currentChunk.text);
 
+                // 🚨 強制把這句話的音量開到最大 (預設有時會被手機設為很小聲)
+                utterance.volume = 1.0;
+
                 // 🎯 幫特定語系找出最頂級、最自然的真人聲優
                 const allVoices = window.speechSynthesis.getVoices() || [];
                 function findBestVoice(langType) {
@@ -8420,6 +8432,7 @@ function setupLessonWord() {
                 }
                 utterance.pitch = 1.0;
 
+                if (!window.activeSpeechUtterances) window.activeSpeechUtterances = [];
                 window.activeSpeechUtterances.push(utterance);
 
                 // 🌟 接力棒交接：當這一句話真正唸完的瞬間，才放行下一句！
