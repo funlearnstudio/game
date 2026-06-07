@@ -7871,13 +7871,13 @@ function setupLessonWord() {
         let lastSpokenTime = 0;
 
         // ==========================================================================
-        // 🔊 系統自動朗讀單字 (徹底擊碎底層死鎖、絕不講到沒聲音終極完全體)
+        // 🔊 系統自動朗讀單字 (自然語流、流暢不跳針、抗死鎖終極黃金版本)
         // ==========================================================================
         function speakText(text) {
             if (!text) return;
             
             const currentTime = Date.now();
-            // 【防洪鎖】：1秒內完全重複的呼叫直接攔截，保護核心
+            // 【防洪鎖】：避免重複瘋狂點擊
             if (text === lastSpokenText && (currentTime - lastSpokenTime < 1000)) {
                 return;
             }
@@ -7885,16 +7885,13 @@ function setupLessonWord() {
             lastSpokenText = text;
             lastSpokenTime = currentTime;
 
-            console.log(`🔊 [AI 雙語講解] 收到文字: "${text}"`);
+            console.log(`🔊 [AI 語音引擎] 準備朗讀: "${text}"`);
 
             try {
-                // 🚨 【核心重置補丁】：徹底解決「講到一半沒聲音」的關鍵！
-                // 必須先強制 resume 搖醒，再 cancel 擦乾淨，最後「連續重置三次」確保通道暢通
                 if (window.speechSynthesis) {
                     window.speechSynthesis.resume();
                     window.speechSynthesis.cancel();
                     
-                    // 萬一瀏覽器死鎖卡在 speaking 狀態，用微秒延遲強制再解鎖一次
                     if (window.speechSynthesis.speaking) {
                         setTimeout(() => {
                             window.speechSynthesis.resume();
@@ -7903,59 +7900,71 @@ function setupLessonWord() {
                     }
                 }
 
-                // 💡 【萬能混讀演算法】：自動切分中英文
-                const parts = text.match(/[\u4e00-\u9fa5]+|[^ \u4e00-\u9fa5]+/g);
-                if (!parts || parts.length === 0) return;
+                // 🎯 【智慧整句分流術】：
+                // 判斷傳進來的文字是不是「純英文句子/單字」（允許包含英文字母、數字、常見標點符號與空格）
+                // 這樣如果是 "This is a desk." 就不會被切碎，能一口氣用完美的道地美音唸完！
+                const isPureEnglish = /^[a-zA-Z0-9\s.,!?'"-]+$/.test(text.trim());
 
-                parts.forEach((partText, index) => {
-                    const trimmedPart = partText.trim();
-                    if (!trimmedPart) return; 
-
-                    const utterance = new SpeechSynthesisUtterance(trimmedPart);
-                    
-                    // 自動判定這一小段是中文還是英文
-                    const isChinese = /[\u4e00-\u9fa5]/.test(trimmedPart);
-                    if (isChinese) {
-                        utterance.lang = 'zh-TW'; // 台灣中文
-                        utterance.rate = 1.0;     
-                    } else {
-                        utterance.lang = 'en-US'; // 美式英文
-                        utterance.rate = 0.88;    
-                    }
+                if (isPureEnglish) {
+                    // 🇺🇸 全英文：直接整句舒服地唸出來，語流最自然
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = 'en-US';
+                    utterance.rate = 0.88; // 微調 0.88 倍速，聽起來最像外籍老師優雅講話
                     utterance.pitch = 1.0;
 
-                    // 🚨 塞入全域防回收陣列
                     window.activeSpeechUtterances.push(utterance);
+                    utterance.onend = () => { window.activeSpeechUtterances = window.activeSpeechUtterances.filter(u => u !== utterance); };
+                    utterance.onerror = () => { window.activeSpeechUtterances = window.activeSpeechUtterances.filter(u => u !== utterance); };
 
-                    // 🚨 【防卡死生命週期守護】
-                    utterance.onend = function() {
-                        window.activeSpeechUtterances = window.activeSpeechUtterances.filter(u => u !== utterance);
-                        // 每唸完一段，就主動通知瀏覽器「繼續播放」，防止引擎睡著
-                        if (window.speechSynthesis) window.speechSynthesis.resume();
-                    };
+                    if (window.speechSynthesis) window.speechSynthesis.speak(utterance);
 
-                    utterance.onerror = function(err) {
-                        console.warn("⚠️ 語音片段發音中斷或取消:", err);
-                        window.activeSpeechUtterances = window.activeSpeechUtterances.filter(u => u !== utterance);
-                        if (window.speechSynthesis) window.speechSynthesis.resume();
-                    };
+                } else {
+                    // 🇨🇳 中英混合或純中文（例如 AI 講解）：這時才啟用精密的「中英區塊拆解」
+                    // 修正後的正則：保留完整的英文片語與空格，不拆散英文句子
+                    const parts = text.match(/[\u4e00-\u9fa5]+|[a-zA-Z0-9\s.,!?'"-]+/g);
+                    
+                    if (parts) {
+                        parts.forEach((partText) => {
+                            const trimmedPart = partText.trim();
+                            if (!trimmedPart) return;
 
-                    // 正式排隊發聲
-                    if (window.speechSynthesis) {
-                        window.speechSynthesis.speak(utterance);
+                            const utterance = new SpeechSynthesisUtterance(trimmedPart);
+                            const isChinese = /[\u4e00-\u9fa5]/.test(trimmedPart);
+                            
+                            if (isChinese) {
+                                utterance.lang = 'zh-TW';
+                                utterance.rate = 1.0;
+                            } else {
+                                utterance.lang = 'en-US';
+                                utterance.rate = 0.88;
+                            }
+                            utterance.pitch = 1.0;
+
+                            window.activeSpeechUtterances.push(utterance);
+                            utterance.onend = () => { 
+                                window.activeSpeechUtterances = window.activeSpeechUtterances.filter(u => u !== utterance);
+                                if (window.speechSynthesis) window.speechSynthesis.resume();
+                            };
+                            utterance.onerror = () => { 
+                                window.activeSpeechUtterances = window.activeSpeechUtterances.filter(u => u !== utterance);
+                                if (window.speechSynthesis) window.speechSynthesis.resume();
+                            };
+
+                            if (window.speechSynthesis) window.speechSynthesis.speak(utterance);
+                        });
                     }
-                });
+                }
 
-                // 🚨 【強效定時解鎖槍】：如果系統說話卡住超過 2.5 秒，定時器會在背景瘋狂「按 resume」把卡住的喉嚨疏通！
+                // 強效定時解鎖槍：防止任何潛在卡死
                 const unlockInterval = setInterval(() => {
                     if (window.speechSynthesis && window.speechSynthesis.speaking) {
                         window.speechSynthesis.resume();
                     } else {
-                        clearInterval(unlockInterval); // 沒在說話了就停止解鎖槍
+                        clearInterval(unlockInterval);
                     }
                 }, 1000);
 
-                // iOS/Safari 物理喚醒喇叭補丁
+                // iOS/Safari 物理喚醒
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 if (AudioContext) {
                     const tempCtx = new AudioContext();
@@ -7963,7 +7972,7 @@ function setupLessonWord() {
                 }
 
             } catch (err) {
-                console.error("❌ AI 雙語發音核心發生致命例外:", err);
+                console.error("❌ 語音引擎例外:", err);
             }
         }
         // 解決部分瀏覽器（如 Chrome/Edge）首次載入時語音包清單非同步延遲的 Bug
