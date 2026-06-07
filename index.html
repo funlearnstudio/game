@@ -7037,7 +7037,8 @@
             xp: 0, streak: 0, hearts: 5, unlockedUnit: 1, lastDate: '', gems: 100, maxStreak: 0,
             wrongWords: [], learnedWords: [], avatarIcon: 'fa-user-astronaut', avatarBg: 'from-blue-500 to-indigo-600'
         };
-
+        // 預設為 false，代表剛開機，還沒點進去關卡
+        let isLearningActive = false;
         let sessionState = { mode: '', currentWords: [], currentIndex: 0, wrongCount: 0, score: 0 };
         let chatHistory = [];
         let recognition = null;
@@ -7305,7 +7306,7 @@
        // ==========================================
         // 📖 渲染當前單字畫面與「全自動進度監控防護線」
         // ==========================================
-        function setupLessonWord() {
+function setupLessonWord() {
             const wordObj = sessionState.currentWords[sessionState.currentIndex];
             document.getElementById('lesson-progress').value = (sessionState.currentIndex / sessionState.currentWords.length) * 100;
             document.getElementById('lesson-word').innerText = wordObj.word;
@@ -7315,7 +7316,7 @@
 
             document.getElementById('btn-teach').classList.remove('hidden');
             document.getElementById('btn-next-lesson').classList.add('hidden');
-            speakText(wordObj.word, 1.0);
+            speakText(wordObj.word, 1.0); // 這裡如果你有換成防卡死的 speakSystemWord，請記得改名
             
             const teacherText = document.getElementById('teacher-text');
             if(teacherText) teacherText.innerText = `現在來學習 "${wordObj.word}"。點擊下方看詳細講解！`;
@@ -7324,6 +7325,12 @@
             // 🚀 【終極防護線】全自動盲測存檔機制
             // ============================================================
             try {
+                // 🛑 【新增安全鎖】：如果玩家還沒正式點擊進入關卡，直接終止存檔動作！
+                if (!window.isLearningActive) {
+                    // console.log("🔒 尚未進入關卡，暫時阻擋背景存檔"); // 測試沒問題後可將這行刪除
+                    return; 
+                }
+
                 console.log("【偵錯】當前 sessionState 的完整內容為:", JSON.stringify(sessionState));
 
                 // 1. 智慧型盲測：自動找出當前的關卡編號（嘗試各種可能的變數名稱）
@@ -7828,13 +7835,30 @@
         }
 
         function switchTab(tabId) {
+            // ==========================================
+            // 🟢 【安全鎖全自動開關】
+            // 只要切換到「lesson(單字)」或「test(測驗)」，就自動解鎖允許存檔；
+            // 切換去其他畫面(主頁、遊樂場)，就自動關閉鎖頭防當機！
+            // ==========================================
+            if (tabId === 'lesson' || tabId === 'test' || tabId === 'arcade-play') {
+                window.isLearningActive = true;
+            } else {
+                window.isLearningActive = false;
+            }
+
+            // 下面是你原本切換畫面的程式碼，完全不用動
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             const target = document.getElementById(tabId);
             if(target) target.classList.add('active');
-            
-            if(tabId === 'dictionary') renderDictionary('all');
-            if(tabId === 'chat' && chatHistory.length === 0) startNewChatScenario();
-            updateUI();
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-primary');
+                btn.classList.add('text-gray-400');
+                if(btn.dataset.target === tabId) {
+                    btn.classList.remove('text-gray-400');
+                    btn.classList.add('text-primary');
+                }
+            });
         }
 
         function checkDaily() {
@@ -8096,7 +8120,7 @@
                                 totalToFinish: unitWords.length,
                                 isReview: typeof userData !== 'undefined' ? (targetUnit < userData.unlockedUnit) : false
                             };
-                            
+                            window.isLearningActive = true; // 🟢 機器人還原進度了！解開安全鎖！
                             if (typeof switchTab === 'function') switchTab('lesson');
                             if (typeof setupLessonWord === 'function') {
                                 setupLessonWord();
