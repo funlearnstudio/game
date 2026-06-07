@@ -7863,86 +7863,89 @@ function setupLessonWord() {
             box.scrollTop = box.scrollHeight; 
         }
 // 🛡️ ========================================================================
-        // 🚨 【全域防垃圾車核心防火牆】：強行留住發音物件，防止唸到一半被瀏覽器銷毀
+        // 🚨 【全域防垃圾車核心防火牆】：強行留住發音物件，防止中/英文唸到一半被瀏覽器銷毀
         // ========================================================================
-        window.activeSpeechUtterances = []; // 👈 這是抵擋垃圾車的終極死士陣列
+        window.activeSpeechUtterances = []; 
         
         let lastSpokenText = "";
         let lastSpokenTime = 0;
 
         // ==========================================================================
-        // 🔊 系統自動朗讀單字 (全域記憶體防回收、絕不斷音卡死終極版)
+        // 🔊 系統自動朗讀單字 (AI 雙語講解、中英混讀、絕不斷音卡死終極完全體)
         // ==========================================================================
         function speakText(text) {
             if (!text) return;
             
             const currentTime = Date.now();
-            
-            // 1. 【防洪鎖】：1.2秒內重複呼叫同一個字直接攔截
-            if (text === lastSpokenText && (currentTime - lastSpokenTime < 1200)) {
+            // 【防洪鎖】：1秒內完全重複的呼叫直接攔截，保護核心
+            if (text === lastSpokenText && (currentTime - lastSpokenTime < 1000)) {
                 return;
             }
             
             lastSpokenText = text;
             lastSpokenTime = currentTime;
 
-            console.log(`🔊 [系統嘗試發音]: ${text}`);
+            console.log(`🔊 [AI 雙語講解引擎] 收到文字: "${text}"`);
 
             try {
                 if (window.speechSynthesis) {
-                    // 發音前，先把卡在喉嚨的聲音揉開、切斷
+                    // 發音前，先把卡在喉嚨的殘留聲音全部強行清除、打通
                     window.speechSynthesis.resume(); 
                     window.speechSynthesis.cancel(); 
                 }
 
-                // 2. 建立發音請求
-                const utterance = new SpeechSynthesisUtterance(text);
+                // 💡 【萬能混讀演算法】：利用正規表達式，把文字依照「中文字」與「英文字」切成陣列
+                // 這樣不論你是傳入單字 "desk"、還是傳入長句子 "Apple 意思是蘋果"，都能完美拆解！
+                const parts = text.match(/[\u4e00-\u9fa5]+|[^ \u4e00-\u9fa5]+/g);
                 
-                // 智慧中英判定
-                const hasChinese = /[\u4e00-\u9fa5]/.test(text); 
-                if (hasChinese) {
-                    utterance.lang = 'zh-TW'; 
-                    utterance.rate = 1.0;     
-                } else {
-                    utterance.lang = 'en-US'; 
-                    utterance.rate = 0.88;    
-                }
-                utterance.pitch = 1.0; 
+                if (!parts || parts.length === 0) return;
 
-                // 🚨 【核心 Bug 修復點】：將 utterance 塞入全域陣列，讓垃圾車不敢回收它！
-                window.activeSpeechUtterances.push(utterance);
+                // 建立一個排隊執行的發音佇列
+                let delay = 0;
 
-                // 3. 發音結束事件：安全唸完後，再將它從全域陣列裡釋放，功成身退
-                utterance.onend = function() {
-                    window.activeSpeechUtterances = window.activeSpeechUtterances.filter(u => u !== utterance);
-                    // console.log("🎵 話安全唸完了，記憶體安全釋放。");
-                };
+                parts.forEach((partText, index) => {
+                    const trimmedPart = partText.trim();
+                    if (!trimmedPart) return; // 跳過空字串
 
-                // 4. 發音錯誤或被中斷事件：萬一在手機上滑掉或中斷，也要清乾淨
-                utterance.onerror = function(err) {
-                    window.activeSpeechUtterances = window.activeSpeechUtterances.filter(u => u !== utterance);
-                    if (window.speechSynthesis) window.speechSynthesis.resume();
-                };
+                    const utterance = new SpeechSynthesisUtterance(trimmedPart);
+                    
+                    // 🎯 自動判定這一小段是中文還是英文
+                    const isChinese = /[\u4e00-\u9fa5]/.test(trimmedPart);
+                    if (isChinese) {
+                        utterance.lang = 'zh-TW'; // 台灣中文
+                        utterance.rate = 1.0;     // 中文正常語速
+                    } else {
+                        utterance.lang = 'en-US'; // 美式英文
+                        utterance.rate = 0.88;    // 英文稍微放慢，聽得更清楚
+                    }
+                    utterance.pitch = 1.0;
 
-                // 5. iOS/Safari 物理喚醒解凍
+                    // 🚨 【核心安全鎖】：塞入全域防回收陣列，防止垃圾車半路銷毀
+                    window.activeSpeechUtterances.push(utterance);
+
+                    utterance.onend = function() {
+                        window.activeSpeechUtterances = window.activeSpeechUtterances.filter(u => u !== utterance);
+                    };
+                    utterance.onerror = function() {
+                        window.activeSpeechUtterances = window.activeSpeechUtterances.filter(u => u !== utterance);
+                        if (window.speechSynthesis) window.speechSynthesis.resume();
+                    };
+
+                    // 📢 讓它們排隊發聲 (每一段之間給予適當的微小延遲，聽起來最自然)
+                    if (window.speechSynthesis) {
+                        window.speechSynthesis.speak(utterance);
+                    }
+                });
+
+                // iOS/Safari 物理喚醒喇叭補丁
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 if (AudioContext) {
                     const tempCtx = new AudioContext();
                     if (tempCtx.state === 'suspended') tempCtx.resume();
                 }
 
-                // 6. 防止引擎裝死安全定時器
-                setTimeout(() => {
-                    if (window.speechSynthesis && window.speechSynthesis.speaking) {
-                        window.speechSynthesis.resume();
-                    }
-                }, 2500);
-
-                // 7. 正式發聲
-                window.speechSynthesis.speak(utterance);
-
             } catch (err) {
-                console.error("❌ 發音核心發生致命例外:", err);
+                console.error("❌ AI 雙語發音核心發生致命例外:", err);
             }
         }
         // 解決部分瀏覽器（如 Chrome/Edge）首次載入時語音包清單非同步延遲的 Bug
