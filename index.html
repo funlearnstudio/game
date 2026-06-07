@@ -7641,42 +7641,21 @@ function setupLessonWord() {
                 if(!userData.learnedWords.includes(wordObj.word)) userData.learnedWords.push(wordObj.word);
                 feedback.className += " bg-gradient-to-br from-green-400 to-primary";
                 feedback.innerHTML = `<div class="text-xl font-black"><i class="fa-solid fa-check"></i> 答對了！</div><button id="btn-next-q" class="btn-3d bg-white text-primary px-8 py-2.5 w-full mt-2 font-black">繼續</button>`;
-           } else {
+            } else {
                 playSFX('error');
                 userData.hearts = Math.max(0, userData.hearts - 1); sessionState.wrongCount++;
                 
                 // ==================================================================
-                // 🎯 【鋼鐵雙重保險：錯題精密補丁 V2 版本】
+                // 🔒 【安全進度鎖：錯題實體寫入區（絕不改寫/暴跳關卡進度）】
                 // ==================================================================
-                // 管道 A：嘗試從當前索引撈出單字物件
-                let currentWordObj = null;
-                if (typeof sessionState !== 'undefined' && sessionState && sessionState.currentWords) {
-                    currentWordObj = sessionState.currentWords[sessionState.currentIndex];
-                }
+                let wordObj = sessionState.currentWords[sessionState.currentIndex];
+                if (wordObj && wordObj.word) {
+                    let failedWord = wordObj.word.toLowerCase().trim();
+                    
+                    // 💡 重點：牢牢鎖定當前 sessionState 裡真正的 Unit，不認外界亂跳的暫存！
+                    let currentUnitId = sessionState.unit || sessionState.currentUnit || 1;
+                    let currentMeaning = wordObj.meaning || wordObj.translation || wordObj.ch || "";
 
-                // 管道 B 防火牆：萬一 currentIndex 已經被偷偷被加 1 了，我們往前退一格抓真正的錯字
-                if (!currentWordObj && sessionState && sessionState.currentIndex > 0) {
-                    currentWordObj = sessionState.currentWords[sessionState.currentIndex - 1];
-                }
-
-                // 準備寫入的變數
-                let failedWord = "";
-                let currentUnitId = (sessionState && (sessionState.unit || sessionState.currentUnit)) || 1;
-                let currentMeaning = "";
-
-                if (currentWordObj) {
-                    failedWord = (currentWordObj.word || "").toLowerCase().trim();
-                    currentMeaning = currentWordObj.meaning || currentWordObj.translation || currentWordObj.ch || "";
-                } else {
-                    // 管道 C 終極防線：如果記憶體抓不到，直接從網頁畫面上抓（看你的 HTML 顯示單字的地方叫什麼，例如 'lesson-word'）
-                    const htmlWordEl = document.getElementById('lesson-word') || document.getElementById('test-word');
-                    if (htmlWordEl && htmlWordEl.innerText) {
-                        failedWord = htmlWordEl.innerText.toLowerCase().trim();
-                    }
-                }
-
-                // 🔥 【強制實體寫入】：只要抓得到字，立刻開火存入資料庫
-                if (failedWord && failedWord !== "") {
                     if (typeof userData !== 'undefined' && userData) {
                         if (!userData.wrongWords) userData.wrongWords = [];
 
@@ -7689,31 +7668,25 @@ function setupLessonWord() {
 
                         if (!isAlreadyExist) {
                             const mistakeObject = {
-                                word: failedWord,          // 寫入單字
-                                unit: parseInt(currentUnitId), // 寫入當前讀取的關卡單元
-                                meaning: currentMeaning     // 寫入中文意思
+                                word: wordObj.word,          
+                                unit: parseInt(currentUnitId), // 物理鎖定！只存目前的單元
+                                meaning: currentMeaning     
                             };
                             
                             userData.wrongWords.push(mistakeObject);
-                            console.log(`🚀 [V2 精密補丁] 成功實體封裝錯題並寫入庫！`, mistakeObject);
+                            console.log(`🚀 [安全進度鎖] 成功封裝錯題，拒絕竄改進度：`, mistakeObject);
 
-                            // 💾 物理存檔
+                            // 💾 只在本地儲存錯題陣列，【不要】在這裡集體覆蓋全域最後進度
                             localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
                             
-                            // ☁️ 雲端強力同步
-                            if (typeof saveToCloud === 'function') saveToCloud();
-                            if (typeof scheduleCloudSync === 'function') scheduleCloudSync();
-                        } else {
-                            console.log(`ℹ️ [V2 精密補丁] 錯題本已存在同關卡的 "${failedWord}"，跳過排重。`);
+                            // ☁️ 🚨 關鍵攔截：【答錯時絕不發射會跳關的全域 saveToCloudNow()！】
+                            // 我們改用單獨的、只更新錯題本的安全機制（若你有寫後端單獨錯題API），或是先阻斷它！
+                            // 為了防止原本的 saveToCloudNow 把暴跳的單元帶上去，我們先不在此處亂呼叫它！
                         }
                     }
-                } else {
-                    // 🚨 超強除錯訊息：萬一還是沒存進去，讓它在網頁主控台彈出原因
-                    console.error("❌ [V2 精密補丁報錯] 系統在答錯時完全找不到當前單字！請檢查 sessionState 是否正常。");
                 }
                 // ==================================================================
-                // 🎯 【V2 補丁結束】
-                // ==================================================================
+
                 feedback.className += " bg-gradient-to-br from-red-400 to-danger";
                 feedback.innerHTML = `<div class="text-xl font-black"><i class="fa-solid fa-xmark"></i> 答錯了</div><p class="text-sm font-black bg-black/20 px-4 py-1.5 rounded-xl">正解：${correctRef}</p><button id="btn-next-q" class="btn-3d bg-white text-danger px-8 py-2.5 w-full mt-2 font-black">我知道了</button>`;
             }
@@ -9086,14 +9059,34 @@ function setupLessonWord() {
                 // 🎯 關鍵：在準備發射的瞬間，立刻更新時間戳記，把門關上！
                 lastCloudSyncTime = currentTime;
 
-                const currentUnit = localStorage.getItem(`duo_last_active_unit`) || 1;
-                const currentIndex = localStorage.getItem(`duo_last_active_index`) || 0;
+               // ==================================================================
+                // 🔒 【鋼鐵進度防線】：全面攔截並上鎖當前正在玩的關卡進度
+                // ==================================================================
+                // 1. 先抓取當前的快照作為備用
+                let backupUnit = localStorage.getItem(`duo_last_active_unit`);
+                let backupIndex = localStorage.getItem(`duo_last_active_index`);
+                if (backupUnit === null) backupUnit = 1;
+                if (backupIndex === null) backupIndex = 0;
 
-// ...（前面程式碼保持不變）
+                // 2. 🚨【核心修正邏輯】：
+                // 如果玩家目前正在上課、寫題目（sessionState還活著），那進度就絕對只能是這關！
+                // 即使外部暫存被亂改成 3 或 4，我們也強行用 sessionState 把進度拉回真正的當前關卡！
+                let realUnit = parseInt(backupUnit);
+                let realIndex = parseInt(backupIndex);
 
+                if (typeof sessionState !== 'undefined' && sessionState) {
+                    if (sessionState.currentUnit || sessionState.unit) {
+                        realUnit = parseInt(sessionState.currentUnit || sessionState.unit);
+                    }
+                    if (typeof sessionState.currentIndex !== 'undefined' && sessionState.currentIndex !== null) {
+                        realIndex = parseInt(sessionState.currentIndex);
+                    }
+                }
+
+                // 3. 將校正後、絕對安全的進度，同步寫回 userData
                 if (typeof userData !== 'undefined' && userData && typeof userData === 'object') {
-                    userData.lastUnit = parseInt(currentUnit);
-                    userData.lastIdx = parseInt(currentIndex);
+                    userData.lastUnit = realUnit;
+                    userData.lastIdx = realIndex;
                 }
 
                 // ==================================================================
@@ -9105,18 +9098,19 @@ function setupLessonWord() {
                     stringifiedWrongWords = JSON.stringify(userData.wrongWords);
                 }
 
+                // 4. 打包最終安全的發射酬載 (Payload)，不論玩家答錯還是答對，進度都絕對正確！
                 const payload = {
                     action: "saveUserData",
                     userId: window.myUserId,
                     userData: typeof userData !== 'undefined' ? userData : (window.userData || {}), 
-                    lastUnit: parseInt(currentUnit),
-                    lastIdx: parseInt(currentIndex),
+                    lastUnit: realUnit,  // 🎯 物理鎖定！絕不暴跳
+                    lastIdx: realIndex,   // 🎯 物理鎖定！位置精準
                     
-                    // 🔥 強行在外層多塞這兩個脫殼欄位，確保後端不管用哪種舊寫法都能 100% 抓到！
+                    // 🔥 強行在外層多塞這兩個脫殼欄位，確保後端 GS 100% 抓到
                     wrongWords: stringifiedWrongWords, 
                     wrongWordsRaw: stringifiedWrongWords
                 };
-
+                // ==================================================================
                 console.log("🚀 [雲端存檔] 正在發射資料到 Google Sheets：", payload);
 
                 fetch(window.GAS_API_URL, {
