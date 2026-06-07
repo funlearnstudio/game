@@ -7057,7 +7057,20 @@ window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbyXmL3vHlSlqKRhKgz
         }
 
         async function init() {
-            console.log("🚀 7000 單字終極蛇形地圖系統初始化中...");
+            console.log("🚀 7000 單字終極蛇形地圖系統初始化中... (已裝入重啟防閃爍防火牆)");
+            
+            // ==================================================================
+            // 🛡️ 【第 1 道全速隔離防線】：在去雲端卡住之前，立刻強制鎖定主地圖
+            // ==================================================================
+            if (typeof switchTab === 'function') {
+                switchTab('map'); // 0秒肉身攔截！還沒下載雲端前，畫面就必須先強制切到地圖頁
+            }
+            
+            // 強制清空作答大腦，防止上一次寫到一半的殘留單字狀態干擾畫面
+            if (typeof sessionState !== 'undefined') {
+                sessionState = null; 
+            }
+
             setupTheme();
             myUserId = getOrCreateUserId();
             
@@ -7066,22 +7079,27 @@ window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbyXmL3vHlSlqKRhKgz
                 try { userData = JSON.parse(localData); } catch(e) {}
             }
             
-            // 1. 先安全讀取雲端並改寫 LocalStorage 和記憶體變數
+            // ==================================================================
+            // ☁️ 1. 安全讀取雲端（此處會卡住幾百毫秒，但因為前面已經鎖死地圖，所以絕對不會再閃爍！）
+            // ==================================================================
             await loadFromCloudNow(); 
             checkDaily();
             
-            // 2. 讓主流程順著走下去畫圖，這樣就不會發生衝突！
+            // ==================================================================
+            // 🛡️ 【第 2 道加固防線】：雲端下載完成，準備渲染畫面
+            // ==================================================================
+            // 再次強制回主地圖做雙重保險，接著開始絲滑地繪製地圖與 UI
             switchTab('map');
             updateUI();
             renderMap(); 
             renderStoryTab();
+            
             // ... 底下維持原樣
             renderAchievements();
             initSpeechRecognition();
             
             window.addEventListener('keydown', handleGlobalKeydown);
         }
-
         window.addEventListener('DOMContentLoaded', init);
 
         // ==========================================
