@@ -197,29 +197,25 @@
             </div>
         </section>
 
-<section id="chat" class="tab-content w-full max-w-2xl mx-auto px-2 flex flex-col gap-4">
-            
-            <div class="glass-panel p-5 flex items-center gap-4 border border-purple-100 shadow-sm rounded-2xl bg-white">
-                <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Aria" class="w-14 h-14 rounded-full border-2 border-ai bg-purple-100 shadow-inner flex-shrink-0">
+<section id="chat" class="tab-content">
+            <div class="glass-panel p-4 mb-4 flex items-center gap-3">
+                <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Aria" class="w-12 h-12 rounded-full border-2 border-ai bg-purple-100">
                 <div>
-                    <h2 class="text-2xl font-black text-gray-800 mb-1">Aria 語音導師</h2>
-                    <p class="text-sm text-gray-500 font-bold leading-relaxed">用語音跟我聊天，我會隨機考你造句！</p>
+                    <h2 class="text-xl font-black">Aria 語音導師</h2>
+                    <p class="text-xs text-gray-400 font-bold">用語音跟我聊天，我會隨機考你造句！</p>
                 </div>
             </div>
-
-            <div class="glass-panel flex-1 flex flex-col h-[500px] overflow-hidden bg-white border border-gray-100 shadow-md rounded-2xl">
-                <div id="chat-messages" class="flex-1 overflow-y-auto p-5 flex flex-col gap-4 text-lg"></div>
-                
-                <div class="p-4 bg-gray-50/70 dark:bg-slate-800/50 border-t border-gray-100 dark:border-slate-700 flex items-center gap-3">
-                    <button id="chat-mic-btn" onclick="toggleChatMic()" class="w-12 h-12 rounded-full bg-gray-200 dark:bg-slate-700 text-gray-500 hover:text-ai transition-all text-xl flex items-center justify-center shrink-0 shadow-sm">
+            <div class="glass-panel flex-1 mb-4 flex flex-col h-[380px] overflow-hidden">
+                <div id="chat-messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3"></div>
+                <div class="p-3 bg-gray-50/50 dark:bg-slate-800/50 border-t border-gray-100 dark:border-slate-700 flex items-center gap-2">
+                    <button id="chat-mic-btn" onclick="toggleChatMic()" class="w-12 h-12 rounded-full bg-gray-200 dark:bg-slate-700 text-gray-500 hover:text-ai transition-all text-xl flex items-center justify-center shrink-0">
                         <i class="fa-solid fa-microphone"></i>
                     </button>
-                    <input type="text" id="chat-input" placeholder="用語音或輸入回答..." class="flex-1 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-2xl px-4 py-3 text-base font-bold text-gray-700 dark:text-white focus:outline-none focus:border-ai shadow-inner">
-                    <button onclick="sendChatMessage()" class="w-12 h-12 rounded-2xl bg-ai text-white flex items-center justify-center shrink-0 hover:bg-aiDark transition-colors shadow-md text-xl"><i class="fa-solid fa-paper-plane"></i></button>
+                    <input type="text" id="chat-input" placeholder="用語音或輸入回答..." class="flex-1 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-2xl px-4 py-3 font-bold text-gray-700 dark:text-white focus:outline-none focus:border-ai">
+                    <button onclick="sendChatMessage()" class="w-12 h-12 rounded-2xl bg-ai text-white flex items-center justify-center shrink-0 hover:bg-aiDark transition-colors shadow-sm text-xl"><i class="fa-solid fa-paper-plane"></i></button>
                 </div>
             </div>
-
-            <button onclick="startNewChatScenario()" class="btn-3d w-full bg-indigo-50 text-ai py-3.5 border border-indigo-200 shadow-md text-xl font-black rounded-2xl transition-all duration-200"><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>讓導師隨機出題</button>
+            <button onclick="startNewChatScenario()" class="btn-3d w-full bg-indigo-100 text-ai py-3 border border-indigo-200 shadow-sm text-lg font-black"><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>讓導師隨機出題</button>
         </section>
 
         <section id="dictionary" class="tab-content">
