@@ -7953,7 +7953,7 @@ function setupLessonWord() {
             chatMessages.innerHTML += userMsgHtml;
             chatMessages.scrollTop = chatMessages.scrollHeight;
 
-            // 3. 🧠 【AI 導師文法大師即時審查機制】
+           // 3. 🧠 【AI 導師文法大師即時審查機制】：一絲不苟、絕不放水版
             let lastKeyword = (window.lastSpokenText || "").match(/"([^"]+)"/); 
             let targetWord = lastKeyword ? lastKeyword[1].toLowerCase().trim() : "";
 
@@ -7961,43 +7961,45 @@ function setupLessonWord() {
                 let feedbackText = "";
                 let isCorrect = true;
 
-                // 💡 【文法核心過濾演算法】：
                 const cleanedText = userText.toLowerCase().trim();
                 const wordCount = cleanedText.split(/\s+/).length; // 計算總單字量
 
-                // 檢查是否包含基本主詞 (I, you, he, she, it, we, they, this, that, there, my, the...)
-                const hasSubject = /\b(i|you|he|she|it|we|they|this|that|these|those|there|my|the|a|an)\b/i.test(cleanedText);
-                
-                // 檢查是否包含常見動詞或 be 動詞 (is, am, are, was, were, have, has, like, see, go, run...)
-                const hasVerb = /\b(is|am|are|was|were|have|has|had|do|does|did|like|likes|liked|love|go|goes|went|want|wants|see|sees|saw|run|eat|play|can|will|should|make|makes|made)\b/i.test(cleanedText);
-
-                // 🚨 檢查獨立單字邊界 (防止 cat 被 catch 矇混過關)
+                // 🔍 嚴格的獨立單字邊界限制正則
                 const strictRegex = new RegExp(`\\b${targetWord}\\b`, 'i');
                 const hasTargetWordStrictly = strictRegex.test(userText);
 
-                // 🎯 開始多重交叉嚴格比對
+                // 🔍 文法結構基礎正則
+                const hasSubject = /\b(i|you|he|she|it|we|they|this|that|these|those|there|my|the|a|an)\b/i.test(cleanedText);
+                const hasVerb = /\b(is|am|are|was|were|have|has|had|do|does|did|like|likes|liked|love|go|goes|went|want|wants|see|sees|saw|run|eat|play|can|will|should|make|makes|made)\b/i.test(cleanedText);
+
+                // ==================================================================
+                // 🚨 【絕對防線 A】：不管三七二十一，先看句子裡有沒有這個字！沒這個字直接算錯！
+                // ==================================================================
                 if (!hasTargetWordStrictly) {
-                    // ❌ 狀況 A：根本沒有包含這次考的目標單字
                     isCorrect = false;
-                    feedbackText = `Oops! I didn't hear the exact word "${targetWord}" in your sentence. Make sure to use the correct word!（哎呀！我沒在你的句子裡聽到精準的 "${targetWord}" 這個字。請注意拼字或發音，繼續挑戰下一題吧！）`;
+                    feedbackText = `Oops! I didn't hear the exact word "${targetWord}" in your sentence. Make sure to use the correct word!（哎呀！我沒在你的句子裡聽到精準的 "${targetWord}" 這個字。請注意發音或單字，我們繼續挑戰下一題吧！）`;
                 } 
+                // ==================================================================
+                // 🚨 【絕對防線 B】：有這個字了，接下來嚴格審查它到底是不是一個「完整的句子」
+                // ==================================================================
                 else if (wordCount < 3 || !hasSubject || !hasVerb) {
-                    // ❌ 狀況 B：雖然有單字，但字數太少，或者缺少主詞/動詞，根本不是一個完整的英文句子
                     isCorrect = false;
-                    feedbackText = `That's not a complete sentence! Please try to make a full sentence with a subject and a verb next time.（這不是一個完整的句子喔！一個正確的句子必須包含主詞和動詞。沒關係，我們繼續挑戰下一題！）`;
+                    feedbackText = `That's not a complete sentence! Please try to make a full sentence with a subject and a verb next time.（雖然你用了單字，但這不是一個完整的句子喔！句子必須包含主詞和動詞。沒關係，我們繼續挑戰下一題！）`;
                 } 
+                // ==================================================================
+                // 🎉 【絕對防線 C】：同時通過前兩關，才賞你 10 XP！
+                // ==================================================================
                 else {
-                    // 🎉 狀況 C：完全通過！是一句有品質的完整造句！
                     isCorrect = true;
                     feedbackText = `Excellent sentence! You used the word perfectly in a complete sentence. +10 XP!（太棒了！你的造句非常道地，單字用得很精準！加 10 經驗值！接下來，讓我們繼續挑戰下一題吧！）`;
                 }
 
                 // 4. 🔊 【聲效與血量處理】：只響提示音，絕對不扣血！
                 if (!isCorrect) {
-                    // 答錯：放錯題提示音，但「不執行」任何扣減生命的程式碼（保護愛心）
+                    // 答錯：放錯題提示音（嗶嗶！），但絕對不扣愛心血量
                     if (typeof playAudioEffect === 'function') playAudioEffect('wrong');
                 } else {
-                    // 答對：放成功音效，加 10 XP 獎勵
+                    // 答對：放成功叮咚聲，加 10 XP
                     if (typeof playAudioEffect === 'function') playAudioEffect('success');
                     if (typeof userData !== 'undefined') {
                         userData.xp += 10;
@@ -8006,6 +8008,56 @@ function setupLessonWord() {
                     }
                 }
 
+                // 5. 🎲 【連續無限出題】：自動盲抽下一個全新單字
+                let userLevel = (typeof userData !== 'undefined' && userData.level) ? userData.level : 1;
+                let poolOfWords = [];
+                if (typeof vocabularyDB !== 'undefined' && Array.isArray(vocabularyDB)) {
+                    poolOfWords = vocabularyDB.filter(w => parseInt(w.level) === parseInt(userLevel) || parseInt(w.stage) === parseInt(userLevel));
+                }
+                if (poolOfWords.length === 0 && typeof sessionState !== 'undefined' && sessionState.currentWords) {
+                    poolOfWords = sessionState.currentWords;
+                }
+
+                let nextWord = "apple"; 
+                let nextMeaning = "蘋果";
+                if (poolOfWords && poolOfWords.length > 0) {
+                    let freshWords = poolOfWords.filter(w => w.word.toLowerCase() !== targetWord);
+                    let finalPool = freshWords.length > 0 ? freshWords : poolOfWords;
+                    const randomObj = finalPool[Math.floor(Math.random() * finalPool.length)];
+                    nextWord = randomObj.word;
+                    nextMeaning = randomObj.meaning || randomObj.translation || randomObj.ch || "";
+                }
+
+                const nextChineseHint = nextMeaning ? `（${nextMeaning}）` : "";
+
+                // 6. 💬 物理渲染：推送到豪華大對話框
+                const tutorMsgHtml = `
+                    <div class="flex items-start gap-3 justify-start animate-fade-in mb-4">
+                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Aria" class="w-10 h-10 rounded-full border border-ai bg-purple-50 shrink-0">
+                        <div class="bg-purple-50 text-gray-800 p-4 rounded-2xl rounded-tl-none shadow-sm max-w-[85%] border border-purple-100">
+                            <p class="font-bold text-sm text-ai mb-1">🤖 Aria 導師：</p>
+                            <p class="text-lg leading-relaxed font-semibold">
+                                ${isCorrect ? '✅ ' : '⚠️ '}${feedbackText.split('（')[0]}<br>
+                                <span class="text-base text-gray-500 font-medium block mt-1 mb-3">（${feedbackText.split('（')[1]}</span>
+                                <hr class="border-purple-100 my-2">
+                                <span class="text-purple-600 font-black">🔥 Next Challenge:</span> Please make a sentence with <span class="text-xl text-purple-700 font-black underline decoration-wavy decoration-purple-400">"${nextWord}"</span>.<br>
+                                <span class="text-base text-gray-500 font-medium block mt-1">（連續挑戰下一題！請用這個等級的新單字：<strong class="text-gray-700">${nextWord}</strong> ${nextChineseHint}，造個句子回答我！）</span>
+                            </p>
+                        </div>
+                    </div>
+                `;
+                chatMessages.innerHTML += tutorMsgHtml;
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+
+                // 7. 📢 【純英文發音核心】：嘴巴絕不唸中文！
+                if (typeof speakText === 'function') {
+                    const engFeedback = feedbackText.split('（')[0]; 
+                    const pureEnglishReply = `${engFeedback} Next challenge! Please make a sentence with the word: ${nextWord}.`;
+                    speakText(pureEnglishReply); 
+                }
+
+            }, 800);
+        }
                 // 5. 🎲 【連續無限出題】：自動盲抽下一個全新單字
                 let userLevel = (typeof userData !== 'undefined' && userData.level) ? userData.level : 1;
                 let poolOfWords = [];
