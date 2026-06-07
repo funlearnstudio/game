@@ -8394,25 +8394,41 @@ function setupLessonWord() {
         // ==========================================
         // ☁️ 1. 雲端同步發射器 (精準修正 CORS 穿透版)
         // ==========================================
+       // ==========================================================================
+        // ☁️ 雲端同步發射器 (極致防呆本機強制撈取版)
+        // ==========================================================================
         async function saveToCloudNow() {
-            if (!window.GAS_API_URL || window.GAS_API_URL.includes("YOUR_GOOGLE_APPS_SCRIPT") || !window.myUserId) {
-                console.warn("⚠️ [雲端存檔] 偵測到 API 網址尚未設定，或使用者 ID 缺失，跳過同步。");
-                return;
+            // 💡 [強力補丁 1]：如果全域位址沒設或不對，強制直接在這邊綁定你的 GAS 網址！
+            if (!window.GAS_API_URL || window.GAS_API_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
+                window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbyXmL3vHlSlqKRhKgzCCShpAVKceCwDSzH3yORQjkEgoXvKcW6eDoCoHJvt_6LWRvHA/exec";
+            }
+
+            // 💡 [強力補丁 2]：如果使用者ID是空的，翻遍本機硬碟各個角落也要把它挖出來！
+            if (!window.myUserId) {
+                window.myUserId = localStorage.getItem('duo_username') || 
+                                  localStorage.getItem('userId') || 
+                                  localStorage.getItem('username') ||
+                                  (typeof userData !== 'undefined' && userData ? userData.userId : null);
+            }
+
+            // 💡 [強力補丁 3]：如果真的還是空的（例如剛註冊完），給他一個預設名稱，絕對不能 return 掉！
+            if (!window.myUserId) {
+                console.log("🕵️‍♂️ [雲端存檔] 偵測到新玩家尚未建立本機帳號，暫時命名為新玩家進行存檔...");
+                window.myUserId = "new_user_" + Date.now();
             }
 
             try {
+                // 撈取目前的最新進度題號
                 const currentUnit = localStorage.getItem(`duo_last_active_unit`) || 1;
                 const currentIndex = localStorage.getItem(`duo_last_active_index`) || 0;
 
-                // 💡 雙重確保：把目前的最新進度，也塞進 window.userData 物件裡打包
+                // 雙重確保：把目前的最新進度，也塞進全域的 userData 物件裡打包
                 if (typeof userData !== 'undefined' && userData && typeof userData === 'object') {
                     userData.lastUnit = parseInt(currentUnit);
                     userData.lastIdx = parseInt(currentIndex);
-                } else if (window.userData && typeof window.userData === 'object') {
-                    window.userData.lastUnit = parseInt(currentUnit);
-                    window.userData.lastIdx = parseInt(currentIndex);
                 }
 
+                // 建立精準對齊後端的行李箱 payload
                 const payload = {
                     action: "saveUserData",
                     userId: window.myUserId,
@@ -8421,9 +8437,9 @@ function setupLessonWord() {
                     lastIdx: parseInt(currentIndex)
                 };
 
-                console.log("🚀 [雲端存檔] 正在強制發射資料到 GAS...", payload);
+                console.log("🚀 [雲端存檔] 突破安全封鎖線！正在發射資料到 Google Sheets [工作表1]：", payload);
 
-                // 🎯 核心修正：將 mode 改為 'no-cors'，這是穿透 GAS 限制的唯一解法！
+                // 使用 no-cors 模式，以 text/plain 格式直接硬塞穿透 Google
                 fetch(window.GAS_API_URL, {
                     method: "POST",
                     mode: "no-cors", 
@@ -8432,7 +8448,7 @@ function setupLessonWord() {
                     },
                     body: JSON.stringify(payload)
                 }).then(() => {
-                    console.log("✅ [雲端存檔] 訊號已成功射出！請查看試算表 [工作表1] 是否有更新！");
+                    console.log("✅ [雲端存檔] 訊號已成功射出！請查看您的試算表有沒有跳動！");
                 }).catch(fetchErr => {
                     console.error("❌ [雲端存檔] Fetch 發送過程被瀏覽器阻擋:", fetchErr);
                 });
