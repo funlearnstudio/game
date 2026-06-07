@@ -7949,14 +7949,29 @@ function setupLessonWord() {
                 saveToCloud();
             }
         }
-
-        function showToast(msg, isDanger = false) {
+        function showToast(msg, isDanger = false, customDuration = 6000) {
             const toast = document.getElementById('custom-toast');
             if(!toast) return;
-            toast.innerText = msg;
+            
+            // 💡 1. 支援換行：將 \n 轉換為 <br>，並用 innerHTML 放入，這樣對比文字才會上下對齊
+            toast.innerHTML = msg.replace(/\n/g, '<br>');
+            
+            // 維持你原本的顏色切換功能 (紅色警告 vs 黑色一般)
             toast.className = `fixed top-24 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full font-black shadow-lg z-[80] transition-all duration-300 ${isDanger ? 'bg-danger text-white' : 'bg-gray-800 text-white'}`;
+            
             toast.style.opacity = "1";
-            setTimeout(() => toast.style.opacity = "0", 2500);
+            toast.style.transform = "translate(-50%, 0)"; // 確保位置正確
+            
+            // 💡 2. 防閃退機制：如果上一則訊息還在倒數，先取消它，重新計算時間
+            if (window.toastTimer) {
+                clearTimeout(window.toastTimer);
+            }
+            
+            // 💡 3. 延長顯示時間：預設變成 customDuration (5000毫秒 = 5秒)
+            window.toastTimer = setTimeout(() => {
+                toast.style.opacity = "0";
+                toast.style.transform = "translate(-50%, -20px)"; // 消失時稍微往上移的動畫
+            }, customDuration);
         }
 
         function spawnXpEffect() {
