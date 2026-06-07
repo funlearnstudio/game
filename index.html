@@ -7710,27 +7710,19 @@ function setupLessonWord() {
                 }
             }, 1200);
         }
+// ==========================================
+        // 🔊 系統單字發音 (移除延遲、強化語音載入版)
         // ==========================================
-        // 🔊 系統單字發音 (加入強制清空防卡死機制)
-        // ==========================================
-       // ==========================================
-        // 🔊 系統單字發音 (終極防卡死 + 防垃圾回收版)
-        // ==========================================
-        // 💡 關鍵 1：建立全域變數，防止瀏覽器把發音任務當垃圾清掉
         window.currentSpeech = null; 
 
         function speakSystemWord(slow = false) {
             const word = document.getElementById('lesson-word').innerText;
-            if(!word || word === 'word') {
-                return;
-            }
+            if(!word || word === 'word') return;
 
-            // 先強制清空先前卡住的語音通道
+            // 1. 強制清空
             window.speechSynthesis.cancel();
 
             const msg = new SpeechSynthesisUtterance(word);
-            
-            // 💡 關鍵 2：將任務指派給全域變數，死死鎖在記憶體裡
             window.currentSpeech = msg;
 
             msg.lang = 'en-US'; 
@@ -7738,11 +7730,14 @@ function setupLessonWord() {
             msg.volume = 1.0;   
             msg.pitch = 1.0;    
 
-            // 💡 關鍵 3：主動去電腦裡抓取「英文語音包」，避免瀏覽器裝傻找不到
+            // 2. 更安全的語音包抓取方式
             let voices = window.speechSynthesis.getVoices();
-            let enVoice = voices.find(voice => voice.lang.includes('en-US') || voice.lang.includes('en-GB') || voice.lang === 'en');
-            if (enVoice) {
-                msg.voice = enVoice;
+            // 如果瀏覽器有順利給出清單，才去挑選英文發音員
+            if (voices.length > 0) {
+                let enVoice = voices.find(v => v.lang.includes('en-US') || v.lang.includes('en-GB') || v.name.includes('English'));
+                if (enVoice) {
+                    msg.voice = enVoice;
+                }
             }
 
             msg.onstart = function() { 
@@ -7750,17 +7745,12 @@ function setupLessonWord() {
             };
             
             msg.onerror = function(event) { 
-                // 如果是因為我們自己呼叫 cancel() 產生的中斷，就直接忽略，不報錯！
-                if (event.error === 'canceled' || event.error === 'interrupted') {
-                    return; 
-                }
+                if (event.error === 'canceled' || event.error === 'interrupted') return; 
                 console.error("❌ 發音系統發生錯誤:", event.error); 
             };
 
-            // 💡 關鍵 4：給瀏覽器 0.05 秒的喘息時間清空通道，然後再發射聲音！
-            setTimeout(() => {
-                window.speechSynthesis.speak(window.currentSpeech);
-            }, 50);
+            // 3. 絕對不加延遲，直接發射！(防止手機或嚴格的瀏覽器偷偷靜音)
+            window.speechSynthesis.speak(window.currentSpeech);
         }
         function playSFX(type) {
             try {
