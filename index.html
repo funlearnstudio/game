@@ -7867,7 +7867,7 @@ function setupLessonWord() {
         let lastSpokenTime = 0;
 
         // ==========================================================================
-        // 🔊 系統自動朗讀單字 (終極抗卡死、解凍防消音版)
+        // 🔊 系統自動朗讀單字 (中英雙語智慧切換、絕不當機當啞巴版)
         // ==========================================================================
         function speakText(text) {
             if (!text) return;
@@ -7882,21 +7882,35 @@ function setupLessonWord() {
             lastSpokenText = text;
             lastSpokenTime = currentTime;
 
-            console.log(`🔊 [系統發音]: ${text}`);
+            console.log(`🔊 [系統嘗試發音]: ${text}`);
 
             try {
                 if (window.speechSynthesis) {
-                    // 🚨 【高難度解凍核心補丁】：
-                    // 現代瀏覽器常因為 cancel() 導致內部狀態變成 paused 卻沒解鎖。
-                    // 我們在 cancel 之前，強行 resume 一次，能瞬間打通被卡死的音訊核心！
+                    // 🚨 【強制解凍】：在 cancel 之前，強行 resume 一次，打通被卡死的音訊通道
                     window.speechSynthesis.resume(); 
                     window.speechSynthesis.cancel(); 
                 }
 
+                // 建立發音請求
                 const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'en-US';   // 英文美音
-                utterance.rate = 0.88;       // 稍微放慢一點點，聽得更清楚
-                utterance.pitch = 1.0;       
+                
+                // ==========================================================================
+                // 🎯 【核心中英智慧防火牆】：自動判定文字語系
+                // ==========================================================================
+                const hasChinese = /[\u4e00-\u9fa5]/.test(text); // 偵測有沒有中文字
+                
+                if (hasChinese) {
+                    console.log("🇨🇳 [語系判定] 偵測到中文！切換為中文發音引擎 (zh-TW)");
+                    utterance.lang = 'zh-TW'; // 鎖定台灣中文
+                    utterance.rate = 1.0;     // 中文維持正常語速
+                } else {
+                    console.log("🇺🇸 [語系判定] 全英文！切換為美式英文發音引擎 (en-US)");
+                    utterance.lang = 'en-US'; // 鎖定美式英文
+                    utterance.rate = 0.88;    // 英文稍微放慢，聽得更清楚
+                }
+                // ==========================================================================
+
+                utterance.pitch = 1.0; // 正常音調
 
                 // 2. 🚨 【iOS/Safari 物理喚醒補丁】：確保 AudioContext 在發音時被揉醒
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -7907,14 +7921,13 @@ function setupLessonWord() {
                     }
                 }
 
-                // 🚨 【防止無限卡死事件】：萬一這句話因為不明原因卡住，3秒後強行釋放核心
+                // 防止發音引擎永久卡死安全鎖
                 utterance.onend = () => {
-                    // console.log("🎵 發音完畢，核心釋放");
+                    // 發音成功結束
                 };
                 
                 setTimeout(() => {
                     if (window.speechSynthesis && window.speechSynthesis.speaking) {
-                        // console.log("⚠️ 偵測到發音逾時卡住，啟動緊急釋放...");
                         window.speechSynthesis.resume();
                     }
                 }, 3000);
