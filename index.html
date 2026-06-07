@@ -8391,22 +8391,18 @@ function setupLessonWord() {
                 }
             }, 100);
         })();
-        // ==========================================
-        // ☁️ 1. 雲端同步發射器 (精準修正 CORS 穿透版)
-        // ==========================================
-       // ==========================================================================
-        // ☁️ 雲端同步發射器 (極致防呆本機強制撈取版)
-        // ==========================================================================
-        // 用來阻擋短時間內重複發送的「冷卻鎖」
-        let isCloudSyncingNow = false;
+// 🛡️ 物理防洪鎖：記錄上一次真正發射的「絕對時間點」
+        let lastCloudSyncTime = 0;
 
         // ==========================================================================
-        // ☁️ 雲端同步發射器 (終極防洪防連點版)
+        // ☁️ 雲端同步發射器 (物理時間戳記防連噴版)
         // ==========================================================================
         async function saveToCloudNow() {
-            // 🚨 核心防洪：如果 5 秒內已經有人在發射了，直接攔截，拒絕重複上傳！
-            if (isCloudSyncingNow) {
-                // console.log("⏳ [雲端防洪] 5秒內已發射過，阻擋重複存檔。");
+            const currentTime = Date.now(); // 抓取當下的絕對時間（毫秒）
+
+            // 🚨 核心攔截：如果距離上一次發射成功「不滿 2 秒 (2000毫秒)」，直接肉身擋下！
+            if (currentTime - lastCloudSyncTime < 2000) {
+                // console.log("⏳ [防連噴攔截] 距離上一次存檔太近，已阻擋重複發射。");
                 return;
             }
 
@@ -8427,10 +8423,8 @@ function setupLessonWord() {
             }
 
             try {
-                // 啟動冷卻鎖
-                isCloudSyncingNow = true;
-                // 5 秒鐘之後，才允許發射下一發存檔
-                setTimeout(() => { isCloudSyncingNow = false; }, 5000);
+                // 🎯 關鍵：在準備發射的瞬間，立刻更新時間戳記，把門關上！
+                lastCloudSyncTime = currentTime;
 
                 const currentUnit = localStorage.getItem(`duo_last_active_unit`) || 1;
                 const currentIndex = localStorage.getItem(`duo_last_active_index`) || 0;
@@ -8462,7 +8456,6 @@ function setupLessonWord() {
                 });
 
             } catch (e) {
-                isCloudSyncingNow = false;
                 console.error("❌ [雲端存檔] 錯誤:", e);
             }
         }
