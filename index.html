@@ -7625,6 +7625,9 @@ function setupLessonWord() {
         // ==========================================================================
         // ⚔️ 主線寫題判定核心：全面升級「關卡專屬、獨立物件錯題本」儲存機制！
         // ==========================================================================
+       // ==========================================================================
+        // ⚔️ 主線與複習判定核心：全面升級「答對自動銷毀錯題、答錯精密鎖定」閉環版！
+        // ==========================================================================
         function submitAnswer(isCorrect, correctRef) {
             const area = document.getElementById('dynamic-test-area');
             const blocker = document.createElement('div');
@@ -7639,6 +7642,51 @@ function setupLessonWord() {
                 playSFX('correct'); spawnXpEffect();
                 userData.xp += 15; userData.gems += 2;
                 if(!userData.learnedWords.includes(wordObj.word)) userData.learnedWords.push(wordObj.word);
+
+                // ==================================================================
+                // 🧹 【核心補丁：答對自動消除錯題本機制】
+                // ==================================================================
+                if (wordObj && wordObj.word && userData && userData.wrongWords) {
+                    const currentWordStr = wordObj.word.toLowerCase().trim();
+                    const currentUnitId = sessionState.unit || sessionState.currentUnit || 1;
+
+                    if (sessionState.mode === 'test') {
+                        // 🎯 情況 A：玩家正在「錯題本複習模式」作答，只要答對，直接全面清除這個單字！
+                        userData.wrongWords = userData.wrongWords.filter(item => {
+                            if (item && typeof item === 'object' && item.word) {
+                                return item.word.toLowerCase().trim() !== currentWordStr;
+                            }
+                            if (typeof item === 'string') {
+                                return item.toLowerCase().trim() !== currentWordStr;
+                            }
+                            return true;
+                        });
+                        console.log(`🧹 [錯題本消滅] 複習答對 "${wordObj.word}"，已從錯題本中徹底移除！`);
+                    } else {
+                        // 🎯 情況 B：玩家在「主線關卡」答對了，精準移除「當前關卡」對應的這顆錯題物件！
+                        userData.wrongWords = userData.wrongWords.filter(item => {
+                            if (item && typeof item === 'object' && item.word) {
+                                // 如果單字相同、且單元也相同，就把它過濾掉（移除）
+                                const isSameWord = item.word.toLowerCase().trim() === currentWordStr;
+                                const isSameUnit = parseInt(item.unit) === parseInt(currentUnitId);
+                                return !(isSameWord && isSameUnit);
+                            }
+                            if (typeof item === 'string') {
+                                return item.toLowerCase().trim() !== currentWordStr;
+                            }
+                            return true;
+                        });
+                        console.log(`🧹 [主線雪恥成功] 當前關卡答對 "${wordObj.word}"，自動擦除本關錯題紀錄！`);
+                    }
+
+                    // 💾 物理存檔更新後的錯題本
+                    localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
+                    
+                    // ☁️ 同步發射到雲端 Google Sheets
+                    if (typeof saveToCloudNow === 'function') saveToCloudNow();
+                }
+                // ==================================================================
+
                 feedback.className += " bg-gradient-to-br from-green-400 to-primary";
                 feedback.innerHTML = `<div class="text-xl font-black"><i class="fa-solid fa-check"></i> 答對了！</div><button id="btn-next-q" class="btn-3d bg-white text-primary px-8 py-2.5 w-full mt-2 font-black">繼續</button>`;
             } else {
@@ -7646,20 +7694,17 @@ function setupLessonWord() {
                 userData.hearts = Math.max(0, userData.hearts - 1); sessionState.wrongCount++;
                 
                 // ==================================================================
-                // 🔒 【安全進度鎖：錯題實體寫入區（絕不改寫/暴跳關卡進度）】
+                // 🔒 【安全進度鎖：答錯實體寫入區（絕不改寫/暴跳關卡進度）】
                 // ==================================================================
-                let wordObj = sessionState.currentWords[sessionState.currentIndex];
                 if (wordObj && wordObj.word) {
                     let failedWord = wordObj.word.toLowerCase().trim();
-                    
-                    // 💡 重點：牢牢鎖定當前 sessionState 裡真正的 Unit，不認外界亂跳的暫存！
                     let currentUnitId = sessionState.unit || sessionState.currentUnit || 1;
                     let currentMeaning = wordObj.meaning || wordObj.translation || wordObj.ch || "";
 
                     if (typeof userData !== 'undefined' && userData) {
                         if (!userData.wrongWords) userData.wrongWords = [];
 
-                        // 精密排重檢查（同單元、同單字不重複塞）
+                        // 精密排重檢查
                         const isAlreadyExist = userData.wrongWords.some(item => 
                             (typeof item === 'object' && item !== null) && 
                             (item.word || "").toLowerCase().trim() === failedWord && 
@@ -7669,19 +7714,17 @@ function setupLessonWord() {
                         if (!isAlreadyExist) {
                             const mistakeObject = {
                                 word: wordObj.word,          
-                                unit: parseInt(currentUnitId), // 物理鎖定！只存目前的單元
+                                unit: parseInt(currentUnitId), 
                                 meaning: currentMeaning     
                             };
                             
                             userData.wrongWords.push(mistakeObject);
                             console.log(`🚀 [安全進度鎖] 成功封裝錯題，拒絕竄改進度：`, mistakeObject);
 
-                            // 💾 只在本地儲存錯題陣列，【不要】在這裡集體覆蓋全域最後進度
                             localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
                             
-                            // ☁️ 🚨 關鍵攔截：【答錯時絕不發射會跳關的全域 saveToCloudNow()！】
-                            // 我們改用單獨的、只更新錯題本的安全機制（若你有寫後端單獨錯題API），或是先阻斷它！
-                            // 為了防止原本的 saveToCloudNow 把暴跳的單元帶上去，我們先不在此處亂呼叫它！
+                            // 💡 答錯時我們也啟動一次安全存檔發射
+                            if (typeof saveToCloudNow === 'function') saveToCloudNow();
                         }
                     }
                 }
@@ -7696,10 +7739,15 @@ function setupLessonWord() {
             
             feedback.querySelector('#btn-next-q').onclick = () => {
                 feedback.remove(); blocker.remove();
-                if(userData.hearts <= 0) { showToast("💔 生命值耗盡，已自動退回主畫面！", true); if (typeof saveToCloud === 'function') saveToCloud(); switchTab('map'); return; }
+                if(userData.hearts <= 0 && sessionState.mode !== 'test') { 
+                    showToast("💔 生命值耗盡，已自動退回主畫面！", true); 
+                    if (typeof saveToCloudNow === 'function') saveToCloudNow(); 
+                    switchTab('map'); 
+                    return; 
+                }
                 sessionState.currentIndex++;
                 
-                // 💡 為了保險起見，每次點擊下一題時都幫玩家做個本地存檔
+                // 💡 每次點擊下一題時做個本地保險存檔
                 localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
                 
                 setupTestQuestion();
