@@ -8335,80 +8335,105 @@ function setupLessonWord() {
         // 🚨 【全域防垃圾車防火牆】：強行留住發音物件，防止中/英文唸到一半被瀏覽器銷毀
         // ========================================================================
         window.activeSpeechUtterances = []; 
-// ==========================================================================
-        // 🔊 智慧排隊語音引擎（完美解決連續呼叫被 cancel 斷頭的 Bug）
+
+        // ==========================================================================
+        // 🔊 終極完全體：智慧排隊語音引擎 + 頂級聲優海選 + 中英拆分接力賽
         // ==========================================================================
         let speechQueue = [];
         let isSpeakingNow = false;
+        let lastSpokenText = "";
+        let lastSpokenTime = 0;
 
         function speakText(text) {
             if (!text || !text.trim()) return;
             
             const currentTime = Date.now();
-            // 阻擋 1 秒內完全一模一樣的鬼畜重複點擊
             if (text === lastSpokenText && (currentTime - lastSpokenTime < 1000)) {
                 return;
             }
-            
             lastSpokenText = text;
             lastSpokenTime = currentTime;
 
-            console.log(`🔊 [AI 語音引擎] 準備朗讀: "${text}"`);
+            console.log(`🔊 [AI 語音引擎] 準備進入排隊鏈: "${text}"`);
 
-            // 🎯 核心改變：我們不直接用 Web Speech API 噴發，而是先把字塞進我們自己的排隊陣列
-            speechQueue.push(text.trim());
+            // 💡 智慧前置拆分：中英夾雜時，先拆成漂亮的短句陣列再排隊
+            const isPureEnglish = /^[a-zA-Z0-9\s.,!?'"-]+$/.test(text.trim());
+            if (isPureEnglish) {
+                speechQueue.push({ text: text.trim(), isChinese: false });
+            } else {
+                const parts = text.match(/[\u4e00-\u9fa5]+|[a-zA-Z0-9\s.,!?'"-]+/g);
+                if (parts) {
+                    parts.forEach(partText => {
+                        const trimmedPart = partText.trim();
+                        if (trimmedPart) {
+                            speechQueue.push({ text: trimmedPart, isChinese: /[\u4e00-\u9fa5]/.test(trimmedPart) });
+                        }
+                    });
+                }
+            }
 
-            // 如果目前發音大腦沒人在說話，立刻啟動排隊發車！
             if (!isSpeakingNow) {
                 processNextSpeechQueue();
             }
         }
 
-        // 🧠 負責處理排隊一條龍朗讀的秘密大腦
         function processNextSpeechQueue() {
             if (!window.speechSynthesis) return;
 
-            // 如果隊伍空了，代表這串話全部唸完了！功成身退
             if (speechQueue.length === 0) {
                 isSpeakingNow = false;
                 return;
             }
 
             isSpeakingNow = true;
-            // 取出目前排在最前面的那句話
-            const nextText = speechQueue.shift();
+            const currentChunk = speechQueue.shift();
 
             try {
-                // 讓瀏覽器發音引擎保持清醒
                 window.speechSynthesis.resume();
+                const utterance = new SpeechSynthesisUtterance(currentChunk.text);
 
-                const utterance = new SpeechSynthesisUtterance(nextText);
-                
-                // 智慧判斷語言：如果是純英文單字或例句用英文，有中文就用中文
-                if (/[a-zA-Z]/.test(nextText) && !/[\u4e00-\u9fa5]/.test(nextText)) {
-                    utterance.lang = 'en-US';
-                } else {
-                    utterance.lang = 'zh-TW';
+                // 🎯 幫特定語系找出最頂級、最自然的真人聲優
+                const allVoices = window.speechSynthesis.getVoices() || [];
+                function findBestVoice(langType) {
+                    let targetKeywords = langType === 'en-US' 
+                        ? ['Google US English', 'Microsoft Aria', 'Microsoft Guy', 'Samantha', 'Ava', 'en-US', 'en_US']
+                        : ['Google 國語', 'Microsoft Yating', 'Microsoft Zhiwei', 'Mei-Jia', 'zh-TW', 'zh_TW'];
+                    
+                    for (let keyword of targetKeywords) {
+                        const found = allVoices.find(v => v.name.includes(keyword) || v.lang.replace('_', '-').toLowerCase() === keyword.toLowerCase());
+                        if (found) return found;
+                    }
+                    return allVoices.find(v => v.lang.toLowerCase().includes(langType.toLowerCase()));
                 }
 
-                // 設定稍微自然的語速與音調
-                utterance.rate = 1.0;
+                // 物理配置參數與注入聲優
+                if (currentChunk.isChinese) {
+                    utterance.lang = 'zh-TW';
+                    utterance.rate = 1.0;
+                    const bestChVoice = findBestVoice('zh-TW');
+                    if (bestChVoice) utterance.voice = bestChVoice;
+                } else {
+                    utterance.lang = 'en-US';
+                    utterance.rate = 0.86;
+                    const bestEngVoice = findBestVoice('en-US');
+                    if (bestEngVoice) utterance.voice = bestEngVoice;
+                }
                 utterance.pitch = 1.0;
 
-                // 🌟 最關鍵的鋼鐵防線：當這「一句話真正唸完」的瞬間，才放行下一句！
+                window.activeSpeechUtterances.push(utterance);
+
+                // 🌟 接力棒交接：當這一句話真正唸完的瞬間，才放行下一句！
                 utterance.onend = function() {
-                    setTimeout(() => {
-                        processNextSpeechQueue(); // 遞迴呼叫，唸下一句
-                    }, 100); // 句與句之間自然停頓 0.1 秒
+                    window.activeSpeechUtterances = window.activeSpeechUtterances.filter(u => u !== utterance);
+                    setTimeout(() => { processNextSpeechQueue(); }, 120); 
                 };
 
-                // 萬一不幸卡住發生錯誤，也要強行解鎖往下走，否則整個語音會永久卡死
                 utterance.onerror = function(err) {
                     console.error("❌ [AI 語音引擎] 播放中途發生錯誤:", err);
+                    window.activeSpeechUtterances = window.activeSpeechUtterances.filter(u => u !== utterance);
                     processNextSpeechQueue();
                 };
 
-                // 物理發射這一句！
                 window.speechSynthesis.speak(utterance);
 
             } catch (e) {
@@ -8417,241 +8442,92 @@ function setupLessonWord() {
             }
         }
 
-        // 💡 另外貼心附贈一個強行中斷函數：如果玩家點了「下一題」或「跳過」，可以用這個清除殘留語音
         function forceStopSpeech() {
             if (window.speechSynthesis) {
-                speechQueue = []; // 清空我們自己的隊伍
-                window.speechSynthesis.cancel(); // 掐斷瀏覽器正在發的音
+                speechQueue = []; 
+                window.speechSynthesis.cancel(); 
                 isSpeakingNow = false;
                 console.log("🛑 [AI 語音引擎] 已被手動強制完全中斷。");
             }
         }
 
-                // 🎯 【智慧海選最自然人聲核心演算法】
-                // 瀏覽器內建的聲音清單
-                const allVoices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
-                
-                // 函式：幫特定語系找出最頂級、最自然的真人聲優
-                function findBestVoice(langType) {
-                    let targetKeywords = [];
-                    if (langType === 'en-US') {
-                        // 🇺🇸 英文自然人聲優先權：Google優質美音 > 微軟線上美音 > Apple自然美音 (Samantha/Ava) > 任何美音
-                        targetKeywords = ['Google US English', 'Microsoft Aria', 'Microsoft Guy', 'Samantha', 'Ava', 'en-US', 'en_US'];
-                    } else {
-                        // 🇹🇼 中文自然人聲優先權：台灣 Google 中文 > 台灣微軟中文 (Yating) > Apple 台灣中文 (Meijia) > 任何台灣中文
-                        targetKeywords = ['Google 國語', 'Microsoft Yating', 'Microsoft Zhiwei', 'Mei-Jia', 'zh-TW', 'zh_TW'];
-                    }
-
-                    // 開始依照優先權順序比對聲音名字
-                    for (let keyword of targetKeywords) {
-                        const found = allVoices.find(v => v.name.includes(keyword) || v.lang.replace('_', '-').toLowerCase() === keyword.toLowerCase());
-                        if (found) return found;
-                    }
-                    // 萬一都沒找到，就退而求其次找語系相符的
-                    return allVoices.find(v => v.lang.toLowerCase().includes(langType.toLowerCase()));
-                }
-
-                const isPureEnglish = /^[a-zA-Z0-9\s.,!?'"-]+$/.test(text.trim());
-
-                if (isPureEnglish) {
-                    // 🇺🇸 全英文自然語流
-                    const utterance = new SpeechSynthesisUtterance(text);
-                    utterance.lang = 'en-US';
-                    utterance.rate = 0.86; // 0.86 倍速是最舒服、最優雅的教學語速
-                    utterance.pitch = 1.0;
-
-                    // 🎯 物理注入海選出來的最棒英文真人聲音
-                    const bestEngVoice = findBestVoice('en-US');
-                    if (bestEngVoice) utterance.voice = bestEngVoice;
-
-                    window.activeSpeechUtterances.push(utterance);
-                    utterance.onend = () => { window.activeSpeechUtterances = window.activeSpeechUtterances.filter(u => u !== utterance); };
-                    utterance.onerror = () => { window.activeSpeechUtterances = window.activeSpeechUtterances.filter(u => u !== utterance); };
-
-                    if (window.speechSynthesis) window.speechSynthesis.speak(utterance);
-
-                } else {
-                    // 🇨🇳 中英混合或純中文 AI 講解
-                    const parts = text.match(/[\u4e00-\u9fa5]+|[a-zA-Z0-9\s.,!?'"-]+/g);
-                    
-                    if (parts) {
-                        parts.forEach((partText) => {
-                            const trimmedPart = partText.trim();
-                            if (!trimmedPart) return;
-
-                            const utterance = new SpeechSynthesisUtterance(trimmedPart);
-                            const isChinese = /[\u4e00-\u9fa5]/.test(trimmedPart);
-                            
-                            if (isChinese) {
-                                utterance.lang = 'zh-TW';
-                                utterance.rate = 1.0;
-                                // 🎯 物理注入最自然的台灣中文聲音
-                                const bestChVoice = findBestVoice('zh-TW');
-                                if (bestChVoice) utterance.voice = bestChVoice;
-                            } else {
-                                utterance.lang = 'en-US';
-                                utterance.rate = 0.86;
-                                // 🎯 物理注入最自然的英文聲音
-                                const bestEngVoice = findBestVoice('en-US');
-                                if (bestEngVoice) utterance.voice = bestEngVoice;
-                            }
-                            utterance.pitch = 1.0;
-
-                            window.activeSpeechUtterances.push(utterance);
-                            utterance.onend = () => { 
-                                window.activeSpeechUtterances = window.activeSpeechUtterances.filter(u => u !== utterance);
-                                if (window.speechSynthesis) window.speechSynthesis.resume();
-                            };
-                            utterance.onerror = () => { 
-                                window.activeSpeechUtterances = window.activeSpeechUtterances.filter(u => u !== utterance);
-                                if (window.speechSynthesis) window.speechSynthesis.resume();
-                            };
-
-                            if (window.speechSynthesis) window.speechSynthesis.speak(utterance);
-                        });
-                    }
-                }
-
-                // 強效定時解鎖槍
-                const unlockInterval = setInterval(() => {
-                    if (window.speechSynthesis && window.speechSynthesis.speaking) {
-                        window.speechSynthesis.resume();
-                    } else {
-                        clearInterval(unlockInterval);
-                    }
-                }, 1000);
-
-                // iOS/Safari 物理喚醒
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                if (AudioContext) {
-                    const tempCtx = new AudioContext();
-                    if (tempCtx.state === 'suspended') tempCtx.resume();
-                }
-
-            } catch (err) {
-                console.error("❌ 語音引擎例外:", err);
-            }
-        }
-
         // 🚨 【瀏覽器聲音庫非同步加載補丁】
-        // 許多瀏覽器（如 Chrome）的聲音庫是異步加載的，網頁剛打開時 getVoices() 會是空的。
-        // 我們必須監聽這個事件，當聲音庫準備好時，在背景熱身一下，確保後續選音完全精準！
         if (typeof window !== 'undefined' && window.speechSynthesis) {
             window.speechSynthesis.onvoiceschanged = function() {
                 console.log("🎵 瀏覽器真人聲音數據庫已加載完畢，已成功鎖定自然人聲！");
+                if (typeof window.speechSynthesis.getVoices === 'function') window.speechSynthesis.getVoices();
             };
         }
-        // 解決部分瀏覽器（如 Chrome/Edge）首次載入時語音包清單非同步延遲的 Bug
-        if (window.speechSynthesis && window.speechSynthesis.onvoiceschanged !== undefined) {
-            window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
-        }
-// ==========================================================================
-        // ✨ 補回失蹤功能：口說跟讀模式 (全域抗回收防消音神級安全版)
+
+        // ==========================================================================
+        // ✨ 口說跟讀模式 (全域抗回收防消音神級安全版)
         // ==========================================================================
         function startShadowing(word) {
             if (!word) return;
             showToast(`🎙️ 啟動跟讀：${word}`);
-        
             console.log("👉 1. 準備呼叫發音，目前的單字是：", word);
 
-            // 1. 🚨 【神級解凍補丁】：玩家手指點擊按鈕瞬間，強行叫醒音訊核心
-            if (typeof playAudioEffect === 'function') {
-                playAudioEffect('resume'); 
-            }
+            if (typeof playAudioEffect === 'function') playAudioEffect('resume'); 
 
-            // 2. 呼叫我們上一動優化過、帶有全域記憶陣列防火牆的 speakText
             speakText(word); 
             
-            // 1.2 秒後自動觸發麥克風辨識，讓使用者跟著唸
             setTimeout(() => {
                 const SpeechRecog = window.SpeechRecognition || window.webkitSpeechRecognition;
                 if (!window.recognition && SpeechRecog) {
                     window.recognition = new SpeechRecog();
                     window.recognition.lang = 'en-US';
-                    window.recognition.continuous = false; // 確保單次辨識，不霸佔麥克風
+                    window.recognition.continuous = false; 
                 }
 
                 if (window.recognition) {
-                    // 🚨 【防消音核心鎖】：把當前的辨識物件用區域變數牢牢拽住，不准垃圾車中途銷毀
                     const currentRecog = window.recognition;
 
-                    // ==========================================
-                    // 💡 【核心邏輯】：當麥克風聽到聲音，轉換成文字
-                    // ==========================================
                     currentRecog.onresult = function(event) {
                         if (!event.results || !event.results[0]) return;
                         
                         const userSaid = event.results[0][0].transcript.toLowerCase().trim();
                         const target = word.toLowerCase().trim();
-                        
-                        // 去除標點符號，避免因為句號判斷錯誤
                         const cleanUserSaid = userSaid.replace(/[.,!?]/g, '');
                         const cleanTarget = target.replace(/[.,!?]/g, '');
 
                         console.log(`🔍 [口說對比] 期待: "${cleanTarget}" 聽到: "${cleanUserSaid}"`);
 
                         if (cleanUserSaid === cleanTarget || cleanUserSaid.includes(cleanTarget)) {
-                            // 🎉 講對了！給予獎勵
                             const gainedXp = 15;
                             const gainedGems = 2;
-                            
                             if (typeof userData !== 'undefined') {
                                 userData.xp += gainedXp;
                                 userData.gems += gainedGems;
-                                
-                                // 更新畫面數字
                                 if(document.getElementById('ui-xp')) document.getElementById('ui-xp').innerText = userData.xp;
                                 if(document.getElementById('ui-gems')) document.getElementById('ui-gems').innerText = userData.gems;
-                                
-                                // 背景存檔
                                 localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
                             }
-                            
                             if (typeof scheduleCloudSync === 'function') scheduleCloudSync();
-                            
-                            // 🎯 [音效精準發射]：清脆叮咚聲
-                            if (typeof playAudioEffect === 'function') {
-                                playAudioEffect('success');
-                            } else if (typeof playSound === 'function') {
-                                playSound('success');
-                            }
-
+                            if (typeof playAudioEffect === 'function') { playAudioEffect('success'); } 
+                            else if (typeof playSound === 'function') { playSound('success'); }
                             showToast(`✅ 發音完美！ +${gainedXp} XP ⚡   +${gainedGems} 💎`);
-                            
                         } else {
-                            // ❌ 講錯了！跳出殘酷的對比
-                            
-                            // 🎯 [音效精準發射]：溫和提示嗶嗶聲
-                            if (typeof playAudioEffect === 'function') {
-                                playAudioEffect('wrong');
-                            } else if (typeof playSound === 'function') {
-                                playSound('error');
-                            }
-
+                            if (typeof playAudioEffect === 'function') { playAudioEffect('wrong'); } 
+                            else if (typeof playSound === 'function') { playSound('error'); }
                             showToast(`❌ 發音有點偏差！\n🎯 正確：${word}\n🗣️ 聽到：${userSaid}`);
                         }
                     };
 
-                 // 當麥克風任務結束關閉時，強行釋放並解鎖發音核心
                     currentRecog.onend = function() {
                         if (window.speechSynthesis) window.speechSynthesis.resume(); 
                     };
 
-                    // 錯誤處理
                     currentRecog.onerror = function(event) {
                         if (event.error !== 'aborted') {
                             showToast("⚠️ 聽不清楚，請再按一次麥克風試試看！");
                         }
-                        if (window.speechSynthesis) window.speechSynthesis.resume(); // 👈 確保這行有在
+                        if (window.speechSynthesis) window.speechSynthesis.resume(); 
                     };
 
-                    // 正式啟動麥克風
                     try { 
                         currentRecog.start(); 
                         showToast("🎤 請開始跟讀...", false); 
                     } catch(e) {
-                        // 萬一前一次還沒關乾淨，重置它
-                        // console.log("麥克風重啟鎖定");
                         try { currentRecog.stop(); } catch(err){}
                         setTimeout(() => { try { currentRecog.start(); } catch(err){} }, 100);
                     }
