@@ -8161,8 +8161,7 @@ function setupLessonWord() {
             // 如果你原本底層有呼叫 API (例如 fetch / openai / gemini) 的代碼，請接著放在這下面
             // 確保把 window.aiTargetWord 傳給你的 AI 即可！
 }
-
-   // ==========================================================================
+// ==========================================================================
         // 💬 玩家發送回答核心：智慧文法大師審查版（強力修復：錯題 100% 寫入版）
         // ==========================================================================
         function sendChatMessage() {
@@ -8187,25 +8186,32 @@ function setupLessonWord() {
             chatMessages.scrollTop = chatMessages.scrollHeight;
 
             // ==================================================================
-            // 🧠 3. 【AI 導師智慧型單字搜捕演算法】：多重保險防漏接
+            // 🧠 3. 【AI 導師智慧型單字搜捕演算法】：多重保險防漏接（完美強效版）
             // ==================================================================
-            let rawQuestion = window.lastSpokenText || "";
-            let targetWord = "";
+            // 🌟 管道 0（最高優先權）：直接讀取上一次出題時死死釘在全域的目標單字！
+            let targetWord = window.aiCurrentTargetWord || "";
 
-            // 🔍 管道 A & B：相容雙引號 "desk" 或單引號 'desk'
-            let matchQuote = rawQuestion.match(/["']([^"']+)["']/);
-            if (matchQuote) {
-                targetWord = matchQuote[1].toLowerCase().trim();
-            }
+            // 如果全域沒抓到，才啟動原本的備用搜捕管道
+            if (!targetWord) {
+                let rawQuestion = window.lastSpokenText || "";
+                // 🔍 管道 A & B：相容雙引號 "desk" 或單引號 'desk'
+                let matchQuote = rawQuestion.match(/["']([^"']+)["']/);
+                if (matchQuote) {
+                    targetWord = matchQuote[1].toLowerCase().trim();
+                }
 
-            // 🔍 管道 C（防守兜底）：如果引號沒抓到，直接調用當前主線寫題的單字物件
-            let memoryWordObj = null;
-            if (typeof sessionState !== 'undefined' && sessionState && sessionState.currentWords) {
-                memoryWordObj = sessionState.currentWords[sessionState.currentIndex];
-                if (!targetWord && memoryWordObj && memoryWordObj.word) {
-                    targetWord = memoryWordObj.word.toLowerCase().trim();
+                // 🔍 管道 C（防守兜底）：如果引號沒抓到，直接調用當前主線寫題的單字物件
+                if (!targetWord && typeof sessionState !== 'undefined' && sessionState && sessionState.currentWords) {
+                    let memoryWordObj = sessionState.currentWords[sessionState.currentIndex];
+                    if (memoryWordObj) {
+                        // 🌟 修正欄位防呆：同時支援 .word 與 .english
+                        targetWord = (memoryWordObj.word || memoryWordObj.english || "").toLowerCase().trim();
+                    }
                 }
             }
+
+            // 再次強制轉小寫防呆
+            if (targetWord) targetWord = targetWord.toLowerCase().trim();
 
             setTimeout(() => {
                 let feedbackText = "";
@@ -8260,16 +8266,17 @@ function setupLessonWord() {
                             currentUnitId = userData.level || userData.lastUnit || 1;
                         }
 
-                        // 試著從當前物件抓中文意思（如果記憶體裡的字對得上就用它，對不上就留空或抓現有的）
+                        // 試著從當前物件抓中文意思（完美相容所有中文欄位名稱）
                         let currentMeaning = "";
-                        if (memoryWordObj && memoryWordObj.word && memoryWordObj.word.toLowerCase().trim() === targetWord) {
-                            currentMeaning = memoryWordObj.meaning || memoryWordObj.translation || memoryWordObj.ch || "";
+                        let memoryWordObj = (typeof sessionState !== 'undefined' && sessionState && sessionState.currentWords) ? sessionState.currentWords[sessionState.currentIndex] : null;
+                        if (memoryWordObj && (memoryWordObj.word || memoryWordObj.english || "").toLowerCase().trim() === targetWord) {
+                            currentMeaning = memoryWordObj.meaning || memoryWordObj.translation || memoryWordObj.ch || memoryWordObj.chinese || "";
                         }
 
                         // 精密排重檢查（同單元、同單字不重複塞）
                         const isAlreadyExist = userData.wrongWords.some(item => 
                             (typeof item === 'object' && item !== null) && 
-                            (item.word || "").toLowerCase().trim() === targetWord && 
+                            (item.word || item.english || "").toLowerCase().trim() === targetWord && 
                             parseInt(item.unit) === parseInt(currentUnitId)
                         );
 
@@ -8298,7 +8305,7 @@ function setupLessonWord() {
                 // ==================================================================
                 // 🎲 5. 【連續無限出題】：智慧型循序漸進出題大腦（嚴禁超前出題）
                 // ==================================================================
-                // 精準抓出玩家目前學到的最高單元（例如玩到第 2 集，上限就是 2）
+                // 精準抓出玩家目前學到的最高單元
                 let maxAllowedLevel = 1;
                 if (typeof userData !== 'undefined' && userData) {
                     maxAllowedLevel = parseInt(userData.level || userData.lastUnit || 1);
@@ -8308,11 +8315,11 @@ function setupLessonWord() {
                 }
 
                 let poolOfWords = [];
-                // 🎯 核心過濾濾網：只撈出「小於或等於」當前等級的單字（例如當前第 2 集，就只考 1~2 集的字）
+                // 🎯 核心過濾濾網：撈出「小於或等於」當前等級的單字（完美相容 .unit / .level / .stage）
                 if (typeof vocabularyDB !== 'undefined' && Array.isArray(vocabularyDB)) {
                     poolOfWords = vocabularyDB.filter(w => {
-                        let wordLevel = parseInt(w.level || w.stage || 1);
-                        return wordLevel <= maxAllowedLevel; // 🌟 關鍵：小於等於當前進度！
+                        let wordLevel = parseInt(w.unit || w.level || w.stage || 1);
+                        return wordLevel <= maxAllowedLevel; 
                     });
                 }
 
@@ -8325,12 +8332,17 @@ function setupLessonWord() {
                 let nextMeaning = "蘋果";
                 if (poolOfWords && poolOfWords.length > 0) {
                     // 排重：下一題不要跟剛剛這題一模一樣
-                    let freshWords = poolOfWords.filter(w => (w.word || "").toLowerCase() !== targetWord);
+                    let freshWords = poolOfWords.filter(w => (w.word || w.english || "").toLowerCase() !== targetWord);
                     let finalPool = freshWords.length > 0 ? freshWords : poolOfWords;
                     const randomObj = finalPool[Math.floor(Math.random() * finalPool.length)];
-                    nextWord = randomObj.word;
-                    nextMeaning = randomObj.meaning || randomObj.translation || randomObj.ch || "";
+                    
+                    // 🌟 欄位多重相容提取
+                    nextWord = randomObj.word || randomObj.english || "apple";
+                    nextMeaning = randomObj.meaning || randomObj.translation || randomObj.ch || randomObj.chinese || "";
                 }
+
+                // 🌟 【最重要核心修復】：把下一題的目標單字，用全域變數死死烙印在瀏覽器記憶體中！
+                window.aiCurrentTargetWord = nextWord.toLowerCase().trim();
 
                 const nextChineseHint = nextMeaning ? `（${nextMeaning}）` : "";
                 // ==================================================================
@@ -8361,7 +8373,7 @@ function setupLessonWord() {
                 }
 
             }, 800);
-        }    
+        }
 
         function renderChatMessages() {
             const box = document.getElementById('chat-messages');
