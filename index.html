@@ -7093,7 +7093,7 @@ function getOrCreateUserId() {
 }
         async function init() {
             console.log("🚀 7000 單字終極蛇形地圖系統初始化中... (已裝入重啟防閃爍防火牆)");
-            
+            resetAndClearSpeechEngine(); // 🛡️ 放在這裡！一開局就清空，重整絕對不會爆 interrupted！
             // ==================================================================
             // 🛡️ 【第 1 道全速隔離防線】：在去雲端卡住之前，立刻強制鎖定主地圖
             // ==================================================================
@@ -8456,7 +8456,33 @@ function setupLessonWord() {
                 processNextSpeechQueue();
             }
         }
+// ==========================================================================
+// 🧹 語音引擎強效清除器：在「重整網頁」或「換帳號」時呼叫，保證軌道乾淨！
+// ==========================================================================
+function resetAndClearSpeechEngine() {
+    if (!window.speechSynthesis) return;
 
+    // 1. 強制中斷目前瀏覽器正在咬著不放的所有語音發聲
+    try {
+        window.speechSynthesis.cancel();
+    } catch(e) {}
+
+    // 2. 清空你的排隊陣列，把上一次重整前殘留的幽靈單字全部倒掉
+    if (typeof speechQueue !== 'undefined' && speechQueue) {
+        speechQueue.length = 0; // 徹底清空陣列
+    }
+
+    // 3. 重置你的播放狀態旗標與防止 GC 的變數
+    isSpeakingNow = false;
+    window.activeSpeechUtterances = [];
+
+    // 4. 清除可能殘留的 iOS 看門狗定時器
+    if (typeof iosWatchdog !== 'undefined') {
+        clearTimeout(iosWatchdog);
+    }
+    
+    console.log("🧹 [語音防禦] 已徹底清空舊有語音佇列與發聲狀態，軌道歸零完成。");
+}
         function processNextSpeechQueue() {
             if (!window.speechSynthesis) return;
 
@@ -8514,12 +8540,17 @@ function setupLessonWord() {
                 };
 
                 utterance.onerror = function(err) {
-                    console.error("❌ [AI 語音引擎] 播放中途發生錯誤:", err);
+                    // 🎯 核心修正：如果是被我們主動中斷的，這屬於正常對齊現象，印灰色 Log 就好，不要報紅字
+                    if (err.error === 'interrupted') {
+                        console.log("%c🤫 [AI 語音] 舊語音任務被新進度順暢攔截中斷。", "color: gray;");
+                    } else {
+                        console.error("❌ [AI 語音引擎] 播放中途發生真實錯誤:", err);
+                    }
+                    
                     window.activeSpeechUtterances = window.activeSpeechUtterances.filter(u => u !== utterance);
                     clearTimeout(iosWatchdog);
                     processNextSpeechQueue();
                 };
-
                 // 🐕 【防卡死看門狗】：iOS 常常唸完了卻不觸發 onend，導致整個引擎永久罷工。
                 // 我們給它 8 秒的時間，如果 8 秒後還沒觸發 onend，我們就強行往下走！
                 clearTimeout(iosWatchdog);
