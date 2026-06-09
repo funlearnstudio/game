@@ -7155,91 +7155,122 @@ function getOrCreateUserId() {
             await saveToCloudNow();
         }
 
-      // ==========================================================================
-        // ☁️ 雲端資料讀取器 (進網頁時強行從 Google Sheets 撈回進度)
-        // ==========================================================================
-      // ==========================================================================
-        // ☁️ 雲端資料讀取器 (進網頁時強行從 Google Sheets 撈回進度 - 融入 init 優化版)
-        // ==========================================================================
-        // ==========================================================================
-        // ☁️ 雲端資料讀取器 (物理斷後、防鬼打牆覆蓋版)
-        // ==========================================================================
-       // ==========================================================================
-        // ☁️ 雲端資料讀取器 (安全記憶體、防死迴圈最終版)
-        // ==========================================================================
-        async function loadFromCloudNow() {
-            if (!window.GAS_API_URL || window.GAS_API_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
-                window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbyXmL3vHlSlqKRhKgzCCShpAVKceCwDSzH3yORQjkEgoXvKcW6eDoCoHJvt_6LWRvHA/exec";
-            }
+// ==========================================================================
+// ☁️ 雲端資料讀取器 (格式自動對齊、硬核財寶防空洞版)
+// ==========================================================================
+async function loadFromCloudNow() {
+    if (!window.GAS_API_URL || window.GAS_API_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
+        window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbyXmL3vHlSlqKRhKgzCCShpAVKceCwDSzH3yORQjkEgoXvKcW6eDoCoHJvt_6LWRvHA/exec";
+    }
 
-            const currentId = window.myUserId || (typeof myUserId !== 'undefined' ? myUserId : null) || localStorage.getItem('duo_username');
-            if (!currentId) return;
+    const currentId = window.myUserId || (typeof myUserId !== 'undefined' ? myUserId : null) || localStorage.getItem('duo_username');
+    if (!currentId || currentId.startsWith('user_')) {
+        console.log("⚠️ [讀取攔截] 臨時帳號或無 ID，跳過雲端載入。");
+        return;
+    }
 
-            window.myUserId = currentId;
-            if (typeof myUserId !== 'undefined') myUserId = currentId;
+    window.myUserId = currentId;
+    if (typeof myUserId !== 'undefined') myUserId = currentId;
 
-            // 加上 _ts 防止 iOS 瀏覽器惡意快取舊資料
-            const requestUrl = `${window.GAS_API_URL}?action=getUserData&userId=${encodeURIComponent(currentId)}&_ts=${Date.now()}`;
-            console.log(`🔍 [雲端讀取] 安全撈取中...`);
-
-            try {
-                const response = await fetch(requestUrl, { method: "GET" });
-                if (!response.ok) return;
-
-                const cloudData = await response.json();
-                
-                if (cloudData && cloudData.status !== "not_found" && !cloudData.status?.includes("error")) {
-                    console.log("📦 [雲端讀取] 拿到資料，開始安全注入...");
-
-                    // 🚨 [安全修正 1]：絕對不要用 delete 清空，直接溫和地把欄位覆蓋進去
-                    if (typeof userData !== 'undefined' && userData) {
-                        // 只覆蓋必要的遊戲進度資料，不摧毀物件本身
-                        userData.xp = cloudData.xp !== undefined ? cloudData.xp : userData.xp;
-                        userData.gems = cloudData.gems !== undefined ? cloudData.gems : userData.gems;
-                        userData.streak = cloudData.streak !== undefined ? cloudData.streak : userData.streak;
-                        userData.hearts = cloudData.hearts !== undefined ? cloudData.hearts : userData.hearts;
-                        userData.currentProgress = cloudData.currentProgress || userData.currentProgress;
-                        userData.lastUnit = cloudData.lastUnit || 1;
-                        userData.lastIdx = cloudData.lastIdx !== undefined ? cloudData.lastIdx : 0;
-                    } else {
-                        userData = cloudData;
-                    }
-                    window.userData = userData; 
-
-                    // 2. 解析進度
-                    const cloudUnit = parseInt(cloudData.lastUnit) || 1;
-                    const cloudIdx = cloudData.lastIdx !== undefined ? parseInt(cloudData.lastIdx) : 0;
-
-                    // 3. 🚨 [安全修正 2]：同步寫入硬碟，但先不要手動去呼叫 renderMap()，讓網頁原本的 init 流程自己去畫地圖！
-                    localStorage.setItem('duo_last_active_unit', cloudUnit);
-                    localStorage.setItem('duo_last_active_index', cloudIdx);
-                    localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
-
-                    // 4. 更新執行狀態
-                    if (typeof sessionState !== 'undefined' && sessionState) {
-                        sessionState.currentUnit = cloudUnit;
-                        sessionState.currentIndex = cloudIdx;
-                    }
-                    
-                    // 5. 阻斷 60 秒定時器的變更判定，防止剛進來就判定不同而又送出存檔
-                    if (typeof lastSyncedIndex !== 'undefined') {
-                        lastSyncedIndex = cloudIdx;
-                        if (typeof lastSyncedXp !== 'undefined') lastSyncedXp = userData.xp;
-                        if (typeof lastSyncedGems !== 'undefined') lastSyncedGems = userData.gems;
-                    }
-
-                    console.log("✅ [雲端同步成功] 數據對齊完畢，交回主流程渲染畫面！");
-                }
-            } catch (err) {
-                console.error("❌ [雲端讀取例外]:", err);
-            }
+    // 🛡️ [第一道防線] 讀取前，先緊急搶救本機歷史硬碟裡的真財寶，放在臨時變數，防止被等等的流程洗掉
+    let localBackupXp = 0;
+    try {
+        const localBackup = localStorage.getItem('duo_local_user_data');
+        if (localBackup) {
+            const parsedBackup = JSON.parse(localBackup);
+            if (parsedBackup && parsedBackup.xp) localBackupXp = parseInt(parsedBackup.xp) || 0;
         }
-        function saveToCloud() {
+    } catch (e) { console.log("讀取本機歷史備份異常", e); }
+
+    // 加上 _ts 防止 iOS 瀏覽器惡意快取舊資料
+    const requestUrl = `${window.GAS_API_URL}?action=getUserData&userId=${encodeURIComponent(currentId)}&_ts=${Date.now()}`;
+    console.log(`🔍 [雲端讀取] 正在幫玩家 "${currentId}" 從試算表討回真實財寶...`);
+
+    try {
+        const response = await fetch(requestUrl, { method: "GET" });
+        if (!response.ok) return;
+
+        const responseData = await response.json();
+        
+        if (responseData && responseData.status !== "not_found" && !responseData.status?.includes("error")) {
+            console.log("箱子開啟，成功調閱雲端資料！");
+
+            // 🎯 [核心修正] 自動解析格式：相容 responseData.userData 物件，或是 responseData 本身
+            let realCloudData = responseData.userData ? responseData.userData : responseData;
+            if (typeof realCloudData === 'string') {
+                try { realCloudData = JSON.parse(realCloudData); } catch(e){}
+            }
+
+            // 轉型確保
+            const cloudXp = realCloudData.xp !== undefined ? parseInt(realCloudData.xp) : 0;
+            const cloudGems = realCloudData.gems !== undefined ? parseInt(realCloudData.gems) : 100;
+
+            // 🚨 [第二道防線] 終極逆向防降級鎖：如果雲端撈出來的 XP 還不如本機備份的多（代表雲端此時傳回空白殼）
+            // 則立刻強行攔截，使用本機的高進度，保護財寶不被吞噬！
+            if (cloudXp < localBackupXp && localBackupXp > 0) {
+                console.warn(`🛑 [防禦大煞車] 雲端傳回的 XP (${cloudXp}) 居然小於本機備份 (${localBackupXp})！拒絕覆蓋！`);
+                // 從本機備份完整復原
+                userData = JSON.parse(localStorage.getItem('duo_local_user_data'));
+                window.userData = userData;
+                if (typeof updateUI === 'function') updateUI();
+                return; 
+            }
+
+            console.log(`💎 [對齊成功] 成功解鎖財寶：XP -> ${cloudXp}, 寶石 -> ${cloudGems}`);
+
+            // 3. 安全無損注入全域物件
+            if (typeof userData !== 'undefined' && userData) {
+                userData.xp = cloudXp;
+                userData.gems = cloudGems;
+                userData.streak = realCloudData.streak !== undefined ? parseInt(realCloudData.streak) : (userData.streak || 0);
+                userData.hearts = realCloudData.hearts !== undefined ? parseInt(realCloudData.hearts) : (userData.hearts || 5);
+                userData.currentProgress = realCloudData.currentProgress || userData.currentProgress || {};
+                userData.lastUnit = realCloudData.lastUnit !== undefined ? parseInt(realCloudData.lastUnit) : 1;
+                userData.lastIdx = realCloudData.lastIdx !== undefined ? parseInt(realCloudData.lastIdx) : 0;
+            } else {
+                userData = {
+                    xp: cloudXp,
+                    gems: cloudGems,
+                    streak: realCloudData.streak !== undefined ? parseInt(realCloudData.streak) : 0,
+                    hearts: realCloudData.hearts !== undefined ? parseInt(realCloudData.hearts) : 5,
+                    currentProgress: realCloudData.currentProgress || {},
+                    lastUnit: realCloudData.lastUnit !== undefined ? parseInt(realCloudData.lastUnit) : 1,
+                    lastIdx: realCloudData.lastIdx !== undefined ? parseInt(realCloudData.lastIdx) : 0
+                };
+            }
+            window.userData = userData; 
+
+            const cloudUnit = parseInt(userData.lastUnit) || 1;
+            const cloudIdx = parseInt(userData.lastIdx) || 0;
+
+            // 4. 同步寫入本機硬碟安全區
+            localStorage.setItem('duo_last_active_unit', cloudUnit);
+            localStorage.setItem('duo_last_active_index', cloudIdx);
             localStorage.setItem('duo_local_user_data', JSON.stringify(userData));
-            updateSyncStatus(false, "同步中...");
-            clearTimeout(saveToCloudTimer);
-            saveToCloudTimer = setTimeout(saveToCloudNow, 1500);
+
+            // 5. 更新執行狀態
+            if (typeof sessionState !== 'undefined' && sessionState) {
+                sessionState.currentUnit = cloudUnit;
+                sessionState.currentIndex = cloudIdx;
+            }
+            
+            // 6. 阻斷定時器的變更判定
+            if (typeof lastSyncedIndex !== 'undefined') {
+                lastSyncedIndex = cloudIdx;
+                if (typeof lastSyncedXp !== 'undefined') lastSyncedXp = userData.xp;
+                if (typeof lastSyncedGems !== 'undefined') lastSyncedGems = userData.gems;
+            }
+
+            console.log("✅ [雲端同步成功] 進度與財寶完美對齊，交回主流程！");
+            
+            // 立即刷新畫面數字，確保進網頁一瞬間財寶亮出來！
+            if (typeof updateUI === 'function') updateUI();
+            if (typeof renderMap === 'function') renderMap();
         }
+    } catch (err) {
+        console.error("❌ [雲端讀取例外]:", err);
+    }
+}
         // ==========================================
         // ⏳ 智慧存檔排程器 (防止短時間內瘋狂傳送給 Google)
         // ==========================================
