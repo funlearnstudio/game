@@ -197,25 +197,36 @@
             </div>
         </section>
 
-<section id="chat" class="tab-content">
-            <div class="glass-panel p-4 mb-4 flex items-center gap-3">
+<section id="chat" class="tab-content flex-col h-[calc(100vh-140px)] max-w-xl mx-auto p-2" style="display: none;">
+            
+            <div class="glass-panel p-3 mb-3 flex items-center gap-3 shrink-0">
                 <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Aria" class="w-12 h-12 rounded-full border-2 border-ai bg-purple-100">
                 <div>
-                    <h2 class="text-xl font-black">Aria 語音導師</h2>
+                    <h2 class="text-lg font-black text-gray-800 dark:text-white">Aria 語音導師</h2>
                     <p class="text-xs text-gray-400 font-bold">用語音跟我聊天，我會隨機考你造句！</p>
                 </div>
             </div>
-            <div class="glass-panel flex-1 mb-4 flex flex-col h-[380px] overflow-hidden">
-                <div id="chat-messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3"></div>
-                <div class="p-3 bg-gray-50/50 dark:bg-slate-800/50 border-t border-gray-100 dark:border-slate-700 flex items-center gap-2">
-                    <button id="chat-mic-btn" onclick="toggleChatMic()" class="w-12 h-12 rounded-full bg-gray-200 dark:bg-slate-700 text-gray-500 hover:text-ai transition-all text-xl flex items-center justify-center shrink-0">
+
+            <div class="glass-panel flex-1 mb-3 flex flex-col overflow-hidden border-2 border-purple-100 dark:border-slate-700 min-h-[300px]">
+                <div id="chat-messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-base"></div>
+                
+                <div class="p-3 bg-gray-50/70 dark:bg-slate-800/70 border-t border-gray-100 dark:border-slate-700 flex items-center gap-3 shrink-0">
+                    <button id="chat-mic-btn" onclick="toggleChatMic()" class="w-14 h-14 rounded-2xl bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-gray-200 hover:text-ai transition-all text-2xl flex items-center justify-center shrink-0 border-b-4 border-gray-300 dark:border-slate-900 active:translate-y-0.5 active:border-b-2">
                         <i class="fa-solid fa-microphone"></i>
                     </button>
-                    <input type="text" id="chat-input" placeholder="用語音或輸入回答..." class="flex-1 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-2xl px-4 py-3 font-bold text-gray-700 dark:text-white focus:outline-none focus:border-ai">
-                    <button onclick="sendChatMessage()" class="w-12 h-12 rounded-2xl bg-ai text-white flex items-center justify-center shrink-0 hover:bg-aiDark transition-colors shadow-sm text-xl"><i class="fa-solid fa-paper-plane"></i></button>
+                    
+                    <input type="text" id="chat-input" placeholder="用語音或輸入回答..." class="flex-1 h-14 bg-white dark:bg-slate-950 border-2 border-gray-200 dark:border-slate-800 rounded-2xl px-4 font-bold text-base text-gray-700 dark:text-white focus:outline-none focus:border-ai">
+                    
+                    <button onclick="sendChatMessage()" class="w-14 h-14 rounded-2xl bg-ai text-white flex items-center justify-center shrink-0 hover:bg-aiDark transition-colors shadow-md text-xl border-b-4 border-purple-800 active:translate-y-0.5 active:border-b-2">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
                 </div>
             </div>
-            <button onclick="startNewChatScenario()" class="btn-3d w-full bg-indigo-100 text-ai py-3 border border-indigo-200 shadow-sm text-lg font-black"><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>讓導師隨機出題</button>
+
+            <button onclick="startNewChatScenario()" class="btn-3d w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-4 shadow-[0_5px_0_#3730a3] text-base font-black tracking-wide shrink-0 rounded-2xl active:translate-y-1 active:shadow-[0_1px_0_#3730a3] transition-all flex items-center justify-center gap-2">
+                <i class="fa-solid fa-wand-magic-sparkles text-lg"></i>讓導師隨機出題
+            </button>
+            
         </section>
 
         <section id="dictionary" class="tab-content">
