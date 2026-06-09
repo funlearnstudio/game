@@ -7647,15 +7647,33 @@ function setupLessonWord() {
             }
         }
 
-        function handleGlobalKeydown(e) {
-            if(sessionState.mode !== 'test') return;
-            if(['1','2','3','4'].includes(e.key)) {
-                const btns = document.querySelectorAll('.mcq-btn');
-                if(btns[parseInt(e.key) - 1]) btns[parseInt(e.key) - 1].click();
+       function handleGlobalKeydown(e) {
+            // 🛡️ 基礎防護：如果 sessionState 是空的，直接退出防當機
+            if (!sessionState) return;
+            
+            // 🎯 情境 1：如果現在是「測驗模式 (test)」
+            if (sessionState.mode === 'test') {
+                if(['1','2','3','4'].includes(e.key)) {
+                    const btns = document.querySelectorAll('.mcq-btn');
+                    if(btns[parseInt(e.key) - 1]) btns[parseInt(e.key) - 1].click();
+                }
+                if(e.key === 'Enter') {
+                    const input = document.getElementById('spell-input');
+                    if(input) input.nextElementSibling.click();
+                }
             }
-            if(e.key === 'Enter') {
-                const input = document.getElementById('spell-input');
-                if(input) input.nextElementSibling.click();
+            
+            // 💬 情境 2：如果現在是「AI 聊天模式 (chat)」，或者游標正在聊天輸入框裡
+            if (sessionState.mode === 'chat' || document.activeElement.id === 'chat-input') {
+                if (e.key === 'Enter') {
+                    // 防止 Enter 鍵觸發畫面重新整理或其他按鈕
+                    e.preventDefault(); 
+                    
+                    // 呼叫你的送出函數
+                    if (typeof sendChatMessage === 'function') {
+                        sendChatMessage();
+                    }
+                }
             }
         }
 
