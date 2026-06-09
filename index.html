@@ -9043,12 +9043,15 @@ function setupLessonWord() {
         }
     </script>                                         
     <script>
-        (function() {
+       (function() {
             // ==========================================
             // 💾 1. 背景全自動存檔機 (每 1 秒備份，關網頁絕對不遺失)
             // ==========================================
             setInterval(() => {
-                if (typeof sessionState !== 'undefined' && sessionState.currentUnit && sessionState.currentIndex !== undefined) {
+                // 🛡️ 終極煞車系統：只要是 null 或 undefined，立刻退出，絕不往下走！
+                if (!sessionState) return; 
+
+                if (sessionState.currentUnit && sessionState.currentIndex !== undefined) {
                     const currentU = sessionState.currentUnit;
                     const currentI = sessionState.currentIndex;
                     
@@ -9086,7 +9089,8 @@ function setupLessonWord() {
                         const savedUnit = localStorage.getItem('duo_last_active_unit');
                         const savedIdx = localStorage.getItem('duo_last_active_index');
                         
-                        if (savedUnit && savedIdx && typeof vocabularyDB !== 'undefined' && typeof sessionState !== 'undefined') {
+                        // 🛡️ 同步修正：加上 !sessionState 的防禦
+                        if (savedUnit && savedIdx && typeof vocabularyDB !== 'undefined' && sessionState) {
                             const tu = parseInt(savedUnit);
                             let ti = parseInt(savedIdx);
                             let unitWords = vocabularyDB.filter(w => w.unit === tu);
@@ -9136,7 +9140,8 @@ function setupLessonWord() {
                         if (unitWords.length > 0 && ti >= unitWords.length) ti = 0;
         
                         if (unitWords.length > 0 && ti < unitWords.length) {
-                            if (typeof sessionState !== 'undefined') {
+                            // 🛡️ 同步修正：確保 sessionState 不是 null 才寫入
+                            if (sessionState) {
                                 sessionState.currentUnit = targetUnit;
                                 sessionState.unit = targetUnit;
                                 sessionState.currentWords = [...unitWords];
