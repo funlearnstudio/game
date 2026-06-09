@@ -9780,91 +9780,135 @@ function closeReport() {
                 window.updateAccountUI(); 
                 initUltimateLoginBridge(); // 強制綁定按鈕
             }, 600);
+        });// ==========================================================================
+        // 🔒 [iOS 安全防崩潰版] 全域帳號登入/登出系統 (絕不觸發無限重整)
+        // ==========================================================================
+
+        // 1. 最高全域權限：刷新介面，絕不重整網頁
+        window.updateAccountUI = function() {
+            const currentAccount = localStorage.getItem('duo_unique_user_id');
+            const loginBtn = document.getElementById('btn-login-trigger');
+            const logoutBtn = document.getElementById('btn-logout');
+            const accountTitle = document.getElementById('account-title');
+            const accountDesc = document.getElementById('account-desc');
+
+            const isRealLogin = currentAccount && 
+                                currentAccount !== 'null' && 
+                                currentAccount !== 'undefined' && 
+                                !currentAccount.startsWith('user_');
+
+            if (isRealLogin) {
+                if (loginBtn) loginBtn.classList.add('hidden');
+                if (logoutBtn) logoutBtn.classList.remove('hidden');
+                if (accountTitle) accountTitle.innerHTML = `<i class="fa-solid fa-user-check text-primary mr-1"></i> 帳號已綁定`;
+                if (accountDesc) accountDesc.innerHTML = `目前登入：<span class="text-primary font-black text-sm">${currentAccount}</span><br>您的進度已永久儲存至此設備`;
+            } else {
+                if (loginBtn) loginBtn.classList.remove('hidden');
+                if (logoutBtn) logoutBtn.classList.add('hidden');
+                if (accountTitle) accountTitle.innerHTML = `<i class="fa-solid fa-cloud-arrow-up text-secondary mr-1"></i> 多裝置進度同步`;
+                if (accountDesc) accountDesc.innerHTML = `登入專屬帳密，即可跨手機、電腦同步紀錄！`;
+            }
+        };
+
+        // 2. 強制接管登入彈窗的「確認登入」按鈕事件
+        function initUltimateLoginBridge() {
+            const loginModal = document.getElementById('login-modal');
+            if (!loginModal) return;
+
+            const usernameInput = loginModal.querySelector('input[type="text"]') || document.getElementById('login-username');
+            const submitBtn = loginModal.querySelector('button.bg-primary') || loginModal.querySelector('button[onclick*="Login"]') || loginModal.querySelector('button:not([onclick*="close"])');
+
+            if (submitBtn && usernameInput) {
+                console.log("🎯 [帳號系統] 已成功強制接管登入確認按鈕！");
+                
+                // 移除舊的 onclick，綁定全新的安全機制
+                submitBtn.removeAttribute('onclick'); 
+                
+                // 為了防範重複點擊，先拔掉舊的 listener 再加上新的
+                submitBtn.replaceWith(submitBtn.cloneNode(true));
+                const newSubmitBtn = loginModal.querySelector('button.bg-primary') || loginModal.querySelector('button[onclick*="Login"]') || loginModal.querySelector('button:not([onclick*="close"])');
+
+                newSubmitBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const inputUsername = usernameInput.value.trim();
+
+                    if (!inputUsername) {
+                        alert("❌ 請輸入帳號名稱！");
+                        return;
+                    }
+
+                    // 1. 寫入帳號
+                    localStorage.setItem('duo_unique_user_id', inputUsername);
+
+                    // 2. 處理或繼承舊資料，直接在記憶體修改，不重整網頁
+                    let currentLocalData = { xp: 0, gems: 0, level: 1, lastUnit: 1, lastIdx: 0, unlockedUnits: [1] };
+                    try {
+                        let cached = localStorage.getItem('userData') || localStorage.getItem('duo_local_user_data');
+                        if (cached) currentLocalData = JSON.parse(cached);
+                    } catch(err) {}
+
+                    localStorage.setItem('userData', JSON.stringify(currentLocalData));
+                    
+                    // 同步給執行中的全域變數
+                    if (typeof userData !== 'undefined') {
+                        Object.assign(userData, currentLocalData);
+                    } else {
+                        window.userData = currentLocalData;
+                    }
+
+                    // 3. 關閉彈窗並更新畫面
+                    loginModal.classList.add('hidden');
+                    if (typeof window.updateAccountUI === 'function') window.updateAccountUI();
+
+                    alert("🎉 歡迎回來，" + inputUsername + "！帳號已永久記住！");
+                    
+                    // 🚨 修正：不用 location.reload()，改用手動觸發初始化函數（如果有）
+                    if (typeof renderDashboard === 'function') renderDashboard();
+                    if (typeof initGame === 'function') initGame();
+                });
+            }
+        }
+
+        // 3. 溫和登出機制 (只重整一次，且給予足夠延遲，防範 iOS 判定為惡意重整)
+        window.handleLogout = function() {
+            if (confirm("⚠️ 確定要登出目前帳號嗎？\n\n登出後將切換回全新的本地訪客狀態。")) {
+                localStorage.removeItem('duo_unique_user_id');
+                localStorage.removeItem('duo_local_user_data');
+                localStorage.removeItem('userData');
+                localStorage.removeItem('duo_last_active_unit');
+                localStorage.removeItem('duo_last_active_index');
+                
+                const newVisitorId = 'user_' + Math.floor(100000 + Math.random() * 900000);
+                localStorage.setItem('duo_unique_user_id', newVisitorId);
+
+                alert("✅ 已成功登出！");
+                
+                // 延遲半秒再重整，給手機緩衝時間，才不會跳出黑畫面錯誤
+                setTimeout(() => {
+                    location.reload();
+                }, 500);
+            }
+        };
+
+        // 4. 安全監控：每一秒檢查一次帳號是否健在即可，不使用高頻率 0.1 秒的 setInterval
+        setInterval(() => {
+            const savedAccount = localStorage.getItem('duo_unique_user_id');
+            if (savedAccount && !savedAccount.startsWith('user_') && savedAccount !== 'null' && savedAccount !== 'undefined') {
+                const current = localStorage.getItem('duo_unique_user_id');
+                if (!current || current.startsWith('user_')) {
+                    localStorage.setItem('duo_unique_user_id', savedAccount);
+                    window.updateAccountUI();
+                }
+            }
+        }, 1000);
+
+        // 5. 網頁開啟時，溫和初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => { 
+                window.updateAccountUI(); 
+                initUltimateLoginBridge();
+            }, 800);
         });
-        // ==========================================================================
-        // 🛡️ [定時存檔機防火牆] 徹底解決 sessionState 讀取 currentUnit 為 null 的崩潰問題
-        // ==========================================================================
-        (function() {
-            // 1. 強制確保全域環境中有一個不為 null 的安全 sessionState 分身
-            if (typeof window.sessionState === 'undefined' || window.sessionState === null) {
-                window.sessionState = {
-                    currentIndex: 0,
-                    currentUnit: 1,
-                    currentWords: []
-                };
-            }
-
-            // 2. 使用 JavaScript Proxy (代理守護盾)，全面監控並拦截對 sessionState 的錯誤讀取
-            // 就算舊的定時器程式碼在任何時間點抓取它，都絕對不會因為讀到 null 而當機
-            let rawSession = window.sessionState || {};
-            
-            // 如果原本是 null，強制重設為安全空物件
-            if (rawSession === null || typeof rawSession !== 'object') {
-                rawSession = { currentIndex: 0, currentUnit: 1, currentWords: [] };
-            }
-
-            window.sessionState = new Proxy(rawSession, {
-                get: function(target, prop) {
-                    // 如果其他程式碼（如定時存檔機）來要 currentUnit 或 currentIndex，但目前沒資料
-                    if (prop === 'currentUnit' && (target[prop] === undefined || target[prop] === null)) {
-                        return 1; // 預防性給予預設第 1 單元
-                    }
-                    if (prop === 'currentIndex' && (target[prop] === undefined || target[prop] === null)) {
-                        return 0; // 預防性給予預設第 0 個字
-                    }
-                    if (prop === 'currentWords' && !Array.isArray(target[prop])) {
-                        return []; // 預防性給予空陣列
-                    }
-                    return target[prop];
-                },
-                set: function(target, prop, value) {
-                    target[prop] = value;
-                    return true;
-                }
-            });
-
-            console.log("🛡️ [定時存檔防火牆] 已成功啟動！已自動阻斷 sessionState.currentUnit 的 null 讀取崩潰。");
-        })();
-        // ==========================================================================
-        // 🚨 [手機防當機防護盾] 強行轟炸所有惡性背景迴圈，釋放手機記憶體
-        // ==========================================================================
-        (function() {
-            console.log("⚡ [防當機守護者] 啟動！正在掃描並清理網頁中的高負載定時器...");
-
-            // 1. 暴力清除開局前可能被重複註冊的舊定時器（清除前 1000 個可能存在的 Interval）
-            // 很多時候手機會卡死，就是因為多個每秒執行的定時器疊加在一起，把 CPU 塞爆了
-            try {
-                // 取得一個最高的定時器 ID
-                let highestTimeoutId = setTimeout(";");
-                for (let i = 0 ; i < highestTimeoutId ; i++) {
-                    // 留著我們剛剛在最底下寫的全新安全機制，其他舊的、不知名的一律殺死
-                    // 通常大於 9000 行的專案裡，舊的定時器 ID 會比較小
-                    if (i < highestTimeoutId - 10) { 
-                        clearInterval(i);
-                        clearTimeout(i);
-                    }
-                }
-                console.log("🗑️ 已成功強制釋放舊的背景線程，手機 CPU 已降溫。");
-            } catch (e) {
-                console.error("清理定時器時發生小插曲，已跳過：", e);
-            }
-
-            // 2. 為了防止手機因為記憶體不足而當機，強制限制雲端定時檢查的頻率
-            // 重新註冊一個絕對安全、每 60 秒才輕量執行一次的存檔檢查
-            setInterval(() => {
-                if (typeof userData !== 'undefined' && userData !== null) {
-                    // 只有在資料真的有變動時才呼叫，絕不浪費手機效能
-                    if (typeof scheduleCloudSync === 'function') {
-                        // 使用 requestAnimationFrame 讓瀏覽器在有空閒時才執行，絕對不卡畫面
-                        requestAnimationFrame(() => {
-                            try {
-                                if (typeof window.updateAccountUI === 'function') window.updateAccountUI();
-                            } catch(err){}
-                        });
-                    }
-                }
-            }, 60000); // 嚴格限制 60 秒，不對手機造成硬體負擔
-        })();
         // ⚠️ 💡 貼心提醒：
         // 請確保你的「雲端登入讀取成功」的那個 function (例如 handleLoginSubmit 或 fetch 完資料的地方)，
         // 成功載入資料後，有呼叫一次 `updateAccountUI();` ，畫面上的帳號就會瞬間變身！
