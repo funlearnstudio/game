@@ -9067,33 +9067,34 @@ function setupLessonWord() {
         })();
 
         // 🚀 網頁開機自動登入檢查器
-        async function checkAutoLogin() {
-            const savedUser = localStorage.getItem('duo_remember_username');
-            const savedPass = localStorage.getItem('duo_remember_password');
-            
-            if (savedUser && savedPass) {
-                myUserId = savedUser + "_" + savedPass;
-                localStorage.setItem('duo_unique_user_id', myUserId);
-                
-                const triggerBtn = document.getElementById('btn-login-trigger');
-                if(triggerBtn) triggerBtn.classList.add('hidden');
-                
-                if (typeof loadDataFromCloud === 'function') {
-                    await loadDataFromCloud();
-                }
-            } else {
-                console.log("【自動登入】本機尚無儲存的帳密憑證。");
-                if (typeof updateUI === 'function') updateUI();
-                if (typeof renderMap === 'function') renderMap();
-            }
+      // 🚀 網頁開機自動登入檢查器 (完美與雲端資料庫名稱對齊版)
+async function checkAutoLogin() {
+    const savedUser = localStorage.getItem('duo_remember_username');
+    const savedPass = localStorage.getItem('duo_remember_password');
+    
+    if (savedUser && savedPass) {
+        // 🎯 核心修正：myUserId 直接等於使用者帳號，絕對不要用底線加密碼，否則跟雲端欄位對不上有分裂新帳號！
+        myUserId = savedUser.trim(); 
+        
+        // 同步填滿本機所有的鎖孔
+        localStorage.setItem('duo_unique_user_id', myUserId);
+        localStorage.setItem('duo_username', myUserId);
+        
+        const triggerBtn = document.getElementById('btn-login-trigger');
+        if(triggerBtn) triggerBtn.classList.add('hidden');
+        
+        // 確保精準呼叫雲端撈取
+        if (typeof loadDataFromCloud === 'function') {
+            await loadDataFromCloud();
+        } else if (typeof loadFromCloudNow === 'function') {
+            await loadFromCloudNow(); // 相容你的主函式
         }
-
-        // 確保以最快速度掛載登入檢查
-        if (document.readyState === "loading") {
-            document.addEventListener("DOMContentLoaded", checkAutoLogin);
-        } else {
-            checkAutoLogin();
-        }
+    } else {
+        console.log("【自動登入】本機尚無儲存的帳密憑證。");
+        if (typeof updateUI === 'function') updateUI();
+        if (typeof renderMap === 'function') renderMap();
+    }
+}
     </script>                                         
     <script>
        (function() {
