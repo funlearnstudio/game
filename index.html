@@ -197,36 +197,39 @@
             </div>
         </section>
 
-<section id="chat" class="tab-content max-w-xl mx-auto p-2" style="display: none; height: calc(100vh - 150px); display: flex; flex-direction: column;">
+<section id="chat" class="tab-content max-w-xl mx-auto p-2" style="display: none;">
             
-            <div class="glass-panel p-3 mb-3 flex items-center gap-3 shrink-0 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700">
-                <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Aria" class="w-12 h-12 rounded-full border-2 border-ai bg-purple-100">
-                <div>
-                    <h2 class="text-base font-black text-gray-800 dark:text-white">Aria 語音導師</h2>
-                    <p class="text-xs text-gray-400 font-bold">用語音跟我聊天，我會隨機考你造句！</p>
-                </div>
-            </div>
-
-            <div class="glass-panel mb-3 flex flex-col overflow-hidden border-2 border-purple-100 dark:border-slate-700 bg-white/50 dark:bg-slate-900/50 rounded-2xl" style="flex: 1 1 auto; min-height: 200px;">
-                <div id="chat-messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-base"></div>
+            <div class="flex flex-col w-full" style="height: calc(100vh - 160px);">
                 
-                <div class="p-3 bg-gray-50/70 dark:bg-slate-800/70 border-t border-gray-100 dark:border-slate-700 flex items-center gap-3 shrink-0">
-                    <button id="chat-mic-btn" onclick="toggleChatMic()" class="w-14 h-14 rounded-2xl bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-gray-200 hover:text-ai transition-all text-2xl flex items-center justify-center shrink-0 border-b-4 border-gray-300 dark:border-slate-900 active:translate-y-0.5 active:border-b-2">
-                        <i class="fa-solid fa-microphone"></i>
-                    </button>
-                    
-                    <input type="text" id="chat-input" placeholder="用語音或輸入回答..." class="flex-1 h-14 bg-white dark:bg-slate-950 border-2 border-gray-200 dark:border-slate-800 rounded-2xl px-4 font-bold text-base text-gray-700 dark:text-white focus:outline-none focus:border-ai">
-                    
-                    <button onclick="sendChatMessage()" class="w-14 h-14 rounded-2xl bg-ai text-white flex items-center justify-center shrink-0 hover:bg-aiDark transition-colors shadow-md text-xl border-b-4 border-purple-800 active:translate-y-0.5 active:border-b-2">
-                        <i class="fa-solid fa-paper-plane"></i>
-                    </button>
+                <div class="glass-panel p-3 mb-3 flex items-center gap-3 shrink-0 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm">
+                    <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Aria" class="w-12 h-12 rounded-full border-2 border-ai bg-purple-100">
+                    <div>
+                        <h2 class="text-base font-black text-gray-800 dark:text-white">Aria 語音導師</h2>
+                        <p class="text-xs text-gray-400 font-bold">用語音跟我聊天，我會隨機考你造句！</p>
+                    </div>
                 </div>
-            </div>
 
-            <button onclick="startNewChatScenario()" class="btn-3d w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-4 shadow-[0_4px_0_#3730a3] text-base font-black tracking-wide shrink-0 rounded-2xl active:translate-y-1 active:shadow-[0_1px_0_#3730a3] transition-all flex items-center justify-center gap-2">
-                <i class="fa-solid fa-wand-magic-sparkles text-lg"></i>讓導師隨機出題
-            </button>
-            
+                <div class="glass-panel mb-3 flex flex-col overflow-hidden border-2 border-purple-100 dark:border-slate-700 bg-white/50 dark:bg-slate-900/50 rounded-2xl" style="flex: 1 1 auto; min-height: 200px;">
+                    <div id="chat-messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-base"></div>
+                    
+                    <div class="p-3 bg-gray-50/70 dark:bg-slate-800/70 border-t border-gray-100 dark:border-slate-700 flex items-center gap-3 shrink-0">
+                        <button id="chat-mic-btn" onclick="toggleChatMic()" class="w-14 h-14 rounded-2xl bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-gray-200 hover:text-ai transition-all text-2xl flex items-center justify-center shrink-0 border-b-4 border-gray-300 dark:border-slate-900 active:translate-y-0.5 active:border-b-2">
+                            <i class="fa-solid fa-microphone"></i>
+                        </button>
+                        
+                        <input type="text" id="chat-input" placeholder="用語音或輸入回答..." class="flex-1 h-14 bg-white dark:bg-slate-950 border-2 border-gray-200 dark:border-slate-800 rounded-2xl px-4 font-bold text-base text-gray-700 dark:text-white focus:outline-none focus:border-ai">
+                        
+                        <button onclick="sendChatMessage()" class="w-14 h-14 rounded-2xl bg-ai text-white flex items-center justify-center shrink-0 hover:bg-aiDark transition-colors shadow-md text-xl border-b-4 border-purple-800 active:translate-y-0.5 active:border-b-2">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button onclick="startNewChatScenario()" class="btn-3d w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-4 shadow-[0_4px_0_#3730a3] text-base font-black tracking-wide shrink-0 rounded-2xl active:translate-y-1 active:shadow-[0_1px_0_#3730a3] transition-all flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles text-lg"></i>讓導師隨機出題
+                </button>
+                
+            </div>
         </section>
 
         <section id="dictionary" class="tab-content">
@@ -8051,55 +8054,95 @@ function setupLessonWord() {
                 playAudioEffect('resume');
             }
 
-            // 2. 🎯 【動態等級偵測】：找出玩家目前在哪個 Level
-            let userLevel = 1; // 預設第一級
+            // 2. 🎯 【動態單元與等級偵測】：優先找出玩家目前在哪個單元 (Unit) 
+            let userUnit = 1;
+            if (typeof sessionState !== 'undefined' && sessionState?.currentUnit) {
+                userUnit = sessionState.currentUnit;
+            } else if (typeof userData !== 'undefined' && userData?.lastUnit) {
+                userUnit = userData.lastUnit;
+            } else {
+                userUnit = parseInt(localStorage.getItem('duo_last_active_unit') || 1);
+            }
+
+            let userLevel = 1;
             if (typeof userData !== 'undefined' && userData && userData.level) {
                 userLevel = userData.level;
             } else if (typeof currentLevel !== 'undefined') {
                 userLevel = currentLevel;
             }
 
-            let currentLevelName = `Level ${userLevel}`;
             let targetWord = "";
             let targetMeaning = "";
 
-            console.log(`🔍 [AI 導師] 正在為您檢索整個 ${currentLevelName} 的單字庫...`);
+            console.log(`🔍 [AI 導師] 正在為您精準檢索第 ${userUnit} 單元的單字庫...`);
 
-            // 3. 📚 【全等級海選演算法】：從資料庫裡撈出「所有」符合這個等級的單字
+            // 3. 📚 【修正版：全單字海選演算法】：對齊你系統真正的欄位名稱 (unit / english / chinese)
             let poolOfWords = [];
 
-            if (typeof vocabularyDB !== 'undefined' && Array.isArray(vocabularyDB)) {
-                // 方案 A：檢查全域單字庫 vocabularyDB
-                poolOfWords = vocabularyDB.filter(w => parseInt(w.level) === parseInt(userLevel) || parseInt(w.stage) === parseInt(userLevel));
+            // 優先方案 A：直接抓目前正在玩的關卡單字庫 (最精準，絕對不會漏接)
+            if (typeof sessionState !== 'undefined' && sessionState && Array.isArray(sessionState.currentWords) && sessionState.currentWords.length > 0) {
+                poolOfWords = sessionState.currentWords;
+                console.log("🎯 [AI 導師] 成功從當前關卡 sessionState 抓取字池！");
             } 
             
-            if (poolOfWords.length === 0 && typeof sessionState !== 'undefined' && sessionState && sessionState.currentWords) {
-                // 方案 B：如果全域庫沒撈到，就拿當前關卡群組裡的所有字當字池
-                poolOfWords = sessionState.currentWords;
+            // 備用方案 B：如果關卡庫是空的，去全域 vocabularyDB 撈符合目前單元或等級的字
+            if (poolOfWords.length === 0 && typeof vocabularyDB !== 'undefined' && Array.isArray(vocabularyDB)) {
+                poolOfWords = vocabularyDB.filter(w => 
+                    parseInt(w.unit) === parseInt(userUnit) || 
+                    parseInt(w.level) === parseInt(userLevel) ||
+                    parseInt(w.stage) === parseInt(userLevel)
+                );
+                console.log(`📚 [AI 導師] 從全域資料庫撈出第 ${userUnit} 單元的單字共 ${poolOfWords.length} 個。`);
             }
 
-            // 4. 🎲 【隨機抽籤】：如果成功抓到整個等級的字池，隨機盲抽一個字！
+            // 4. 🎲 【隨機抽籤】：對齊真正欄位 english / chinese
             if (poolOfWords && poolOfWords.length > 0) {
                 const randomIndex = Math.floor(Math.random() * poolOfWords.length);
                 const chosenObj = poolOfWords[randomIndex];
                 
-                targetWord = chosenObj.word || "";
-                targetMeaning = chosenObj.meaning || chosenObj.translation || chosenObj.ch || "";
+                // 🛡️ 核心修正：精準對齊你的物件屬性名稱
+                targetWord = chosenObj.english || chosenObj.word || "";
+                targetMeaning = chosenObj.chinese || chosenObj.meaning || chosenObj.translation || chosenObj.ch || "";
                 
-                console.log(`🎲 [🎲整個等級隨機抽考] 成功從 ${poolOfWords.length} 個字中抽中：[${targetWord}] (${targetMeaning})`);
+                console.log(`🎲 [隨機抽考成功] 抽中單字：[${targetWord}] (${targetMeaning})`);
             } else {
-                // 備用安全牌（防呆）：萬一真的搞丟字庫，拿畫面上的字頂替
-                const fallbackEl = document.getElementById('lesson-word');
-                targetWord = fallbackEl ? fallbackEl.innerText : "desk";
-                targetMeaning = "書桌";
-                console.warn("⚠️ 找不到全等級字庫，啟動備用防呆機制。");
+                // 最終保險防呆：如果真的都沒抓到，抓畫面上目前正在背的字
+                const fallbackEl = document.getElementById('lesson-word') || document.querySelector('.word-text');
+                targetWord = fallbackEl ? fallbackEl.innerText.trim() : "experience";
+                targetMeaning = "經驗";
+                console.warn("⚠️ 找不到單字庫，啟動目前畫面單字抓取機制：" + targetWord);
             }
 
             if (!targetWord) {
-                showToast("⚠️ 抽考機制發生錯誤，請稍後再試！");
+                if (typeof showToast === 'function') showToast("⚠️ 抽考機制發生錯誤，請稍後再試！");
                 return;
             }
 
+            // ==========================================================================
+            // 🤖 5. 發送給 AI 的最高權限對話指令 (Prompt) 
+            // ==========================================================================
+            // 把抽到的單字強制寫進全域變使，讓隨後的對話評分機制 (sendChatMessage) 也能共享
+            window.aiTargetWord = targetWord;
+            window.aiTargetMeaning = targetMeaning;
+
+            const chatMessagesContainer = document.getElementById('chat-messages');
+            if (chatMessagesContainer) {
+                chatMessagesContainer.innerHTML = `
+                    <div class="flex gap-2 items-start justify-start animate-fade-in">
+                        <div class="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center text-lg shrink-0">🤖</div>
+                        <div class="bg-white border border-gray-100 dark:bg-slate-800 dark:border-slate-700 text-gray-800 dark:text-white px-4 py-2.5 rounded-2xl rounded-tl-none font-bold text-sm shadow-sm max-w-[85%]">
+                            <span class="text-xs text-purple-500 block mb-1">✨ Aria 隨機出題</span>
+                            我們來練習這個單字：<b class="text-purple-600 dark:text-purple-400 text-base underline mx-0.5">${targetWord}</b> (${targetMeaning})。<br><br>
+                            請用這個單字說一句簡單的英文句子回答我吧！
+                        </div>
+                    </div>
+                `;
+                chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+            }
+
+            // 如果你原本底層有呼叫 API (例如 fetch / openai / gemini) 的代碼，請接著放在這下面
+            // 確保把 window.aiTargetWord 傳給你的 AI 即可！
+}
             // 5. 📝 【AI 導師出題劇本】：包裝成高質感的雙語對話
             // 提示字會包含中文翻譯，讓玩家造句時有畫面！
             const displayChineseHint = targetMeaning ? `（${targetMeaning}）` : "";
