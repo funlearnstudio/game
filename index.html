@@ -7066,15 +7066,31 @@ window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbyXmL3vHlSlqKRhKgz
         // ==========================================
         // 🚀 3. 系統初始化與生命週期
         // ==========================================
-        function getOrCreateUserId() {
-            let id = localStorage.getItem('duo_unique_user_id');
-            if (!id) {
-                id = 'user_' + new Date().getTime() + '_' + Math.floor(Math.random() * 10000);
-                localStorage.setItem('duo_unique_user_id', id);
-            }
-            return id;
-        }
-
+     // ==========================================================================
+// 🛡️ 唯一身份證守門員（歷史Key相容、絕對不重複繁殖版）
+// ==========================================================================
+function getOrCreateUserId() {
+    // 1. 同時偵測兩種可能存在的舊 Key 名稱
+    let id = localStorage.getItem('duo_unique_user_id') || localStorage.getItem('duo_username');
+    
+    // ✅ 2. 發現老玩家！雙重保險：把兩邊的 Key 都塞滿同一個 ID，絕對不再讓別的函式漏接！
+    if (id && id.trim() !== "") {
+        const cleanedId = id.trim();
+        localStorage.setItem('duo_unique_user_id', cleanedId);
+        localStorage.setItem('duo_username', cleanedId);
+        return cleanedId; 
+    }
+    
+    // 🎯 3. 只有當兩邊都空空如也（真的是超純新玩家）時，才核發全新 ID
+    id = 'user_' + new Date().getTime() + '_' + Math.floor(Math.random() * 10000);
+    
+    // 同步鎖死本機記憶體，把所有可能被讀取的「鎖孔」通通補滿
+    localStorage.setItem('duo_unique_user_id', id);
+    localStorage.setItem('duo_username', id);
+    
+    console.log("✨ [全新裝置登入] 已核發唯一身份證，並同步雙重綁定本機：", id);
+    return id;
+}
         async function init() {
             console.log("🚀 7000 單字終極蛇形地圖系統初始化中... (已裝入重啟防閃爍防火牆)");
             
