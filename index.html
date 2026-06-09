@@ -9927,6 +9927,65 @@ function closeReport() {
                 initUltimateLoginBridge();
             }, 800);
         });
+        // ==========================================================================
+        // 📺 [AI導師畫面強制顯示修復盾] 解決點擊按鈕卻沒有秀出畫面的問題
+        // ==========================================================================
+        (function() {
+            console.log("📺 [畫面守護者] 正在監聽底部導覽列，確保 AI 導師畫面能正常秀出...");
+
+            // 負責強制切換畫面的核心函數
+            function forceShowAiChatPage() {
+                console.log("⚡ [畫面守護者] 收到指令！正在強力驅逐隱藏狀態，強制秀出 AI 導師畫面...");
+
+                // 1. 找出所有的分頁內容區塊，先把大家都藏起來
+                const allTabs = document.querySelectorAll('.tab-content, section');
+                allTabs.forEach(tab => {
+                    if (tab.id === 'chat') {
+                        // 2. 唯獨讓 AI 導師區塊用 flex 佈局完美秀出來！
+                        tab.style.setProperty('display', 'flex', 'important');
+                        tab.classList.remove('hidden');
+                    } else if (tab.id) {
+                        // 其他有 id 的分頁一律好好的隱藏
+                        tab.style.setProperty('display', 'none', 'important');
+                    }
+                });
+
+                // 3. 順便幫底部的「AI導師」按鈕加上亮起來的高亮綠色 Class (對齊你的 UI)
+                const allNavButtons = document.querySelectorAll('footer button, nav button, .bottom-nav button');
+                allNavButtons.forEach(btn => {
+                    if (btn.innerText.includes('AI導師') || btn.innerHTML.includes('fa-robot') || btn.innerHTML.includes('AI')) {
+                        btn.classList.add('text-green-500', 'text-ai'); // 讓圖示變綠
+                    } else {
+                        btn.classList.remove('text-green-500', 'text-ai');
+                    }
+                });
+
+                // 4. 畫面秀出來後，自動觸發一次隨機出題，確保裡面不是空的
+                if (typeof startNewChatScenario === 'function') {
+                    // 給手機 100 毫秒的畫面渲染緩衝時間再出題
+                    setTimeout(() => { startNewChatScenario(); }, 100);
+                }
+            }
+
+            // 監聽網頁上的點擊事件
+            document.addEventListener('click', function(e) {
+                // 如果玩家點擊的按鈕是「AI導師」（不論是點到文字、圖示還是按鈕本體）
+                const target = e.target;
+                const isAiButton = target.closest('button') && (
+                    target.closest('button').innerText.includes('AI導師') || 
+                    target.closest('button').innerHTML.includes('fa-robot') ||
+                    target.closest('button').id === 'nav-chat'
+                );
+
+                if (isAiButton) {
+                    // 攔截原本可能壞掉的分頁邏輯，執行我們的強制顯示大絕招
+                    forceShowAiChatPage();
+                }
+            });
+
+            // 雙重保險：如果網頁開局網址後綴有指定，或者舊 JS 有呼叫，全域掛載此函數
+            window.forceShowAiChatPage = forceShowAiChatPage;
+        })();
         // ⚠️ 💡 貼心提醒：
         // 請確保你的「雲端登入讀取成功」的那個 function (例如 handleLoginSubmit 或 fetch 完資料的地方)，
         // 成功載入資料後，有呼叫一次 `updateAccountUI();` ，畫面上的帳號就會瞬間變身！
