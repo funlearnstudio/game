@@ -9349,36 +9349,44 @@ function setupLessonWord() {
        // ==========================================
         // 🚀 3. 開局強制存檔 (進網頁 3 秒後自動觸發一次)
         // ==========================================
-        setTimeout(() => {
-            // 防禦: userData 必須存在且不為 null
-            if (typeof userData === 'undefined' || userData === null) return;
+       setTimeout(() => {
+    // 🛡️ 防禦 1: userData 必須存在且不為 null
+    if (typeof userData === 'undefined' || userData === null) return;
 
-            console.log("🚀 [開局存檔] 玩家載入完成，執行第一次強制雲端同步！");
+    // 🛡️ 終極防禦 2：檢查目前的 ID 是否為合法的真實帳號（例如 "lin"）
+    // 如果還是臨時隨機 ID (開頭為 user_)，代表雲端還沒認證對齊成功，直接依法攔截，不准搶跑存檔！
+    const currentCheckId = window.myUserId || localStorage.getItem('duo_username') || '';
+    if (!currentCheckId || currentCheckId.startsWith('user_')) {
+        console.log("🛑 [防禦攔截] 雲端真實帳號尚未對齊或仍為臨時 ID，依法攔截開局存檔，防止帳號自我繁殖！");
+        return;
+    }
 
-            // 🛡️ 終極防禦：使用問號 (?.) 語法，就算 sessionState 是 null 也不會當機
-            let currentIdx = (typeof sessionState !== 'undefined' && sessionState?.currentIndex) 
-                             || userData?.lastIdx 
-                             || parseInt(localStorage.getItem('duo_last_active_index') || 0);
+    console.log("🚀 [開局存檔] 真實帳號識別成功，準備執行第一次安全雲端同步...");
 
-            let currentU = (typeof sessionState !== 'undefined' && (sessionState?.currentUnit || sessionState?.unit)) 
-                           || userData?.lastUnit 
-                           || parseInt(localStorage.getItem('duo_last_active_unit') || 1);
+    // 🛡️ 終極防禦：使用問號 (?.) 語法，就算 sessionState 是 null 也不會當機
+    let currentIdx = (typeof sessionState !== 'undefined' && sessionState?.currentIndex) 
+                     || userData?.lastIdx 
+                     || parseInt(localStorage.getItem('duo_last_active_index') || 0);
 
-            userData.lastUnit = currentU;
-            userData.lastIdx = currentIdx;
+    let currentU = (typeof sessionState !== 'undefined' && (sessionState?.currentUnit || sessionState?.unit)) 
+                   || userData?.lastUnit 
+                   || parseInt(localStorage.getItem('duo_last_active_unit') || 1);
 
-            // 🎯 核心修正：精準呼叫對應的 saveToCloudNow() 函數
-            if (typeof saveToCloudNow === 'function') {
-                saveToCloudNow();
-            } else if (typeof scheduleCloudSync === 'function') {
-                scheduleCloudSync(); // 備用方案
-            }
-            
-            lastSyncedXp = userData.xp;
-            lastSyncedGems = userData.gems;
-            lastSyncedIndex = currentIdx;
-            
-        }, 3000); // 延遲 3 秒
+    userData.lastUnit = currentU;
+    userData.lastIdx = currentIdx;
+
+    // 🎯 核心修正：精準呼召對應的 saveToCloudNow() 函數
+    if (typeof saveToCloudNow === 'function') {
+        saveToCloudNow();
+    } else if (typeof scheduleCloudSync === 'function') {
+        scheduleCloudSync(); // 備用方案
+    }
+    
+    if (typeof lastSyncedXp !== 'undefined') lastSyncedXp = userData.xp;
+    if (typeof lastSyncedGems !== 'undefined') lastSyncedGems = userData.gems;
+    if (typeof lastSyncedIndex !== 'undefined') lastSyncedIndex = currentIdx;
+    
+}, 3000); // 延遲 3 秒
         // ==========================================================================
 // 📄 補上失蹤的按鈕函數：點擊「存檔並返回」時觸發 (自動晉級 Google 升級版)
 // ==========================================================================
